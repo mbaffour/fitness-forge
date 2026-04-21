@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head><title>Generate Icons</title></head>
+<body>
+<p>Click the buttons below to download your PWA icons, then place them in the <code>icons/</code> folder.</p>
+<canvas id="c192" width="192" height="192" style="border:1px solid #ccc"></canvas>
+<canvas id="c512" width="512" height="512" style="display:none"></canvas>
+<br><br>
+<button onclick="gen(192)">Download icon-192.png</button>
+<button onclick="gen(512)">Download icon-512.png</button>
+<script>
+function drawIcon(canvas) {
+  const ctx = canvas.getContext('2d');
+  const s = canvas.width;
+  // Background
+  ctx.fillStyle = '#ff6b1a';
+  ctx.beginPath();
+  ctx.roundRect(0, 0, s, s, s * 0.18);
+  ctx.fill();
+  // Flame emoji
+  ctx.font = `bold ${s * 0.55}px serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🔥', s / 2, s / 2);
+  // "FF" text
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.font = `bold ${s * 0.16}px 'Barlow Condensed', sans-serif`;
+  ctx.fillText('FITNESS FORGE', s / 2, s * 0.84);
+}
+function gen(size) {
+  const canvas = document.getElementById('c' + size);
+  drawIcon(canvas);
+  canvas.toBlob(blob => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `icon-${size}.png`;
+    a.click();
+  });
+}
+// Draw preview
+drawIcon(document.getElementById('c192'));
+</script>
+</body>
+</html>
