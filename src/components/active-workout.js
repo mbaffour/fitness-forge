@@ -11,6 +11,106 @@ let sessionState = null;  // current in-progress session
 let timerInterval = null;
 let startTime     = null;
 
+// ── REST TIMER ──
+let restInterval  = null;
+let restTimeLeft  = 0;
+let restPaused    = false;
+
+function startRestTimer(seconds) {
+  clearInterval(restInterval);
+  restTimeLeft = seconds;
+  restPaused   = false;
+  renderRestBar();
+  restInterval = setInterval(tickRest, 1000);
+}
+
+function tickRest() {
+  if (restPaused) return;
+  restTimeLeft--;
+  if (restTimeLeft <= 0) {
+    clearInterval(restInterval);
+    restInterval = null;
+    playBeep();
+    const bar = document.getElementById('rest-timer-bar');
+    if (bar) {
+      bar.innerHTML = `<span class="rest-done-flash">REST DONE — GO! 🔥</span>`;
+      setTimeout(() => bar?.remove(), 1800);
+    }
+    return;
+  }
+  updateRestBar();
+}
+
+function renderRestBar() {
+  let bar = document.getElementById('rest-timer-bar');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'rest-timer-bar';
+    bar.className = 'rest-timer-bar';
+    document.body.appendChild(bar);
+  }
+  updateRestBar();
+}
+
+function updateRestBar() {
+  const bar = document.getElementById('rest-timer-bar');
+  if (!bar) return;
+  const urgent = restTimeLeft <= 10;
+  bar.className = 'rest-timer-bar' + (urgent ? ' urgent' : '');
+  const m = Math.floor(restTimeLeft / 60);
+  const s = restTimeLeft % 60;
+  const display = m > 0 ? `${m}:${pad(s)}` : `${restTimeLeft}`;
+  bar.innerHTML = `
+    <div>
+      <div class="rest-label">Rest Timer</div>
+      <div class="rest-countdown" id="rest-cd">${display}</div>
+    </div>
+    <div class="rest-controls">
+      <button class="rest-btn" onclick="toggleRestPause()">${restPaused ? '▶ Resume' : '⏸ Pause'}</button>
+      <button class="rest-btn" onclick="adjustRest(30)">+30s</button>
+      <button class="rest-btn" onclick="adjustRest(-15)">−15s</button>
+      <button class="rest-btn rest-skip" onclick="skipRest()">Skip ✕</button>
+    </div>
+  `;
+}
+
+function stopRestTimer() {
+  clearInterval(restInterval);
+  restInterval = null;
+  document.getElementById('rest-timer-bar')?.remove();
+}
+
+function playBeep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const beep = (freq, start, duration) => {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = freq;
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0.3, ctx.currentTime + start);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + duration);
+      osc.start(ctx.currentTime + start);
+      osc.stop(ctx.currentTime + start + duration);
+    };
+    beep(880, 0,   0.12);
+    beep(1100, 0.14, 0.12);
+    beep(1320, 0.28, 0.2);
+  } catch {}
+}
+
+window.toggleRestPause = () => {
+  restPaused = !restPaused;
+  updateRestBar();
+};
+window.adjustRest = (delta) => {
+  restTimeLeft = Math.max(1, restTimeLeft + delta);
+  updateRestBar();
+};
+window.skipRest = () => stopRestTimer();
+
 // ── SESSION BOOTSTRAP ──
 
 /**
@@ -124,6 +224,7 @@ function renderExerciseBlock(ex, exIdx) {
   const suggestion = suggestNextSet(ex.exId, ex.targetReps, state.sessions, state.profile);
   const pr = state.prs[ex.exId];
   const isBodyweight = suggestion.isBodyweight;
+  const exData = EXERCISES[ex.exId];
 
   // Build existing sets
   const existingSets = ex.sets.map((set, setIdx) => renderSetRow(exIdx, setIdx, set, isBodyweight)).join('');
@@ -131,6 +232,22 @@ function renderExerciseBlock(ex, exIdx) {
   // Next set input row
   const nextSetNum = ex.sets.length;
   const setsLeft = ex.targetSets - ex.sets.filter(s => s.completed).length;
+
+  // Muscle tags
+  const primaryMuscles  = exData?.musclesFull?.primary  || [];
+  const secondaryMuscles = exData?.musclesFull?.secondary || [];
+  const muscleTagsHTML = primaryMuscles.length ? `
+    <div class="ex-muscles-row">
+      ${primaryMuscles.map(m => `<span class="muscle-tag">${m}</span>`).join('')}
+      ${secondaryMuscles.slice(0,2).map(m => `<span class="muscle-tag secondary">${m}</span>`).join('')}
+    </div>` : '';
+
+  // Form cues
+  const cuesHTML = exData?.cues?.length ? `
+    <details class="ex-cues">
+      <summary>Form cues</summary>
+      <ul>${exData.cues.map(c => `<li>${c}</li>`).join('')}</ul>
+    </details>` : '';
 
   return `
 <div class="session-ex-block" id="ex-block-${exIdx}">
@@ -141,6 +258,7 @@ function renderExerciseBlock(ex, exIdx) {
         <span class="tag t-dim" style="font-size:9px">${ex.targetSets}×${ex.targetReps}</span>
         ${pr ? `<span class="tag t-green" style="font-size:9px" title="1RM ~${pr.e1rm} lbs">PR: ${pr.weight}×${pr.reps}</span>` : ''}
       </div>
+      ${muscleTagsHTML}
       ${suggestion && !suggestion.isColdStart ? `
         <div class="overload-suggest">
           💡 ${isBodyweight
@@ -151,6 +269,7 @@ function renderExerciseBlock(ex, exIdx) {
       ` : suggestion.isColdStart && suggestion.weight ? `
         <div class="overload-suggest">💡 Start ~${isBodyweight ? 'Bodyweight' : suggestion.weight + ' lbs'}</div>
       ` : ''}
+      ${cuesHTML}
     </div>
     <button class="btn btn-ghost btn-sm" onclick="addSetRow(${exIdx})" ${setsLeft <= 0 ? '' : ''}>+ Set</button>
   </div>
@@ -256,6 +375,10 @@ window.logSet = (exIdx) => {
 
   updateVolumeDisplay();
   refreshExerciseBlock(exIdx);
+
+  // Auto-start rest timer
+  const restSecs = state.settings?.restSeconds ?? 90;
+  startRestTimer(restSecs);
 };
 
 window.cancelActiveWorkout = () => {
@@ -312,6 +435,7 @@ function updateVolumeDisplay() {
 
 function closeOverlay() {
   clearInterval(timerInterval);
+  stopRestTimer();
   sessionState = null;
   startTime    = null;
 

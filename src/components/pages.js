@@ -2,7 +2,8 @@ import { state, setPhase, setWeek, logWorkout, clearLog, resetAll, updateProfile
 import { GOAL_OPTIONS, LEVEL_OPTIONS, PHASE_NAMES, PHASE_DESCS } from '../data/exercises.js';
 import { calcBMR, calcTDEE, calcMacros, ACTIVITY_MULTIPLIERS } from '../engine/bmr.js';
 import { renderCardioLog, scheduleCardioCharts } from './cardio-log.js';
-import { initStrengthChart, initVolumeChart } from './charts.js';
+import { initStrengthChart, initVolumeChart, initWeeklyFrequencyChart, initMuscleFrequencyChart } from './charts.js';
+import { save } from '../store.js';
 
 // ── HELPERS ──
 const goalLabel  = id => GOAL_OPTIONS.find(g => g.id === id)?.label || id;
@@ -377,10 +378,12 @@ export function renderProgress() {
   const prKeys = Object.keys(prs);
 
   setTimeout(() => {
-    if (sessions.length >= 2) initVolumeChart('volume-chart', sessions);
-    if (prKeys.length > 0) {
-      initStrengthChart('strength-chart-1', sessions, prKeys[0]);
+    initWeeklyFrequencyChart('weekly-freq-chart', sessions);
+    if (sessions.length >= 2) {
+      initVolumeChart('volume-chart', sessions);
+      initMuscleFrequencyChart('muscle-freq-chart', sessions);
     }
+    if (prKeys.length > 0) initStrengthChart('strength-chart-1', sessions, prKeys[0]);
   }, 0);
 
   return `
@@ -389,6 +392,18 @@ export function renderProgress() {
   <h1 class="display page-title">PROGRESS</h1>
   <div class="page-sub">Strength targets relative to bodyweight · ${levelLabel(profile.level)}</div>
 </div>
+
+<div class="sec-head" style="margin-bottom:12px">Weekly Frequency</div>
+<div class="card mb24" style="margin-bottom:24px">
+  <div class="chart-wrap" style="height:160px"><canvas id="weekly-freq-chart"></canvas></div>
+</div>
+
+${sessions.length >= 2 ? `
+<div class="sec-head" style="margin-bottom:12px">Muscle Groups Trained</div>
+<div class="card mb24" style="margin-bottom:24px">
+  <div class="chart-wrap" style="height:220px"><canvas id="muscle-freq-chart"></canvas></div>
+</div>
+` : ''}
 
 <div class="g4 mb24" style="margin-bottom:24px">
   <div class="stat s-fire"><div class="label">Goal</div><div class="display" style="font-size:22px;margin-top:6px">${goalLabel(profile.goal)}</div></div>
@@ -574,6 +589,22 @@ export function renderSettings() {
   </div>
 </div>
 
+<!-- WORKOUT SETTINGS -->
+<div class="card mb24" style="margin-bottom:24px">
+  <div class="sec-head" style="margin-bottom:16px">Workout Settings</div>
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
+    <div>
+      <div style="font-size:13px;font-weight:500">Default Rest Time</div>
+      <div class="muted fs11" style="margin-top:2px">Auto-starts after each logged set</div>
+    </div>
+    <select class="form-input" style="width:120px" onchange="saveRestSetting(this.value)">
+      ${[['60','60 sec'],['90','90 sec'],['120','2 min'],['180','3 min'],['300','5 min']].map(([v,l]) =>
+        `<option value="${v}" ${(state.settings?.restSeconds ?? 90) == v ? 'selected' : ''}>${l}</option>`
+      ).join('')}
+    </select>
+  </div>
+</div>
+
 <!-- BMR / NUTRITION TARGETS -->
 <div class="card mb24" style="margin-bottom:24px">
   <div class="sec-head" style="margin-bottom:16px">Nutrition Profile (for calorie targets)</div>
@@ -631,6 +662,11 @@ window.switchLogTab = (tab) => {
   if (sessEl)   sessEl.style.display   = tab === 'sessions' ? 'block' : 'none';
   if (cardioEl) cardioEl.style.display = tab === 'cardio'   ? 'block' : 'none';
   if (tab === 'cardio') scheduleCardioCharts();
+};
+
+window.saveRestSetting = (val) => {
+  state.settings.restSeconds = parseInt(val);
+  save();
 };
 
 window.saveBMR = () => {

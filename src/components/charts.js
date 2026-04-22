@@ -2,6 +2,7 @@
 //   FITNESS FORGE — Chart.js Wrappers
 //   All charts use design-system colors
 // ═══════════════════════════════════════════
+import { EXERCISES } from '../data/exercises.js';
 
 const COLORS = {
   fire:   '#ff6b1a',
@@ -277,6 +278,90 @@ export function initCardioChart(canvasId, cardioLog) {
       scales: {
         x: { grid: { color: COLORS.border } },
         y: { grid: { color: COLORS.border }, beginAtZero: true, ticks: { callback: v => v + ' mi' } },
+      },
+    },
+  });
+  chartInstances.set(canvasId, chart);
+}
+
+// ── WEEKLY WORKOUT FREQUENCY BAR CHART ──
+export function initWeeklyFrequencyChart(canvasId, sessions) {
+  ensureDefaults();
+  if (!window.Chart) return;
+  destroyIfExists(canvasId);
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+
+  const now = new Date();
+  const weeks = Array.from({ length: 12 }, (_, i) => {
+    const start = new Date(now);
+    start.setDate(now.getDate() - now.getDay() - (11 - i) * 7);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 7);
+    return { start, end, count: 0 };
+  });
+
+  sessions.forEach(s => {
+    const d = new Date(s.date);
+    for (const w of weeks) {
+      if (d >= w.start && d < w.end) { w.count++; break; }
+    }
+  });
+
+  const labels = weeks.map((_, i) => i === 11 ? 'This wk' : `−${11 - i}w`);
+  const counts = weeks.map(w => w.count);
+  const colors = counts.map((_, i) => i === 11 ? COLORS.fire : COLORS.fire + '55');
+
+  const chart = new Chart(canvas, {
+    type: 'bar',
+    data: { labels, datasets: [{ label: 'Sessions', data: counts, backgroundColor: colors, borderRadius: 4 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { grid: { color: COLORS.border } },
+        y: { grid: { color: COLORS.border }, beginAtZero: true, ticks: { stepSize: 1 } },
+      },
+    },
+  });
+  chartInstances.set(canvasId, chart);
+}
+
+// ── MUSCLE GROUP FREQUENCY HORIZONTAL BAR ──
+export function initMuscleFrequencyChart(canvasId, sessions) {
+  ensureDefaults();
+  if (!window.Chart) return;
+  destroyIfExists(canvasId);
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+
+  const counts = {};
+  sessions.forEach(s => {
+    s.exercises?.forEach(ex => {
+      EXERCISES[ex.exId]?.groups?.forEach(g => { counts[g] = (counts[g] || 0) + 1; });
+    });
+  });
+
+  if (!Object.keys(counts).length) {
+    canvas.parentElement.innerHTML = '<div class="dim fs12 tc" style="padding:20px">Log sessions to see muscle data</div>';
+    return;
+  }
+
+  const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 10);
+  const labels = sorted.map(([g]) => g.charAt(0).toUpperCase() + g.slice(1));
+  const data   = sorted.map(([, c]) => c);
+  const palette = [COLORS.fire, COLORS.green, COLORS.steel, COLORS.ember,
+                   COLORS.fire, COLORS.green, COLORS.steel, COLORS.ember, COLORS.fire, COLORS.green];
+
+  const chart = new Chart(canvas, {
+    type: 'bar',
+    data: { labels, datasets: [{ label: 'Sets', data, backgroundColor: palette.slice(0, data.length), borderRadius: 4 }] },
+    options: {
+      indexAxis: 'y',
+      responsive: true, maintainAspectRatio: false,
+      scales: {
+        x: { grid: { color: COLORS.border }, beginAtZero: true, ticks: { stepSize: 1 } },
+        y: { grid: { color: COLORS.border } },
       },
     },
   });
