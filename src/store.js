@@ -21,7 +21,7 @@ const defaultState = {
   achievements: [],     // unlocked achievements
   prs:          {},     // { exId: { weight, reps, date, e1rm } }
   streak:       { current: 0, longest: 0, lastSessionDate: null },
-  settings:     { weightUnit: 'lbs', distanceUnit: 'miles', restSeconds: 90 },
+  settings:     { weightUnit: 'lbs', distanceUnit: 'miles', restSeconds: 90, theme: 'forge' },
 };
 
 export const state = (() => {

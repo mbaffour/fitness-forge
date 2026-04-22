@@ -34,6 +34,114 @@
   --glow:   0 0 32px rgba(255,107,26,0.15);
 }
 
+/* ══ THEMES ══
+   Override :root variables per theme.
+   Chart.js colors are re-read from CSS vars on each init.
+════════════════════════════════════════════════════════ */
+
+/* ── Daylight ── */
+html[data-theme="day"] {
+  --bg:         #f5f0e8;
+  --bg-2:       #ece7dc;
+  --bg-3:       #e4ddd0;
+  --bg-4:       #dcd5c6;
+  --border:     #c4bbb0;
+  --border-hi:  #b0a898;
+  --text:       #1c1a16;
+  --text-2:     #5a5040;
+  --text-3:     #9a9080;
+  --fire:       #c84808;
+  --fire-dim:   rgba(200,72,8,0.10);
+  --fire-glow:  rgba(200,72,8,0.22);
+  --ember:      #b87800;
+  --steel:      #3a7898;
+  --forge-green:#007744;
+  --danger:     #c02020;
+  --shadow: 0 4px 24px rgba(0,0,0,0.10);
+  --glow:   0 0 32px rgba(200,72,8,0.08);
+}
+
+/* ── Ambient (deep space) ── */
+html[data-theme="ambient"] {
+  --bg:         #07070f;
+  --bg-2:       #0d0d1c;
+  --bg-3:       #131328;
+  --bg-4:       #191934;
+  --border:     #222240;
+  --border-hi:  #2e2e58;
+  --text:       #e4e0fc;
+  --text-2:     #8080c0;
+  --text-3:     #404078;
+  --fire:       #8b74ff;
+  --fire-dim:   rgba(139,116,255,0.12);
+  --fire-glow:  rgba(139,116,255,0.28);
+  --ember:      #b094ff;
+  --steel:      #40d8f8;
+  --forge-green:#00e8cc;
+  --danger:     #ff4488;
+  --shadow: 0 4px 32px rgba(0,0,0,0.7);
+  --glow:   0 0 48px rgba(139,116,255,0.2);
+}
+
+/* ── Steel (cold navy) ── */
+html[data-theme="steel"] {
+  --bg:         #060c12;
+  --bg-2:       #0d1820;
+  --bg-3:       #14222e;
+  --bg-4:       #1b2c3c;
+  --border:     #223040;
+  --border-hi:  #2c3e52;
+  --text:       #c8e2f4;
+  --text-2:     #5888a8;
+  --text-3:     #2e4a60;
+  --fire:       #36b4e4;
+  --fire-dim:   rgba(54,180,228,0.12);
+  --fire-glow:  rgba(54,180,228,0.28);
+  --ember:      #60c8f4;
+  --steel:      #40ffb8;
+  --forge-green:#40ffb8;
+  --danger:     #ff5566;
+  --shadow: 0 4px 28px rgba(0,0,0,0.6);
+  --glow:   0 0 40px rgba(54,180,228,0.15);
+}
+
+/* ── Ember (campfire warm) ── */
+html[data-theme="ember"] {
+  --bg:         #0e0808;
+  --bg-2:       #181010;
+  --bg-3:       #201818;
+  --bg-4:       #2a2020;
+  --border:     #3c2828;
+  --border-hi:  #4c3838;
+  --text:       #f8e8d0;
+  --text-2:     #b09070;
+  --text-3:     #706048;
+  --fire:       #ff7828;
+  --fire-dim:   rgba(255,120,40,0.12);
+  --fire-glow:  rgba(255,120,40,0.28);
+  --ember:      #ffaa40;
+  --steel:      #ffd060;
+  --forge-green:#ffaa40;
+  --danger:     #ff3333;
+  --shadow: 0 4px 28px rgba(0,0,0,0.6);
+  --glow:   0 0 40px rgba(255,120,40,0.15);
+}
+
+/* ── Smooth theme transitions ── */
+body,
+.sidebar, .sidebar-head, .sidebar-body, .sidebar-foot,
+.card, .stat, .nav-btn, .page,
+input, select, textarea,
+.tag, .alert, .modal, .modal-overlay,
+.active-session-overlay, .session-ex-block,
+.rest-timer-bar, .pr-toast, .session-summary-toast {
+  transition:
+    background-color 0.28s ease,
+    border-color     0.28s ease,
+    color            0.28s ease,
+    box-shadow       0.28s ease;
+}
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html { scroll-behavior: smooth; }
@@ -45,7 +153,6 @@ body {
   font-size: 15px;
   line-height: 1.6;
   min-height: 100vh;
-  /* subtle grain overlay */
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
 }
 
@@ -1043,3 +1150,62 @@ details[open] .ex-cues summary::before { transform: rotate(90deg); }
 
 /* ── CHART WRAP ── */
 .chart-wrap canvas { display: block; }
+
+/* ══ THEME PICKER ══ */
+.theme-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 10px;
+}
+.theme-swatch {
+  background: var(--bg-2);
+  border: 2px solid var(--border);
+  border-radius: var(--r2);
+  padding: 0;
+  cursor: pointer;
+  text-align: center;
+  overflow: hidden;
+  transition: border-color 0.2s, transform 0.15s;
+}
+.theme-swatch:hover { border-color: var(--border-hi); transform: translateY(-2px); }
+.theme-swatch.active { border-color: var(--fire); }
+.theme-swatch.active .swatch-name { color: var(--fire); }
+
+.swatch-preview {
+  height: 52px;
+  display: flex;
+  position: relative;
+  overflow: hidden;
+}
+.swatch-bg    { flex: 1; }
+.swatch-accent { width: 28px; flex-shrink: 0; }
+/* diagonal split overlay */
+.swatch-preview::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, transparent 48%, rgba(0,0,0,0.25) 48%);
+  pointer-events: none;
+}
+
+.swatch-name {
+  font-family: var(--ff-display);
+  font-weight: 700; font-size: 12px;
+  color: var(--text);
+  padding: 6px 4px 2px;
+  letter-spacing: 0.03em;
+}
+.swatch-desc {
+  font-family: var(--ff-mono);
+  font-size: 9px; color: var(--text-3);
+  padding: 0 4px 8px;
+  letter-spacing: 0.08em;
+}
+.swatch-check {
+  display: none;
+  color: var(--fire); font-size: 11px; margin-bottom: 6px;
+}
+.theme-swatch.active .swatch-check { display: block; }
+
+@media (max-width: 768px) {
+  .theme-picker { grid-template-columns: repeat(3, 1fr); }
+}

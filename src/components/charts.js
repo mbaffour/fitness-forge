@@ -24,27 +24,35 @@ function destroyIfExists(canvasId) {
   }
 }
 
-function applyGlobalDefaults() {
-  if (!window.Chart) return;
-  Chart.defaults.color            = COLORS.text2;
-  Chart.defaults.borderColor      = COLORS.border;
-  Chart.defaults.font.family      = "'Fira Code', monospace";
-  Chart.defaults.font.size        = 10;
-  Chart.defaults.plugins.legend.display = false;
-  Chart.defaults.plugins.tooltip.backgroundColor = '#242320';
-  Chart.defaults.plugins.tooltip.borderColor      = '#403e38';
-  Chart.defaults.plugins.tooltip.borderWidth      = 1;
-  Chart.defaults.plugins.tooltip.titleColor       = COLORS.fire;
-  Chart.defaults.plugins.tooltip.bodyColor        = '#f2ede4';
-  Chart.defaults.plugins.tooltip.padding          = 10;
+function cssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
-let defaultsApplied = false;
+function applyGlobalDefaults() {
+  if (!window.Chart) return;
+  const borderColor = cssVar('--border') || COLORS.border;
+  const textColor   = cssVar('--text-2') || COLORS.text2;
+  const accentColor = cssVar('--fire')   || COLORS.fire;
+  const bgTooltip   = cssVar('--bg-4')   || '#242320';
+  const borderTip   = cssVar('--border-hi') || '#403e38';
+  const bodyColor   = cssVar('--text')   || '#f2ede4';
+
+  Chart.defaults.color            = textColor;
+  Chart.defaults.borderColor      = borderColor;
+  Chart.defaults.font.family      = "'Fira Code', monospace";
+  Chart.defaults.font.size        = 10;
+  Chart.defaults.plugins.legend.display            = false;
+  Chart.defaults.plugins.tooltip.backgroundColor   = bgTooltip;
+  Chart.defaults.plugins.tooltip.borderColor       = borderTip;
+  Chart.defaults.plugins.tooltip.borderWidth       = 1;
+  Chart.defaults.plugins.tooltip.titleColor        = accentColor;
+  Chart.defaults.plugins.tooltip.bodyColor         = bodyColor;
+  Chart.defaults.plugins.tooltip.padding           = 10;
+}
+
 function ensureDefaults() {
-  if (!defaultsApplied && window.Chart) {
-    applyGlobalDefaults();
-    defaultsApplied = true;
-  }
+  // Always re-apply so theme changes are reflected in new charts
+  if (window.Chart) applyGlobalDefaults();
 }
 
 // ── WEIGHT TREND LINE CHART ──

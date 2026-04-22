@@ -9,13 +9,36 @@ import { renderBodyStats, scheduleBodyCharts } from './components/body-stats.js'
 import { renderAchievements } from './components/achievements.js';
 import { showExerciseModal, closeExModal, loadVideo } from './components/modal.js';
 import {
-  state, setPhase, setWeek, logWorkout, clearLog, resetAll,
+  state, save, setPhase, setWeek, logWorkout, clearLog, resetAll,
   logSession, addCardioEntry, addBodyCheckIn, getTodayNutrition,
   addFoodEntry, logWater, updateProfile, recordPR, awardAchievement, updateStreak,
 } from './store.js';
 import { generateProgram } from './engine/generator.js';
 import { EXERCISES } from './data/exercises.js';
 import { startActiveWorkout } from './components/active-workout.js';
+
+// ── THEME ──
+function applyTheme(name) {
+  const valid = ['forge', 'day', 'ambient', 'steel', 'ember'];
+  const t = valid.includes(name) ? name : 'forge';
+  if (t === 'forge') {
+    document.documentElement.removeAttribute('data-theme');
+  } else {
+    document.documentElement.dataset.theme = t;
+  }
+}
+
+// Apply immediately on load to avoid flash
+applyTheme(state.settings?.theme || 'forge');
+
+window.setTheme = (name) => {
+  state.settings.theme = name;
+  save();
+  applyTheme(name);
+  // Refresh settings page swatches to show new active state
+  const el = document.getElementById('page-settings');
+  if (el && el.innerHTML.trim()) el.innerHTML = PAGES.settings.render();
+};
 
 // expose to sub-components
 window.__forge_gen   = { generateProgram };

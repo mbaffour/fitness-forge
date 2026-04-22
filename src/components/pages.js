@@ -1,9 +1,16 @@
-import { state, setPhase, setWeek, logWorkout, clearLog, resetAll, updateProfile } from '../store.js';
+import { state, save, setPhase, setWeek, logWorkout, clearLog, resetAll, updateProfile } from '../store.js';
 import { GOAL_OPTIONS, LEVEL_OPTIONS, PHASE_NAMES, PHASE_DESCS } from '../data/exercises.js';
 import { calcBMR, calcTDEE, calcMacros, ACTIVITY_MULTIPLIERS } from '../engine/bmr.js';
 import { renderCardioLog, scheduleCardioCharts } from './cardio-log.js';
 import { initStrengthChart, initVolumeChart, initWeeklyFrequencyChart, initMuscleFrequencyChart } from './charts.js';
-import { save } from '../store.js';
+
+const THEMES = [
+  { id: 'forge',   name: 'Forge',    desc: 'Dark industrial', bg: '#0d0d0b', accent: '#ff6b1a' },
+  { id: 'day',     name: 'Daylight', desc: 'Warm light',      bg: '#f5f0e8', accent: '#c84808' },
+  { id: 'ambient', name: 'Ambient',  desc: 'Deep space',      bg: '#07070f', accent: '#8b74ff' },
+  { id: 'steel',   name: 'Steel',    desc: 'Cold navy',       bg: '#060c12', accent: '#36b4e4' },
+  { id: 'ember',   name: 'Ember',    desc: 'Campfire warm',   bg: '#0e0808', accent: '#ff7828' },
+];
 
 // ── HELPERS ──
 const goalLabel  = id => GOAL_OPTIONS.find(g => g.id === id)?.label || id;
@@ -586,6 +593,26 @@ export function renderSettings() {
       <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
       <button class="btn btn-danger w100" onclick="if(confirm('Reset everything? This cannot be undone.')) { resetProgram(); }">✕ Reset All Data</button>
     </div>
+  </div>
+</div>
+
+<!-- APPEARANCE / THEMES -->
+<div class="card mb24" style="margin-bottom:24px">
+  <div class="sec-head" style="margin-bottom:16px">Appearance</div>
+  <div class="theme-picker">
+    ${THEMES.map(t => {
+      const active = (state.settings?.theme || 'forge') === t.id;
+      return `
+      <button class="theme-swatch ${active ? 'active' : ''}" onclick="setTheme('${t.id}')" title="${t.name}">
+        <div class="swatch-preview">
+          <div class="swatch-bg" style="background:${t.bg}"></div>
+          <div class="swatch-accent" style="background:${t.accent}"></div>
+        </div>
+        <div class="swatch-name">${t.name}</div>
+        <div class="swatch-desc">${t.desc}</div>
+        <div class="swatch-check">✦ Active</div>
+      </button>`;
+    }).join('')}
   </div>
 </div>
 
