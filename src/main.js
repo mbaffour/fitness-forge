@@ -102,6 +102,32 @@ window.openExDetail = (exId) => {
 };
 
 let currentPage = 'dashboard';
+const navHistory = [];
+
+const PAGE_LABELS = {
+  dashboard:    'Dashboard',    workout:      'Workout',
+  freestyle:    'Freestyle',    schedule:     'Schedule',
+  nutrition:    'Nutrition',    body:         'Body Stats',
+  log:          'Log',          achievements: 'Achievements',
+  progress:     'Progress',     settings:     'Settings',
+};
+
+// ── DRAWER ──
+window.toggleSidebar = () => {
+  document.getElementById('sidebar')?.classList.toggle('open');
+  document.getElementById('sidebar-backdrop')?.classList.toggle('visible');
+};
+window.closeSidebar = () => {
+  document.getElementById('sidebar')?.classList.remove('open');
+  document.getElementById('sidebar-backdrop')?.classList.remove('visible');
+};
+
+function updateTopbar(pageId) {
+  const titleEl = document.getElementById('topbar-title');
+  const backEl  = document.getElementById('topbar-back');
+  if (titleEl) titleEl.textContent = PAGE_LABELS[pageId] || 'FITNESS FORGE';
+  if (backEl)  backEl.classList.toggle('visible', navHistory.length > 0);
+}
 
 // ── SHELL ──
 function buildShell() {
@@ -110,10 +136,18 @@ function buildShell() {
   const phaseName   = ['Foundation','Hypertrophy','Strength','Peak & Power'][currentPhase - 1] || '';
 
   document.getElementById('root').innerHTML = `
-<div class="shell">
+<!-- mobile topbar -->
+<div class="mobile-topbar" id="mobile-topbar">
+  <button class="topbar-hamburger" onclick="toggleSidebar()" aria-label="Open menu">☰</button>
+  <span class="topbar-title" id="topbar-title">${PAGE_LABELS[currentPage] || 'FITNESS FORGE'}</span>
+  <button class="topbar-back" id="topbar-back" onclick="goBack()">← Back</button>
+</div>
+<!-- drawer backdrop -->
+<div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar()"></div>
 
+<div class="shell">
   <!-- SIDEBAR -->
-  <nav class="sidebar">
+  <nav class="sidebar" id="sidebar">
     <div class="sidebar-head">
       <div class="brand">
         <div class="brand-icon">🔥</div>
@@ -156,23 +190,29 @@ function buildShell() {
 </div>
   `;
 
-  // Schedule charts for the initial page
   if (CHART_PAGES[currentPage]) CHART_PAGES[currentPage]();
 }
 
 // ── NAVIGATE ──
-function navigate(pageId) {
+function navigate(pageId, pushHistory = true) {
   if (pageId === 'onboard') {
-    renderOnboarding(() => { currentPage = 'dashboard'; buildShell(); });
+    renderOnboarding(() => { currentPage = 'dashboard'; navHistory.length = 0; buildShell(); });
     return;
   }
   if (pageId === 'builder') {
-    renderBuilder(() => { currentPage = 'dashboard'; buildShell(); });
+    renderBuilder(() => { currentPage = 'dashboard'; navHistory.length = 0; buildShell(); });
     return;
   }
-  if (!PAGES[pageId]) return;
+  if (!PAGES[pageId] || pageId === currentPage) return;
+
+  if (pushHistory) {
+    navHistory.push(currentPage);
+    if (navHistory.length > 15) navHistory.shift();
+  }
 
   currentPage = pageId;
+  closeSidebar();
+  updateTopbar(pageId);
 
   document.querySelectorAll('.page').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(btn => {
@@ -191,6 +231,11 @@ function navigate(pageId) {
 
 // ── GLOBAL HANDLERS ──
 window.navigate = navigate;
+
+window.goBack = () => {
+  if (!navHistory.length) return;
+  navigate(navHistory.pop(), false);
+};
 
 window.changePhase = (n) => {
   setPhase(n);

@@ -470,14 +470,22 @@ function showSessionSummary(session) {
   const toast = document.createElement('div');
   toast.className = 'session-summary-toast';
   toast.innerHTML = `
-<div style="font-family:var(--ff-display);font-size:20px;margin-bottom:12px">SESSION COMPLETE 🔥</div>
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+  <span style="font-family:var(--ff-display);font-size:20px">SESSION COMPLETE 🔥</span>
+</div>
+<div style="font-family:var(--ff-mono);font-size:10px;color:var(--forge-green);margin-bottom:12px;letter-spacing:0.12em">
+  ✓ SAVED TO YOUR LOG
+</div>
 <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:8px">
   <div><div class="label">Sets</div><div class="mono fire">${sets}</div></div>
   <div><div class="label">Volume</div><div class="mono fire">${vol > 0 ? vol.toLocaleString() + ' lbs' : '—'}</div></div>
   <div><div class="label">Duration</div><div class="mono fire">${dur}m</div></div>
 </div>
-${prs.length ? `<div class="fs12" style="color:var(--forge-green)">🏆 ${prs.length} PR${prs.length > 1 ? 's' : ''} this session!</div>` : ''}
-<button class="btn btn-fire btn-sm" style="margin-top:12px" onclick="this.closest('.session-summary-toast').remove()">Close</button>
+${prs.length ? `<div class="fs12" style="color:var(--forge-green);margin-bottom:8px">🏆 ${prs.length} PR${prs.length > 1 ? 's' : ''} this session!</div>` : ''}
+<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+  <button class="btn btn-fire btn-sm" onclick="navigate('log');this.closest('.session-summary-toast').remove()">View Log →</button>
+  <button class="btn btn-ghost btn-sm" onclick="this.closest('.session-summary-toast').remove()">Close</button>
+</div>
 `;
   document.body.appendChild(toast);
   setTimeout(() => toast.classList.add('show'), 50);

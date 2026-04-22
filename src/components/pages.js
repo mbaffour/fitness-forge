@@ -588,11 +588,38 @@ export function renderSettings() {
     <div style="display:flex;flex-direction:column;gap:10px">
       <button class="btn btn-ghost w100" onclick="navigate('onboard')">↺ Redo Quiz (New Program)</button>
       <button class="btn btn-ghost w100" onclick="navigate('builder')">✏ Manual Builder</button>
-      <button class="btn btn-ghost w100" onclick="exportData()">↓ Export Data (JSON)</button>
-      <button class="btn btn-ghost w100" onclick="document.getElementById('import-file').click()">↑ Import Data (JSON)</button>
-      <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
       <button class="btn btn-danger w100" onclick="if(confirm('Reset everything? This cannot be undone.')) { resetProgram(); }">✕ Reset All Data</button>
     </div>
+  </div>
+</div>
+
+<!-- BACKUP & RESTORE -->
+<div class="card mb24" style="margin-bottom:24px">
+  <div class="sec-head" style="margin-bottom:10px">Backup &amp; Restore</div>
+  <p class="dim fs13" style="margin-bottom:16px;line-height:1.6">
+    Your data lives <strong style="color:var(--text)">only in this browser</strong>.
+    Download a backup file to keep your progress safe — and restore it anytime on any device.
+  </p>
+  <div class="backup-grid">
+    <button class="btn-backup" onclick="exportData()">
+      <div class="btn-backup-icon">📥</div>
+      <div class="btn-backup-label">Save Backup</div>
+      <div class="btn-backup-desc">Download all data as JSON</div>
+    </button>
+    <button class="btn-backup" onclick="document.getElementById('import-file').click()">
+      <div class="btn-backup-icon">📤</div>
+      <div class="btn-backup-label">Restore Backup</div>
+      <div class="btn-backup-desc">Load from a saved file</div>
+    </button>
+  </div>
+  <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
+  <div class="muted fs11" id="last-export-label">
+    ${(() => {
+      const ts = localStorage.getItem('forge_last_export');
+      return ts
+        ? `✓ Last backup: ${new Date(parseInt(ts)).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`
+        : '⚠ No backup yet — export your data!';
+    })()}
   </div>
 </div>
 
@@ -741,6 +768,10 @@ window.exportData = () => {
   a.download = `fitness-forge-backup-${new Date().toISOString().slice(0,10)}.json`;
   a.click();
   URL.revokeObjectURL(url);
+  localStorage.setItem('forge_last_export', Date.now());
+  // Update label in place without full re-render
+  const label = document.getElementById('last-export-label');
+  if (label) label.textContent = `✓ Backup saved ${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`;
 };
 
 window.importData = (evt) => {
