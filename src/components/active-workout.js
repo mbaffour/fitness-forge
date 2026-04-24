@@ -115,11 +115,12 @@ window.skipRest = () => stopRestTimer();
 
 /**
  * Start an active workout session.
- * @param {string} workoutId   - e.g. 'Monday-phase2' or 'freestyle'
+ * @param {string} workoutId    - e.g. 'Monday-phase2' or 'freestyle'
  * @param {string} workoutLabel - Human-readable label
- * @param {Array}  exercises   - [{ id, name, sets (str), reps (str), ... }]
+ * @param {Array}  exercises    - [{ id, name, sets (str), reps (str), ... }]
+ * @param {string} [workoutType] - optional type tag e.g. 'calisthenics'
  */
-export function startActiveWorkout(workoutId, workoutLabel, exercises) {
+export function startActiveWorkout(workoutId, workoutLabel, exercises, workoutType) {
   if (!exercises?.length) {
     alert('No exercises to log for this session.');
     return;
@@ -130,6 +131,7 @@ export function startActiveWorkout(workoutId, workoutLabel, exercises) {
   sessionState = {
     workoutId,
     workoutLabel,
+    workoutType: workoutType || 'strength',
     date: new Date().toISOString(),
     exercises: exercises.map(ex => ({
       exId:   ex.id,

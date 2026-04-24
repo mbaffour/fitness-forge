@@ -1345,3 +1345,10 @@ details[open] .ex-cues summary::before { transform: rotate(90deg); }
 .card-locked {
   pointer-events: none;
 }
+.cali-circuit-card {
+  transition: border-color 0.15s, background 0.15s;
+}
+.cali-circuit-card:hover {
+  border-color: var(--fire);
+  background: rgba(255,107,26,0.05);
+}

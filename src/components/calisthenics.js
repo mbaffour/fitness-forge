@@ -1,113 +1,130 @@
-// ════════════════════════════════════════════
-//   Calisthenics — Browse & Session Builder
-//   Filters by level, grouped by category
-//   Tap any card → modal with GIF + cues
-// ════════════════════════════════════════════
+// ════════════════════════════════════════════════
+//   Calisthenics — Standalone Bodyweight Training
+//   Fully separate from the weighted program.
+//   Own exercise library, circuits, session log.
+// ════════════════════════════════════════════════
 
 import { EXERCISES, getCalisthenicsExercises } from '../data/exercises.js';
-import { state } from '../store.js';
+import { state, save, logWorkout, updateStreak } from '../store.js';
 import { showExerciseModal } from './modal.js';
 
-// ── Category groupings (calisthenics exercises by movement pattern) ──
+// ── Movement categories (covers both bodyweight + caliOnly pools) ──────────
 const CALI_CATEGORIES = [
   {
     id: 'upper_push',
     label: 'Upper Push',
-    icon: '⬆️',
+    icon: '💪',
+    desc: 'Chest, shoulders, triceps',
     ids: ['pushup', 'diamond_pu', 'pike_pu', 'hspu', 'dips', 'ring_dip'],
   },
   {
     id: 'upper_pull',
     label: 'Upper Pull',
-    icon: '⬇️',
+    icon: '🔙',
+    desc: 'Lats, biceps, rhomboids',
     ids: ['pullup', 'chinup', 'inverted_row', 'muscle_up'],
   },
   {
     id: 'lower',
     label: 'Lower Body',
     icon: '🦵',
-    ids: ['squat_bw', 'lunge_bw', 'pistol_sq', 'jump_sq', 'nordic_curl', 'hipthrust_bw', 'calfr_bw', 'stepup'],
+    desc: 'Quads, glutes, hamstrings',
+    ids: ['squat_bw', 'lunge_bw', 'bss', 'stepup', 'hipthrust_bw', 'jump_sq', 'pistol_sq', 'nordic_curl', 'calfr_bw'],
   },
   {
     id: 'core',
     label: 'Core',
     icon: '⚙️',
-    ids: ['plank', 'hollow', 'l_sit', 'dragon_flag', 'deadbug', 'crunch', 'legraise', 'russian', 'ab_wheel'],
+    desc: 'Abs, obliques, stability',
+    ids: ['plank', 'deadbug', 'crunch', 'russian', 'legraise', 'hollow', 'ab_wheel', 'l_sit', 'dragon_flag'],
   },
   {
     id: 'conditioning',
     label: 'Conditioning',
     icon: '🔥',
+    desc: 'Full-body power & cardio',
     ids: ['burpee', 'mtn_climber', 'jump_sq', 'boxjump'],
   },
 ];
 
-// Pre-built circuits: level → array of exercise IDs
+// Rep / duration targets per exercise
+const CALI_REPS = {
+  pushup:'10–20 reps',      diamond_pu:'8–15 reps',   pike_pu:'8–12 reps',
+  hspu:'3–8 reps',          dips:'8–15 reps',          ring_dip:'5–10 reps',
+  pullup:'5–12 reps',       chinup:'5–12 reps',        inverted_row:'10–15 reps',
+  muscle_up:'3–6 reps',
+  squat_bw:'15–25 reps',    lunge_bw:'12–16 reps',     bss:'8–12/side',
+  stepup:'10–15/side',      hipthrust_bw:'15–25 reps', jump_sq:'10–15 reps',
+  pistol_sq:'3–8/side',     nordic_curl:'3–8 reps',    calfr_bw:'15–25/side',
+  boxjump:'5–10 reps',
+  plank:'30–60s',           deadbug:'8–12/side',       crunch:'15–25 reps',
+  russian:'20–30 reps',     legraise:'8–15 reps',      hollow:'20–40s',
+  ab_wheel:'6–12 reps',     l_sit:'10–20s hold',       dragon_flag:'4–8 reps',
+  burpee:'10–15 reps',      mtn_climber:'20–30 reps',
+};
+
+// Pre-built circuits ───────────────────────────────────────────────────────
 const CIRCUITS = {
   beginner: {
-    label: 'Beginner Foundation Circuit',
-    desc: '3 rounds · 30s rest between exercises · 90s rest between rounds',
+    label: 'Foundation Circuit',
+    desc: '3 rounds · 45s rest between exercises · 2 min between rounds',
     rounds: 3,
-    exercises: ['pushup', 'squat_bw', 'inverted_row', 'plank', 'lunge_bw', 'crunch'],
+    exercises: ['pushup', 'squat_bw', 'inverted_row', 'lunge_bw', 'plank', 'crunch'],
+    diff: 'beg',
   },
   intermediate: {
-    label: 'Intermediate Bodyweight Strength',
-    desc: '4 rounds · 20s rest between exercises · 2 min rest between rounds',
+    label: 'Strength Circuit',
+    desc: '4 rounds · 30s rest between exercises · 90s between rounds',
     rounds: 4,
-    exercises: ['pullup', 'dips', 'pistol_sq', 'diamond_pu', 'inverted_row', 'hollow', 'mtn_climber'],
+    exercises: ['pullup', 'dips', 'bss', 'diamond_pu', 'inverted_row', 'hollow', 'mtn_climber'],
+    diff: 'int',
   },
   advanced: {
-    label: 'Advanced Skill Circuit',
-    desc: '5 rounds · Minimal rest · Full body athletic output',
+    label: 'Skill & Power Circuit',
+    desc: '5 rounds · Minimal rest · Maximum output',
     rounds: 5,
     exercises: ['muscle_up', 'ring_dip', 'hspu', 'pistol_sq', 'l_sit', 'dragon_flag', 'nordic_curl'],
+    diff: 'adv',
   },
 };
 
-// Rep/time schemes by exercise type
-const CALI_REPS = {
-  // Holds (time-based)
-  plank: '30–60s', hollow: '20–40s', l_sit: '10–20s', dragon_flag: '5–8 reps',
-  // Upper push
-  pushup: '10–20 reps', diamond_pu: '8–15 reps', pike_pu: '8–12 reps',
-  hspu: '3–8 reps', dips: '8–15 reps', ring_dip: '5–10 reps',
-  // Upper pull
-  pullup: '5–10 reps', chinup: '5–10 reps', inverted_row: '10–15 reps', muscle_up: '3–6 reps',
-  // Lower
-  squat_bw: '15–25 reps', lunge_bw: '10–15/side', pistol_sq: '3–8/side',
-  jump_sq: '10–15 reps', nordic_curl: '3–8 reps', hipthrust_bw: '15–25 reps',
-  calfr_bw: '15–25/side', stepup: '10–15/side', boxjump: '5–10 reps',
-  // Core
-  deadbug: '8–12/side', crunch: '15–25 reps', legraise: '8–15 reps',
-  russian: '20–30 reps', ab_wheel: '6–12 reps',
-  // Conditioning
-  burpee: '10–15 reps', mtn_climber: '20–30 reps',
-};
+// ── Skill progressions ─────────────────────────────────────────────────────
+const PROGRESSIONS = [
+  { skill:'Handstand Push-Up',  steps:['Wall Plank Hold → Pike Push-Up → Elevated Pike Push-Up → Wall HSPU → Full HSPU'] },
+  { skill:'Muscle-Up',          steps:['Dead Hang → Pull-Up (10+) → High Pull-Up → Transition Drill → Full Muscle-Up'] },
+  { skill:'Pistol Squat',       steps:['Bodyweight Squat → Box Pistol (sit to box) → Partial Pistol → Assisted Pistol → Full Pistol'] },
+  { skill:'L-Sit',              steps:['Knee Tuck Hold → Single Leg Extension → L-Sit on Parallel Bars → Full L-Sit'] },
+  { skill:'Dragon Flag',        steps:['Hollow Body Hold → Tuck Flag → Single Leg Extension → Full Dragon Flag'] },
+  { skill:'Ring Dips',          steps:['Bar Dips (15+ reps) → Stable Ring Support → Ring Dip Negative → Full Ring Dips'] },
+];
 
-let selectedLevel = 'beginner';
-let selectedCircuit = null;
+let selectedLevel = null;
 
 export function renderCalisthenics() {
-  const userLevel = state.profile?.level || 'beginner';
-  // Init selected level from user profile if first load
-  if (!window.__cali_level_set) {
-    selectedLevel = userLevel;
-    window.__cali_level_set = true;
+  // Auto-set level from profile on first load
+  if (!selectedLevel) {
+    selectedLevel = state.profile?.level || 'beginner';
   }
 
-  const diffMap = { beginner: ['beg'], intermediate: ['beg', 'int'], advanced: ['beg', 'int', 'adv'] };
-  const allowed = diffMap[selectedLevel] || ['beg'];
+  const diffMap = { beginner:['beg'], intermediate:['beg','int'], advanced:['beg','int','adv'] };
+  const allowed  = diffMap[selectedLevel] || ['beg'];
+
+  // Recent calisthenics sessions (workoutType = 'calisthenics')
+  const recentSessions = (state.sessions || [])
+    .filter(s => s.workoutType === 'calisthenics')
+    .slice(0, 5);
 
   return `
+<!-- ── HEADER ────────────────────────────────────── -->
 <div class="page-header">
   <div class="label" style="margin-bottom:6px">Bodyweight Training</div>
   <h1 class="display page-title">CALISTHENICS</h1>
-  <div class="page-sub">Master your bodyweight — no equipment required</div>
+  <div class="page-sub">Master your bodyweight — anywhere, no equipment needed</div>
 </div>
 
-<!-- LEVEL FILTER -->
-<div class="sec-head" style="margin-bottom:14px">Your Level</div>
-<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:28px">
+<!-- ── LEVEL SELECTOR ───────────────────────────── -->
+<div class="sec-head" style="margin-bottom:14px">Training Level</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:32px">
   ${['beginner','intermediate','advanced'].map(lvl => `
     <button class="btn ${selectedLevel === lvl ? 'btn-fire' : 'btn-ghost'}"
             onclick="setCaliLevel('${lvl}')">
@@ -117,99 +134,119 @@ export function renderCalisthenics() {
   `).join('')}
 </div>
 
-<!-- QUICK CIRCUITS -->
-<div class="sec-head" style="margin-bottom:14px">Quick Circuits</div>
-<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:32px">
+<!-- ── PRE-BUILT CIRCUITS ────────────────────────── -->
+<div class="sec-head" style="margin-bottom:14px">Circuits</div>
+<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:32px">
   ${Object.entries(CIRCUITS).map(([lvl, c]) => {
-    const isAccessible = allowed.includes({ beginner:'beg', intermediate:'int', advanced:'adv' }[lvl]);
+    const accessible = allowed.includes(c.diff);
     return `
-    <div class="card ${!isAccessible ? 'card-locked' : ''}"
-         style="cursor:${isAccessible ? 'pointer' : 'default'};opacity:${isAccessible ? '1' : '0.45'};display:flex;align-items:flex-start;gap:14px;padding:14px 16px"
-         onclick="${isAccessible ? `startCaliCircuit('${lvl}')` : ''}">
+  <div class="card ${accessible ? 'cali-circuit-card' : ''}"
+       style="padding:14px 16px;opacity:${accessible ? '1' : '0.4'};${accessible ? 'cursor:pointer' : 'cursor:default'}"
+       ${accessible ? `onclick="startCaliCircuit('${lvl}')"` : ''}>
+    <div style="display:flex;align-items:flex-start;gap:12px">
       <div style="flex:1;min-width:0">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;flex-wrap:wrap">
-          <span style="font-family:var(--ff-mono);font-size:0.8rem;font-weight:600;color:var(--text)">${c.label}</span>
-          <span class="tag ${lvl==='beginner'?'t-dim':lvl==='intermediate'?'t-steel':'t-fire'}" style="font-size:8px">
-            ${lvl}
-          </span>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px">
+          <span style="font-family:var(--ff-mono);font-size:0.85rem;font-weight:600;color:var(--text)">${c.label}</span>
+          <span class="tag ${c.diff==='beg'?'t-dim':c.diff==='int'?'t-steel':'t-fire'}" style="font-size:8px">${lvl}</span>
+          <span style="font-family:var(--ff-mono);font-size:0.7rem;color:var(--text-3)">${c.rounds} rounds</span>
         </div>
-        <div style="font-family:var(--ff-mono);font-size:0.75rem;color:var(--text-2)">${c.desc}</div>
-        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">
-          ${c.exercises.map(id => `<span class="tag t-dim" style="font-size:8px">${EXERCISES[id]?.name || id}</span>`).join('')}
+        <div style="font-family:var(--ff-mono);font-size:0.72rem;color:var(--text-2);margin-bottom:8px">${c.desc}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px">
+          ${c.exercises.map(id => {
+            const ex = EXERCISES[id];
+            return ex ? `<span class="tag t-dim" style="font-size:8px">${ex.name}</span>` : '';
+          }).join('')}
         </div>
       </div>
-      ${isAccessible ? `<div style="color:var(--fire);font-size:18px;margin-top:2px;flex-shrink:0">⚡</div>` : `<div style="font-size:18px;flex-shrink:0">🔒</div>`}
+      <div style="font-size:20px;flex-shrink:0;margin-top:2px">${accessible ? '⚡' : '🔒'}</div>
     </div>
-  `}).join('')}
+  </div>
+    `;
+  }).join('')}
 </div>
 
-<!-- EXERCISES BY CATEGORY -->
+<!-- ── EXERCISE LIBRARY ──────────────────────────── -->
 <div class="sec-head" style="margin-bottom:20px">Exercise Library</div>
 ${CALI_CATEGORIES.map(cat => {
-  // Filter to exercises that exist and are accessible at this level
   const available = cat.ids
     .map(id => ({ id, ...(EXERCISES[id] || {}) }))
     .filter(ex => ex.name && allowed.includes(ex.diff));
   if (!available.length) return '';
 
   return `
-  <div style="margin-bottom:28px">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
-      <span style="font-size:16px">${cat.icon}</span>
-      <span style="font-family:var(--ff-mono);font-size:0.7rem;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-2)">${cat.label}</span>
-      <span style="font-family:var(--ff-mono);font-size:0.65rem;color:var(--text-3);padding:2px 6px;border:1px solid var(--border);border-radius:var(--r-sm)">${available.length}</span>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px">
-      ${available.map(ex => `
-        <div class="cali-ex-card" onclick="openCaliExDetail('${ex.id}')">
-          <div style="flex:1;min-width:0">
-            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px">
-              <span style="font-family:var(--ff-mono);font-size:0.82rem;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${ex.name}</span>
-            </div>
-            <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
-              <span class="tag ${ex.diff==='adv'?'t-fire':ex.diff==='int'?'t-steel':'t-dim'}" style="font-size:8px">
-                ${ex.diff==='beg'?'Beginner':ex.diff==='int'?'Intermediate':'Advanced'}
-              </span>
-              ${ex.type ? `<span class="tag t-dim" style="font-size:8px">${ex.type}</span>` : ''}
-            </div>
-            <div style="font-family:var(--ff-mono);font-size:0.72rem;color:var(--text-2);margin-top:5px">${ex.muscle || ''}</div>
-          </div>
-          <div style="text-align:right;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:4px">
-            <div style="font-family:var(--ff-mono);font-size:0.75rem;color:var(--fire);font-weight:600">${CALI_REPS[ex.id] || '8–12 reps'}</div>
-            <div style="font-family:var(--ff-mono);font-size:0.65rem;color:var(--text-3)">Tap for form</div>
+<div style="margin-bottom:28px">
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+    <span style="font-size:15px">${cat.icon}</span>
+    <span style="font-family:var(--ff-mono);font-size:0.7rem;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--text-2)">${cat.label}</span>
+    <span style="font-family:var(--ff-mono);font-size:0.65rem;color:var(--text-3)">${cat.desc}</span>
+    <span style="font-family:var(--ff-mono);font-size:0.65rem;color:var(--text-3);padding:2px 6px;border:1px solid var(--border);border-radius:var(--r-sm);margin-left:auto">${available.length} exercises</span>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:6px">
+    ${available.map(ex => `
+      <div class="cali-ex-card" onclick="openCaliExDetail('${ex.id}')">
+        <div style="flex:1;min-width:0">
+          <div style="font-family:var(--ff-mono);font-size:0.85rem;font-weight:600;color:var(--text);margin-bottom:4px">${ex.name}</div>
+          <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+            <span class="tag ${ex.diff==='adv'?'t-fire':ex.diff==='int'?'t-steel':'t-dim'}" style="font-size:8px">
+              ${ex.diff==='beg'?'Beginner':ex.diff==='int'?'Intermediate':'Advanced'}
+            </span>
+            ${ex.type ? `<span class="tag t-dim" style="font-size:8px">${ex.type}</span>` : ''}
+            ${ex.caliOnly ? `<span class="tag t-cali" style="font-size:8px">skill</span>` : ''}
+            <span style="font-family:var(--ff-mono);font-size:0.7rem;color:var(--text-2)">${ex.muscle || ''}</span>
           </div>
         </div>
-      `).join('')}
-    </div>
-  </div>
-  `;
-}).join('')}
-
-<!-- PROGRESSION GUIDE -->
-<div class="sec-head" style="margin-bottom:14px">Progression Path</div>
-<div class="card" style="padding:16px;margin-bottom:32px">
-  <div style="display:flex;flex-direction:column;gap:12px">
-    ${[
-      { step:'1', label:'Push foundations', detail:'Push-Up → Diamond Push-Up → Pike Push-Up → Handstand Push-Up' },
-      { step:'2', label:'Pull foundations', detail:'Inverted Row → Chin-Up → Pull-Up → Muscle-Up' },
-      { step:'3', label:'Leg foundations', detail:'Bodyweight Squat → Reverse Lunge → Jump Squat → Pistol Squat' },
-      { step:'4', label:'Core foundations', detail:'Crunch → Plank → Hollow Body Hold → L-Sit → Dragon Flag' },
-      { step:'5', label:'Hamstring strength', detail:'Glute Bridge → Nordic Hamstring Curl' },
-    ].map(p => `
-      <div style="display:flex;gap:12px;align-items:flex-start">
-        <div style="width:22px;height:22px;border-radius:50%;background:rgba(255,107,26,0.15);border:1px solid var(--fire);display:flex;align-items:center;justify-content:center;font-family:var(--ff-mono);font-size:10px;color:var(--fire);font-weight:700;flex-shrink:0;margin-top:1px">${p.step}</div>
-        <div>
-          <div style="font-family:var(--ff-mono);font-size:0.8rem;font-weight:600;color:var(--text);margin-bottom:2px">${p.label}</div>
-          <div style="font-family:var(--ff-mono);font-size:0.72rem;color:var(--text-2)">${p.detail}</div>
+        <div style="text-align:right;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;justify-content:center;gap:4px">
+          <div style="font-family:var(--ff-mono);font-size:0.8rem;color:var(--fire);font-weight:600">${CALI_REPS[ex.id] || '8–12 reps'}</div>
+          <div style="font-family:var(--ff-mono);font-size:0.65rem;color:var(--text-3)">Tap for form ↗</div>
         </div>
       </div>
     `).join('')}
   </div>
 </div>
+  `;
+}).join('')}
+
+<!-- ── SKILL PROGRESSIONS ─────────────────────────── -->
+<div class="sec-head" style="margin-bottom:14px">Skill Progressions</div>
+<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:32px">
+  ${PROGRESSIONS.map((p, i) => `
+  <div class="card" style="padding:14px 16px">
+    <div style="display:flex;align-items:flex-start;gap:12px">
+      <div style="width:24px;height:24px;border-radius:50%;background:var(--fire-dim);border:1px solid var(--fire);display:flex;align-items:center;justify-content:center;font-family:var(--ff-mono);font-size:10px;color:var(--fire);font-weight:700;flex-shrink:0;margin-top:1px">${i+1}</div>
+      <div>
+        <div style="font-family:var(--ff-mono);font-size:0.82rem;font-weight:600;color:var(--text);margin-bottom:5px">${p.skill}</div>
+        <div style="font-family:var(--ff-mono);font-size:0.72rem;color:var(--text-2);line-height:1.6">${p.steps[0]}</div>
+      </div>
+    </div>
+  </div>
+  `).join('')}
+</div>
+
+<!-- ── RECENT SESSIONS ───────────────────────────── -->
+${recentSessions.length ? `
+<div class="sec-head" style="margin-bottom:14px">Recent Sessions</div>
+<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:32px">
+  ${recentSessions.map(s => {
+    const d = new Date(s.date);
+    const dateStr = d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' });
+    const exCount = s.exercises?.length || 0;
+    const dur = s.durationMinutes ? `${s.durationMinutes} min` : '';
+    return `
+  <div class="card" style="padding:12px 14px;display:flex;align-items:center;gap:12px">
+    <div style="flex:1;min-width:0">
+      <div style="font-family:var(--ff-mono);font-size:0.82rem;font-weight:600;color:var(--text);margin-bottom:2px">${s.workoutLabel || 'Calisthenics'}</div>
+      <div style="font-family:var(--ff-mono);font-size:0.7rem;color:var(--text-2)">${dateStr}${exCount ? ` · ${exCount} exercises` : ''}${dur ? ` · ${dur}` : ''}</div>
+    </div>
+    <span class="tag t-cali" style="font-size:8px;flex-shrink:0">DONE</span>
+  </div>
+    `;
+  }).join('')}
+</div>
+` : ''}
 `;
 }
 
-// ── GLOBAL HANDLERS ──────────────────────────────────────────
+// ── GLOBAL HANDLERS ─────────────────────────────────────────────────────────
 
 window.setCaliLevel = (lvl) => {
   selectedLevel = lvl;
@@ -242,6 +279,6 @@ window.startCaliCircuit = (lvl) => {
     .filter(Boolean);
 
   if (exercises.length) {
-    window.startActiveWorkout(`cali_${lvl}`, circuit.label, exercises);
+    window.startActiveWorkout(`cali_${lvl}`, circuit.label, exercises, 'calisthenics');
   }
 };

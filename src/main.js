@@ -297,8 +297,8 @@ window.resetProgram = () => {
 };
 
 // ── ACTIVE WORKOUT ──
-window.startActiveWorkout = (workoutId, workoutLabel, exercises) => {
-  startActiveWorkout(workoutId, workoutLabel, exercises);
+window.startActiveWorkout = (workoutId, workoutLabel, exercises, workoutType) => {
+  startActiveWorkout(workoutId, workoutLabel, exercises, workoutType);
 };
 
 // ── BOOT ──
