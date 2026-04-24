@@ -1,16 +1,20 @@
 // ════════════════════════════════════
-//   Exercise Detail Modal
-//   Shows: muscles, cues, errors, video
+//   Exercise Detail Modal  v2.4
+//   Order: header → GIF → muscles →
+//          cues → errors → video → ref
 // ════════════════════════════════════
+
+const GIF_CDN = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises';
 
 export function showExerciseModal(ex) {
   // Remove any existing modal
   document.getElementById('ex-modal')?.remove();
 
-  const mf = ex.musclesFull || {};
-  const primary    = mf.primary    || [];
-  const secondary  = mf.secondary  || [];
+  const mf          = ex.musclesFull || {};
+  const primary     = mf.primary     || [];
+  const secondary   = mf.secondary   || [];
   const stabilizers = mf.stabilizers || [];
+  const isCali      = ex.tags?.includes('calisthenics');
 
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
@@ -19,63 +23,62 @@ export function showExerciseModal(ex) {
   overlay.innerHTML = `
 <div class="modal" onclick="event.stopPropagation()">
 
+  <!-- ── HEADER ────────────────────────── -->
   <div class="modal-head">
-    <div>
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+    <div style="flex:1;min-width:0">
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px">
         <span class="tag ${ex.type === 'compound' ? 't-fire' : 't-steel'}">${ex.type || 'exercise'}</span>
         <span class="tag t-dim">${ex.diff === 'beg' ? 'Beginner' : ex.diff === 'int' ? 'Intermediate' : 'Advanced'}</span>
+        ${isCali ? `<span class="tag t-cali">Calisthenics</span>` : ''}
       </div>
-      <div class="display" style="font-size:28px;line-height:1.1">${ex.name.toUpperCase()}</div>
-      <div class="dim" style="font-size:13px;margin-top:4px">${ex.muscle}</div>
+      <div class="display" style="font-size:1.4rem;line-height:1.15;word-break:break-word">${ex.name.toUpperCase()}</div>
+      <div style="font-size:0.8rem;color:var(--text-2);margin-top:4px;font-family:var(--ff-mono)">${ex.muscle}</div>
     </div>
-    <button class="modal-close" onclick="closeExModal()">✕</button>
+    <button class="modal-close" onclick="closeExModal()" aria-label="Close">✕</button>
   </div>
 
   <div class="modal-body">
 
-    <!-- MUSCLES TRAINED -->
+    <!-- ── ANIMATED EXERCISE PREVIEW ─────── -->
+    ${ex.imgKey ? `
+    <div class="ex-gif-wrap" id="gif-wrap-${ex.id || 'ex'}">
+      <img class="frame-0"
+           src="${GIF_CDN}/${ex.imgKey}/0.jpg"
+           onerror="this.closest('.ex-gif-wrap').style.display='none'"
+           alt="${ex.name} — start position"
+           loading="lazy">
+      <img class="frame-1"
+           src="${GIF_CDN}/${ex.imgKey}/1.jpg"
+           onerror="this.style.display='none'"
+           alt="${ex.name} — end position"
+           loading="lazy">
+    </div>
+    <div class="ex-gif-source">Images: free-exercise-db · public domain</div>
+    ` : ''}
+
+    <!-- ── MUSCLES TRAINED ─────────────── -->
+    ${(primary.length || secondary.length || stabilizers.length) ? `
     <div class="sec-head" style="margin-bottom:12px">Muscles Trained</div>
     <div style="margin-bottom:20px">
       ${primary.length ? `
-        <div class="label" style="margin-bottom:6px">Primary</div>
-        <div style="display:flex;flex-wrap:wrap;margin-bottom:8px">
+        <div class="label" style="margin-bottom:6px;color:var(--fire)">Primary</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px">
           ${primary.map(m => `<span class="muscle-pill muscle-primary">${m}</span>`).join('')}
         </div>` : ''}
       ${secondary.length ? `
-        <div class="label" style="margin-bottom:6px">Secondary</div>
-        <div style="display:flex;flex-wrap:wrap;margin-bottom:8px">
+        <div class="label" style="margin-bottom:6px;color:var(--steel)">Secondary</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px">
           ${secondary.map(m => `<span class="muscle-pill muscle-secondary">${m}</span>`).join('')}
         </div>` : ''}
       ${stabilizers.length ? `
-        <div class="label" style="margin-bottom:6px">Stabilizers</div>
-        <div style="display:flex;flex-wrap:wrap">
+        <div class="label" style="margin-bottom:6px;color:var(--text-3)">Stabilizers</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px">
           ${stabilizers.map(m => `<span class="muscle-pill muscle-stab">${m}</span>`).join('')}
         </div>` : ''}
     </div>
-
-    <!-- VIDEO DEMO -->
-    ${ex.youtubeId ? `
-    <div class="sec-head" style="margin-bottom:12px">Form Demo</div>
-    <div class="video-embed mb24" id="video-wrap-${ex.id}" style="margin-bottom:20px">
-      <div class="video-placeholder" onclick="loadVideo('${ex.youtubeId}', '${ex.id}')">
-        <div style="position:absolute;inset:0;background:url('https://img.youtube.com/vi/${ex.youtubeId}/mqdefault.jpg') center/cover no-repeat;border-radius:6px;opacity:0.6"></div>
-        <div class="play-btn" style="position:relative;z-index:1">▶</div>
-        <div style="position:relative;z-index:1;font-family:var(--ff-mono);font-size:11px;color:var(--text);background:rgba(0,0,0,0.7);padding:4px 10px;border-radius:3px">Click to load video</div>
-      </div>
-    </div>
     ` : ''}
 
-    <!-- FULL REFERENCE -->
-    ${ex.exrxSlug ? `
-    <div style="margin-bottom:20px">
-      <a href="https://exrx.net/${ex.exrxSlug}" target="_blank" rel="noopener"
-         style="display:inline-flex;align-items:center;gap:6px;font-family:var(--ff-mono);font-size:10px;color:var(--steel);text-decoration:none;border:1px solid rgba(122,179,200,0.3);padding:6px 12px;border-radius:3px;background:rgba(122,179,200,0.06)">
-        📖 Full exercise guide on ExRx.net ↗
-      </a>
-    </div>
-    ` : ''}
-
-    <!-- COACHING CUES -->
+    <!-- ── COACHING CUES ──────────────── -->
     ${ex.cues?.length ? `
     <div class="sec-head" style="margin-bottom:12px">Coaching Cues</div>
     <div style="margin-bottom:20px">
@@ -88,16 +91,38 @@ export function showExerciseModal(ex) {
     </div>
     ` : ''}
 
-    <!-- COMMON ERRORS -->
+    <!-- ── COMMON MISTAKES ────────────── -->
     ${ex.commonErrors?.length ? `
     <div class="sec-head" style="margin-bottom:12px">Common Mistakes</div>
-    <div>
+    <div style="margin-bottom:20px">
       ${ex.commonErrors.map(err => `
         <div class="error-item">
-          <span style="color:var(--danger);font-size:14px;margin-top:1px">✗</span>
+          <span style="color:var(--danger);font-size:14px;margin-top:1px;flex-shrink:0">✗</span>
           <span>${err}</span>
         </div>
       `).join('')}
+    </div>
+    ` : ''}
+
+    <!-- ── VIDEO DEMO (click-to-load) ── -->
+    ${ex.youtubeId ? `
+    <div class="sec-head" style="margin-bottom:12px">Form Demo</div>
+    <div class="video-embed" id="video-wrap-${ex.id || 'ex'}" style="margin-bottom:20px">
+      <div class="video-placeholder" onclick="loadVideo('${ex.youtubeId}', '${ex.id || 'ex'}')">
+        <div style="position:absolute;inset:0;background:url('https://img.youtube.com/vi/${ex.youtubeId}/mqdefault.jpg') center/cover no-repeat;border-radius:6px;opacity:0.55"></div>
+        <div class="play-btn" style="position:relative;z-index:1">▶</div>
+        <div style="position:relative;z-index:1;font-family:var(--ff-mono);font-size:11px;color:var(--text);background:rgba(0,0,0,0.75);padding:4px 10px;border-radius:3px;letter-spacing:0.06em">CLICK TO LOAD VIDEO</div>
+      </div>
+    </div>
+    ` : ''}
+
+    <!-- ── EXRX REFERENCE ─────────────── -->
+    ${ex.exrxSlug ? `
+    <div>
+      <a href="https://exrx.net/${ex.exrxSlug}" target="_blank" rel="noopener"
+         style="display:inline-flex;align-items:center;gap:6px;font-family:var(--ff-mono);font-size:0.7rem;color:var(--steel);text-decoration:none;border:1px solid rgba(122,179,200,0.25);padding:6px 12px;border-radius:var(--r-sm);background:rgba(122,179,200,0.05);letter-spacing:0.06em">
+        📖 FULL GUIDE ON EXRX.NET ↗
+      </a>
     </div>
     ` : ''}
 

@@ -184,3 +184,4 @@ fitness-forge/
 | `v2.1-stable` | Rest timer, muscle tags, form cues, weekly + muscle-freq charts, mobile nav fix |
 | `v2.2-stable` | 5-theme system with visual swatch picker |
 | `v2.3-stable` | Collapsible sidebar drawer, back button, improved Backup & Restore UI |
+| `v2.4-stable` | Design polish (Fira Code everywhere, CSS var tokens), animated exercise GIF previews, 13 new calisthenics exercises, modal redesign |
