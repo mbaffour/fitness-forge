@@ -4,6 +4,7 @@ import {
   renderProgress, renderLog, renderSettings,
 } from './components/pages.js';
 import { renderFreestyle } from './components/freestyle.js';
+import { renderCalisthenics } from './components/calisthenics.js';
 import { renderNutrition, scheduleNutritionCharts } from './components/nutrition.js';
 import { renderBodyStats, scheduleBodyCharts } from './components/body-stats.js';
 import { renderAchievements } from './components/achievements.js';
@@ -55,7 +56,8 @@ const NAV_GROUPS = [
     pages: [
       { id: 'dashboard', label: 'Dashboard', icon: '◈' },
       { id: 'workout',   label: 'Workout',   icon: '⚡' },
-      { id: 'freestyle', label: 'Freestyle', icon: '🔀' },
+      { id: 'freestyle',     label: 'Freestyle',     icon: '🔀' },
+      { id: 'calisthenics', label: 'Calisthenics',  icon: '🤸' },
       { id: 'schedule',  label: 'Schedule',  icon: '⊞'  },
     ],
   },
@@ -80,7 +82,8 @@ const NAV_GROUPS = [
 const PAGES = {
   dashboard:    { render: renderDashboard   },
   workout:      { render: renderWorkout     },
-  freestyle:    { render: renderFreestyle   },
+  freestyle:    { render: renderFreestyle    },
+  calisthenics: { render: renderCalisthenics },
   schedule:     { render: renderSchedule    },
   nutrition:    { render: renderNutrition   },
   body:         { render: renderBodyStats   },
@@ -106,7 +109,8 @@ const navHistory = [];
 
 const PAGE_LABELS = {
   dashboard:    'Dashboard',    workout:      'Workout',
-  freestyle:    'Freestyle',    schedule:     'Schedule',
+  freestyle:    'Freestyle',    calisthenics: 'Calisthenics',
+  schedule:     'Schedule',
   nutrition:    'Nutrition',    body:         'Body Stats',
   log:          'Log',          achievements: 'Achievements',
   progress:     'Progress',     settings:     'Settings',

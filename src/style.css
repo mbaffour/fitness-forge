@@ -1325,3 +1325,23 @@ details[open] .ex-cues summary::before { transform: rotate(90deg); }
   color: var(--forge-green);
   border: 1px solid rgba(77,255,170,0.25);
 }
+
+/* ── CALISTHENICS exercise cards ── */
+.cali-ex-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.cali-ex-card:hover {
+  border-color: var(--fire);
+  background: rgba(255,107,26,0.05);
+}
+.card-locked {
+  pointer-events: none;
+}
