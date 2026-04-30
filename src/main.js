@@ -13,6 +13,7 @@ import { renderFasting, scheduleFastingTimer } from './components/fasting.js';
 import { renderSleep, scheduleSleepCharts } from './components/sleep.js';
 import { renderActivity, scheduleActivityCharts } from './components/activity.js';
 import { renderAnalytics, scheduleAnalyticsCharts } from './components/analytics.js';
+import { renderHIIT, scheduleHIITCharts } from './components/hiit.js';
 import {
   state, save, setPhase, setWeek, logWorkout, clearLog, resetAll,
   logSession, addCardioEntry, addBodyCheckIn, getTodayNutrition,
@@ -68,6 +69,7 @@ const NAV_GROUPS = [
       { id: 'workout',      label: 'Workout',      icon: '⚡' },
       { id: 'freestyle',    label: 'Freestyle',    icon: '🔀' },
       { id: 'calisthenics', label: 'Calisthenics', icon: '🤸' },
+      { id: 'hiit',         label: 'HIIT',         icon: '🔥' },
       { id: 'schedule',     label: 'Schedule',     icon: '⊞' },
     ],
   },
@@ -103,6 +105,7 @@ const PAGES = {
   workout:      { render: renderWorkout      },
   freestyle:    { render: renderFreestyle    },
   calisthenics: { render: renderCalisthenics },
+  hiit:         { render: renderHIIT         },
   schedule:     { render: renderSchedule     },
   nutrition:    { render: renderNutrition    },
   fasting:      { render: renderFasting      },
@@ -124,6 +127,7 @@ const CHART_PAGES = {
   fasting:    scheduleFastingTimer,
   activity:   scheduleActivityCharts,
   analytics:  scheduleAnalyticsCharts,
+  hiit:       scheduleHIITCharts,
 };
 
 window.openExDetail = (exId) => {
@@ -137,6 +141,7 @@ const navHistory = [];
 const PAGE_LABELS = {
   dashboard:    'Dashboard',    workout:      'Workout',
   freestyle:    'Freestyle',    calisthenics: 'Calisthenics',
+  hiit:         'HIIT',
   schedule:     'Schedule',
   nutrition:    'Nutrition',    fasting:      'Fasting',
   sleep:        'Sleep',        activity:     'Activity',
@@ -257,8 +262,13 @@ function buildShell() {
 
 // ── NAVIGATE ──
 function navigate(pageId, pushHistory = true) {
-  // Clean up fasting timer when leaving that page
+  // Clean up page-specific intervals/modals on navigate away
   if (currentPage === 'fasting') clearInterval(window._fastTimerInterval);
+  if (currentPage === 'hiit') {
+    clearInterval(window._hiitTimerInterval);
+    const mo = document.getElementById('hiit-modal-overlay');
+    if (mo) { mo.classList.remove('open'); const mb = document.getElementById('hiit-media-box'); if (mb) mb.innerHTML = ''; }
+  }
 
   if (pageId === 'onboard') {
     renderOnboarding(() => { currentPage = 'dashboard'; navHistory.length = 0; buildShell(); });

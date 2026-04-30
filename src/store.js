@@ -26,6 +26,17 @@ const defaultState = {
   activeFast:  null,    // { startTime: ISO, protocol: '16:8', plannedHours: 16 } | null
   sleepLog:    [],      // [{ id, date, bedtime, wakeTime, durationHours, quality, feeling, notes, score }]
   activityLog: [],      // [{ id, date, type, durationMin, intensity, met, calories, distance, hr, notes }]
+  // ── v2.8 additions ──
+  hiitState: {
+    currentWeek:        0,
+    completedWorkouts:  {},
+    completedExercises: {},
+    totalMins:          0,
+    streak:             0,
+    lastWorkoutDate:    null,
+    logs:               [],
+    migrated:           false,
+  },
 };
 
 export const state = (() => {
@@ -37,9 +48,10 @@ export const state = (() => {
       return {
         ...defaultState,
         ...parsed,
-        streak:   { ...defaultState.streak,   ...(parsed.streak   || {}) },
-        settings: { ...defaultState.settings, ...(parsed.settings || {}) },
-        prs:      parsed.prs || {},
+        streak:    { ...defaultState.streak,    ...(parsed.streak    || {}) },
+        settings:  { ...defaultState.settings,  ...(parsed.settings  || {}) },
+        prs:       parsed.prs || {},
+        hiitState: { ...defaultState.hiitState, ...(parsed.hiitState || {}) },
       };
     }
     return { ...defaultState };
