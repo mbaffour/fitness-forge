@@ -376,6 +376,227 @@ export function initMuscleFrequencyChart(canvasId, sessions) {
   chartInstances.set(canvasId, chart);
 }
 
+// ── SLEEP DURATION BAR CHART ──
+export function initSleepBarChart(canvasId, sleepLog) {
+  ensureDefaults();
+  if (!window.Chart) return;
+  destroyIfExists(canvasId);
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+
+  const sorted = [...sleepLog].reverse().slice(-30);
+  const labels = sorted.map(e => {
+    const dt = new Date(e.date + 'T12:00');
+    return `${dt.getMonth()+1}/${dt.getDate()}`;
+  });
+  const durations = sorted.map(e => e.durationHours);
+  const colors = sorted.map(e =>
+    e.score >= 80 ? COLORS.green + 'cc' :
+    e.score >= 60 ? COLORS.ember + 'cc' : COLORS.fire + 'cc'
+  );
+
+  const chart = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Duration (h)',
+          data: durations,
+          backgroundColor: colors,
+          borderRadius: 3,
+        },
+        {
+          label: '8h target',
+          data: sorted.map(() => 8),
+          type: 'line',
+          borderColor: COLORS.steel,
+          borderDash: [4, 4],
+          pointRadius: 0,
+          tension: 0,
+          fill: false,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: true, position: 'bottom', labels: { color: COLORS.text2, padding: 12, font: { size: 10 } } } },
+      scales: {
+        x: { grid: { color: COLORS.border } },
+        y: { grid: { color: COLORS.border }, beginAtZero: true, ticks: { callback: v => v + 'h' } },
+      },
+    },
+  });
+  chartInstances.set(canvasId, chart);
+}
+
+// ── ACTIVITY STACKED BAR CHART ──
+export function initActivityStackedBar(canvasId, activityLog) {
+  ensureDefaults();
+  if (!window.Chart) return;
+  destroyIfExists(canvasId);
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+
+  // Build 8 weekly buckets (Sunday-to-Saturday)
+  const now = new Date();
+  const weeks = Array.from({ length: 8 }, (_, i) => {
+    const start = new Date(now);
+    start.setDate(now.getDate() - now.getDay() - (7 - i) * 7);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 7);
+    return { start, end, label: i === 7 ? 'This wk' : `−${7-i}w`, data: {} };
+  });
+
+  const types = [...new Set(activityLog.map(e => e.type))];
+  const palette = [COLORS.fire, COLORS.green, COLORS.steel, COLORS.ember, '#c864ff', '#64c8ff', '#ff6480', '#ffb347'];
+
+  activityLog.forEach(e => {
+    const d = new Date(e.date + 'T12:00');
+    for (const w of weeks) {
+      if (d >= w.start && d < w.end) {
+        w.data[e.type] = (w.data[e.type] || 0) + (e.durationMin || 0);
+        break;
+      }
+    }
+  });
+
+  const datasets = types.map((type, i) => ({
+    label: type,
+    data: weeks.map(w => w.data[type] || 0),
+    backgroundColor: palette[i % palette.length] + 'cc',
+    borderRadius: 2,
+  }));
+
+  const chart = new Chart(canvas, {
+    type: 'bar',
+    data: { labels: weeks.map(w => w.label), datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: true, position: 'bottom', labels: { color: COLORS.text2, padding: 10, font: { size: 10 } } } },
+      scales: {
+        x: { stacked: true, grid: { color: COLORS.border } },
+        y: { stacked: true, grid: { color: COLORS.border }, beginAtZero: true, ticks: { callback: v => v + 'm' } },
+      },
+    },
+  });
+  chartInstances.set(canvasId, chart);
+}
+
+// ── MACRO STACKED BAR CHART ──
+export function initMacroStackedChart(canvasId, nutritionLog) {
+  ensureDefaults();
+  if (!window.Chart) return;
+  destroyIfExists(canvasId);
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+
+  const last7 = [...nutritionLog].reverse().slice(-7);
+  const labels = last7.map(d => {
+    const dt = new Date(d.date + 'T12:00');
+    return ['Su','Mo','Tu','We','Th','Fr','Sa'][dt.getDay()];
+  });
+
+  const chart = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Protein', data: last7.map(d => d.protein || 0), backgroundColor: COLORS.fire + 'cc', borderRadius: 2 },
+        { label: 'Carbs',   data: last7.map(d => d.carbs   || 0), backgroundColor: COLORS.green + 'cc', borderRadius: 2 },
+        { label: 'Fat',     data: last7.map(d => d.fat     || 0), backgroundColor: COLORS.steel + 'cc', borderRadius: 2 },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: true, position: 'bottom', labels: { color: COLORS.text2, padding: 12, font: { size: 10 } } } },
+      scales: {
+        x: { stacked: true, grid: { color: COLORS.border } },
+        y: { stacked: true, grid: { color: COLORS.border }, beginAtZero: true, ticks: { callback: v => v + 'g' } },
+      },
+    },
+  });
+  chartInstances.set(canvasId, chart);
+}
+
+// ── ANALYTICS 4-IN-1 TREND CHART ──
+export function initAnalyticsTrendChart(canvasId, { labels, sleepScores, rpeValues, nutritionPcts, fastingPcts }) {
+  ensureDefaults();
+  if (!window.Chart) return;
+  destroyIfExists(canvasId);
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+
+  const chart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Sleep Score',
+          data: sleepScores,
+          borderColor: COLORS.steel,
+          backgroundColor: 'transparent',
+          pointRadius: 2,
+          tension: 0.3,
+          spanGaps: true,
+        },
+        {
+          label: 'RPE×10',
+          data: rpeValues,
+          borderColor: COLORS.fire,
+          backgroundColor: 'transparent',
+          pointRadius: 2,
+          tension: 0.3,
+          spanGaps: true,
+        },
+        {
+          label: 'Nutrition %',
+          data: nutritionPcts,
+          borderColor: COLORS.green,
+          backgroundColor: 'transparent',
+          pointRadius: 2,
+          tension: 0.3,
+          spanGaps: true,
+        },
+        {
+          label: 'Fasting %',
+          data: fastingPcts,
+          borderColor: COLORS.ember,
+          backgroundColor: 'transparent',
+          pointRadius: 2,
+          tension: 0.3,
+          spanGaps: true,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: true, position: 'bottom', labels: { color: COLORS.text2, padding: 12, font: { size: 10 } } } },
+      scales: {
+        x: { grid: { color: COLORS.border }, ticks: { maxTicksLimit: 10 } },
+        y: { grid: { color: COLORS.border }, beginAtZero: true, max: 110 },
+      },
+    },
+  });
+  chartInstances.set(canvasId, chart);
+}
+
+// ── TOGGLE CHART SERIES ──
+export function toggleChartSeries(canvasId, datasetIndex) {
+  const chart = chartInstances.get(canvasId);
+  if (!chart) return;
+  const ds = chart.data.datasets[datasetIndex];
+  if (!ds) return;
+  ds.hidden = !ds.hidden;
+  chart.update();
+}
+
 // ── VOLUME BREAKDOWN BAR CHART ──
 export function initVolumeChart(canvasId, sessions) {
   ensureDefaults();

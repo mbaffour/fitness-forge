@@ -198,7 +198,7 @@ ${todaySchedule?.type === 'cardio' && program.cardioPrescriptions?.length ? rend
   <button class="btn btn-fire btn-lg" id="log-btn" onclick="logToday('${todaySchedule?.label || dayName}','${todaySchedule?.type || 'rest'}')">
     ✓ Mark Complete
   </button>
-  <button class="btn btn-ghost btn-lg" onclick="navigate('log')">View Log</button>
+  <button class="btn btn-ghost btn-lg" onclick="navigate('cardio')">View Log</button>
 </div>
 `;
 }
@@ -293,7 +293,7 @@ function renderNonStrengthDay(sched, program) {
   <div style="font-size:44px;margin-bottom:16px">${sched.type === 'cardio' ? '🏃' : '⚽'}</div>
   <div class="display" style="font-size:30px;margin-bottom:8px">${sched.label.toUpperCase()}</div>
   <div class="dim fs13">See your cardio prescription below ↓</div>
-  <button class="btn btn-green btn-sm" style="margin-top:16px" onclick="navigate('log');setTimeout(()=>switchLogTab('cardio'),100)">+ Log Cardio →</button>
+  <button class="btn btn-green btn-sm" style="margin-top:16px" onclick="navigate('cardio');setTimeout(()=>switchLogTab('cardio'),100)">+ Log Cardio →</button>
 </div>`;
 }
 
@@ -552,12 +552,26 @@ function renderSessionsTab(workoutLog) {
 export function renderSettings() {
   const { profile } = state;
 
+  const lastExport = parseInt(localStorage.getItem('forge_last_export') || '0');
+  const daysSince  = lastExport ? (Date.now() - lastExport) / 86400000 : Infinity;
+  const showBackupReminder = daysSince > 7;
+
   return `
 <div class="page-header">
   <div class="label" style="margin-bottom:6px">Account</div>
   <h1 class="display page-title">SETTINGS</h1>
   <div class="page-sub">Manage your program, profile &amp; data</div>
 </div>
+
+${showBackupReminder ? `
+<div class="alert alert-fire" style="margin-bottom:24px">
+  <span>⚠️</span>
+  <div>
+    <div style="font-weight:500;margin-bottom:2px">${lastExport === 0 ? 'No backup yet — your data only lives in this browser!' : `Last backup was ${Math.floor(daysSince)} days ago.`}</div>
+    <div class="fs12"><span style="cursor:pointer;text-decoration:underline;color:var(--fire)" onclick="exportData()">Export now →</span></div>
+  </div>
+</div>
+` : ''}
 
 <div class="g2 mb24" style="margin-bottom:24px">
   <div class="card">
@@ -620,6 +634,15 @@ export function renderSettings() {
         ? `✓ Last backup: ${new Date(parseInt(ts)).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`
         : '⚠ No backup yet — export your data!';
     })()}
+  </div>
+
+  <div style="margin-top:20px">
+    <div class="label" style="margin-bottom:10px">Export CSV</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="exportCSV('food')">📊 Food Log</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportCSV('sleep')">📊 Sleep Log</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportCSV('activity')">📊 Activity Log</button>
+    </div>
   </div>
 </div>
 
@@ -772,6 +795,44 @@ window.exportData = () => {
   // Update label in place without full re-render
   const label = document.getElementById('last-export-label');
   if (label) label.textContent = `✓ Backup saved ${new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}`;
+};
+
+window.exportCSV = (type) => {
+  const exporters = {
+    food: () => {
+      const rows = [['Date','Meal','Name','Calories','Protein','Carbs','Fat']];
+      state.nutritionLog.forEach(day => {
+        (day.entries || []).forEach(e => {
+          rows.push([day.date, e.meal || '', e.name || '', e.calories || 0, e.protein || 0, e.carbs || 0, e.fat || 0]);
+        });
+      });
+      return rows;
+    },
+    sleep: () => {
+      const rows = [['Date','Bedtime','WakeTime','Duration(h)','Quality','Score','Notes']];
+      state.sleepLog.forEach(e => {
+        rows.push([e.date, e.bedtime, e.wakeTime, e.durationHours, e.quality, e.score, e.notes || '']);
+      });
+      return rows;
+    },
+    activity: () => {
+      const rows = [['Date','Type','Duration(min)','Intensity','Calories','Distance','HR','Notes']];
+      state.activityLog.forEach(e => {
+        rows.push([e.date, e.type, e.durationMin, e.intensity, e.calories, e.distance || '', e.hr || '', e.notes || '']);
+      });
+      return rows;
+    },
+  };
+  const rows = exporters[type]?.();
+  if (!rows || rows.length <= 1) { alert('No data to export yet.'); return; }
+  const csv  = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = `fitness-forge-${type}-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 };
 
 window.importData = (evt) => {

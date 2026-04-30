@@ -9,10 +9,17 @@ import { renderNutrition, scheduleNutritionCharts } from './components/nutrition
 import { renderBodyStats, scheduleBodyCharts } from './components/body-stats.js';
 import { renderAchievements } from './components/achievements.js';
 import { showExerciseModal, closeExModal, loadVideo } from './components/modal.js';
+import { renderFasting, scheduleFastingTimer } from './components/fasting.js';
+import { renderSleep, scheduleSleepCharts } from './components/sleep.js';
+import { renderActivity, scheduleActivityCharts } from './components/activity.js';
+import { renderAnalytics, scheduleAnalyticsCharts } from './components/analytics.js';
 import {
   state, save, setPhase, setWeek, logWorkout, clearLog, resetAll,
   logSession, addCardioEntry, addBodyCheckIn, getTodayNutrition,
   addFoodEntry, logWater, updateProfile, recordPR, awardAchievement, updateStreak,
+  startFast, endFast, getActiveFast,
+  addSleepEntry, removeSleepEntry,
+  addActivityEntry, removeActivityEntry,
 } from './store.js';
 import { generateProgram } from './engine/generator.js';
 import { EXERCISES } from './data/exercises.js';
@@ -46,7 +53,10 @@ window.__forge_gen   = { generateProgram };
 window.__forge_store = {
   logWorkout, logSession, addCardioEntry, addBodyCheckIn,
   getTodayNutrition, addFoodEntry, logWater, updateProfile,
-  recordPR, awardAchievement, updateStreak, state,
+  recordPR, awardAchievement, updateStreak, state, save,
+  startFast, endFast, getActiveFast,
+  addSleepEntry, removeSleepEntry,
+  addActivityEntry, removeActivityEntry,
 };
 
 // ── PAGES ──
@@ -54,20 +64,29 @@ const NAV_GROUPS = [
   {
     label: 'Train',
     pages: [
-      { id: 'dashboard', label: 'Dashboard', icon: '◈' },
-      { id: 'workout',   label: 'Workout',   icon: '⚡' },
-      { id: 'freestyle',     label: 'Freestyle',     icon: '🔀' },
-      { id: 'calisthenics', label: 'Calisthenics',  icon: '🤸' },
-      { id: 'schedule',  label: 'Schedule',  icon: '⊞'  },
+      { id: 'dashboard',    label: 'Dashboard',    icon: '◈' },
+      { id: 'workout',      label: 'Workout',      icon: '⚡' },
+      { id: 'freestyle',    label: 'Freestyle',    icon: '🔀' },
+      { id: 'calisthenics', label: 'Calisthenics', icon: '🤸' },
+      { id: 'schedule',     label: 'Schedule',     icon: '⊞' },
     ],
   },
   {
     label: 'Track',
     pages: [
       { id: 'nutrition',    label: 'Nutrition',    icon: '⊕' },
+      { id: 'fasting',      label: 'Fasting',      icon: '⏱' },
+      { id: 'sleep',        label: 'Sleep',        icon: '🌙' },
+      { id: 'activity',     label: 'Activity',     icon: '⚑' },
       { id: 'body',         label: 'Body Stats',   icon: '◉' },
-      { id: 'log',          label: 'Log',          icon: '≡' },
+      { id: 'cardio',       label: 'Cardio',       icon: '≡' },
       { id: 'achievements', label: 'Achievements', icon: '★' },
+    ],
+  },
+  {
+    label: 'Analyze',
+    pages: [
+      { id: 'analytics', label: 'Analytics', icon: '◎' },
     ],
   },
   {
@@ -80,23 +99,31 @@ const NAV_GROUPS = [
 ];
 
 const PAGES = {
-  dashboard:    { render: renderDashboard   },
-  workout:      { render: renderWorkout     },
+  dashboard:    { render: renderDashboard    },
+  workout:      { render: renderWorkout      },
   freestyle:    { render: renderFreestyle    },
   calisthenics: { render: renderCalisthenics },
-  schedule:     { render: renderSchedule    },
-  nutrition:    { render: renderNutrition   },
-  body:         { render: renderBodyStats   },
-  log:          { render: renderLog         },
+  schedule:     { render: renderSchedule     },
+  nutrition:    { render: renderNutrition    },
+  fasting:      { render: renderFasting      },
+  sleep:        { render: renderSleep        },
+  activity:     { render: renderActivity     },
+  body:         { render: renderBodyStats    },
+  cardio:       { render: renderLog          },
   achievements: { render: renderAchievements },
-  progress:     { render: renderProgress    },
-  settings:     { render: renderSettings    },
+  analytics:    { render: renderAnalytics    },
+  progress:     { render: renderProgress     },
+  settings:     { render: renderSettings     },
 };
 
 // pages that need Chart.js post-render scheduling
 const CHART_PAGES = {
-  nutrition:    scheduleNutritionCharts,
-  body:         scheduleBodyCharts,
+  nutrition:  scheduleNutritionCharts,
+  body:       scheduleBodyCharts,
+  sleep:      scheduleSleepCharts,
+  fasting:    scheduleFastingTimer,
+  activity:   scheduleActivityCharts,
+  analytics:  scheduleAnalyticsCharts,
 };
 
 window.openExDetail = (exId) => {
@@ -111,8 +138,10 @@ const PAGE_LABELS = {
   dashboard:    'Dashboard',    workout:      'Workout',
   freestyle:    'Freestyle',    calisthenics: 'Calisthenics',
   schedule:     'Schedule',
-  nutrition:    'Nutrition',    body:         'Body Stats',
-  log:          'Log',          achievements: 'Achievements',
+  nutrition:    'Nutrition',    fasting:      'Fasting',
+  sleep:        'Sleep',        activity:     'Activity',
+  body:         'Body Stats',   cardio:       'Cardio Log',
+  achievements: 'Achievements', analytics:    'Analytics',
   progress:     'Progress',     settings:     'Settings',
 };
 
@@ -133,6 +162,30 @@ function updateTopbar(pageId) {
   if (backEl)  backEl.classList.toggle('visible', navHistory.length > 0);
 }
 
+// ── STATS STRIP ──
+function _buildStatsStrip() {
+  const today = new Date().toISOString().slice(0, 10);
+  const calories = state.nutritionLog.find(d => d.date === today)?.calories || 0;
+  const lastSleep = state.sleepLog[0];
+  const fast = state.activeFast;
+  let fastLabel = 'Not fasting';
+  if (fast) {
+    const elapsed = (Date.now() - new Date(fast.startTime).getTime()) / 3600000;
+    const rem = Math.max(fast.plannedHours - elapsed, 0);
+    fastLabel = `${fast.protocol} · ${Math.floor(rem)}h left`;
+  }
+  return `
+  <span class="strip-item">🔥 <strong>${state.streak.current}d</strong> streak</span>
+  <span class="strip-item">⊕ <strong>${calories}</strong> kcal today</span>
+  <span class="strip-item">⏱ ${fastLabel}</span>
+  <span class="strip-item">🌙 Sleep: <strong>${lastSleep ? lastSleep.score + '/100' : '—'}</strong></span>`;
+}
+
+function _updateStatsStrip() {
+  const el = document.getElementById('stats-strip');
+  if (el) el.innerHTML = _buildStatsStrip();
+}
+
 // ── SHELL ──
 function buildShell() {
   const { profile, program, currentPhase, currentWeek } = state;
@@ -148,6 +201,11 @@ function buildShell() {
 </div>
 <!-- drawer backdrop -->
 <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="closeSidebar()"></div>
+
+<!-- STATS STRIP -->
+<div class="stats-strip" id="stats-strip">
+  ${_buildStatsStrip()}
+</div>
 
 <div class="shell">
   <!-- SIDEBAR -->
@@ -199,6 +257,9 @@ function buildShell() {
 
 // ── NAVIGATE ──
 function navigate(pageId, pushHistory = true) {
+  // Clean up fasting timer when leaving that page
+  if (currentPage === 'fasting') clearInterval(window._fastTimerInterval);
+
   if (pageId === 'onboard') {
     renderOnboarding(() => { currentPage = 'dashboard'; navHistory.length = 0; buildShell(); });
     return;
@@ -287,8 +348,8 @@ window.logToday = (label, type) => {
 
 window.clearWorkoutLog = () => {
   clearLog();
-  const el = document.getElementById('page-log');
-  if (el) el.innerHTML = PAGES.log.render();
+  const el = document.getElementById('page-cardio');
+  if (el) el.innerHTML = PAGES.cardio.render();
 };
 
 window.resetProgram = () => {
@@ -307,9 +368,11 @@ function boot() {
     renderOnboarding(() => {
       currentPage = 'dashboard';
       buildShell();
+      setInterval(_updateStatsStrip, 30000);
     });
   } else {
     buildShell();
+    setInterval(_updateStatsStrip, 30000);
   }
 }
 
