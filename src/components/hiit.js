@@ -5,89 +5,24 @@
 import { state, save } from '../store.js';
 
 // ── EXERCISE DATABASE ──────────────────────
-// gif: primary animated GIF url (onerror falls back to cue card)
-// ytId: YouTube video ID embedded via youtube-nocookie.com
-const _EXDB_CDN = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises';
+const _EXDB = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises';
 const HIIT_EX = {
-  burpees:        { name:'Burpees',          workSecs:40, restSecs:20, icon:'💥',
-    ytId:'dZgVxmf6jkA',
-    gif:'https://upload.wikimedia.org/wikipedia/commons/9/9a/Burpees.gif',
-    cues:'Squat → plank → push-up → jump. Keep core tight throughout.' },
-
-  mountainClimbers:{ name:'Mountain Climbers',workSecs:40, restSecs:20, icon:'🧗',
-    ytId:'nmwgirgXLYM',
-    gif:`${_EXDB_CDN}/Mountain%20Climber/0.gif`,
-    cues:'Plank. Drive knees to chest alternately. Hips stay low and level.' },
-
-  jumpingJacks:   { name:'Jumping Jacks',    workSecs:45, restSecs:15, icon:'⭐',
-    ytId:'c4DAnQ6DtF8',
-    gif:'https://upload.wikimedia.org/wikipedia/commons/5/52/Jumpingjacks_wbs.gif',
-    cues:'Full arm range. Arms over head each rep. Land softly on balls of feet.' },
-
-  highKnees:      { name:'High Knees',       workSecs:40, restSecs:20, icon:'🏃',
-    ytId:'oDdkytliOqE',
-    gif:`${_EXDB_CDN}/High%20Knees/0.gif`,
-    cues:'Drive knees above hip height. Pump arms. Stay light and quick.' },
-
-  squat:          { name:'Squat Jumps',      workSecs:35, restSecs:25, icon:'🦵',
-    ytId:'Azl5tkCzDcc',
-    gif:`${_EXDB_CDN}/Jump%20Squat/0.gif`,
-    cues:'Squat deep, explode up. Land soft with knees tracking toes.' },
-
-  pushUps:        { name:'Push-Ups',         workSecs:40, restSecs:20, icon:'💪',
-    ytId:'IODxDxX7oi4',
-    gif:`${_EXDB_CDN}/Push-up/0.gif`,
-    cues:'Elbows 45°. Full range. Core braced. Control the descent.' },
-
-  plank:          { name:'Plank Hold',       workSecs:45, restSecs:15, icon:'🏋️',
-    ytId:'pSHjTRCQxIw',
-    gif:`${_EXDB_CDN}/Plank/0.gif`,
-    cues:"Neutral spine. Squeeze glutes. Breathe steadily. Don't let hips sag." },
-
-  jumpingLunges:  { name:'Jump Lunges',      workSecs:35, restSecs:25, icon:'⚡',
-    ytId:'G86Rp4nEpEQ',
-    gif:`${_EXDB_CDN}/Jump%20Lunge/0.gif`,
-    cues:'Switch legs mid-air. Land with 90° knee angles. Use arms for balance.' },
-
-  bicycleCrunches:{ name:'Bicycle Crunches', workSecs:40, restSecs:20, icon:'🔄',
-    ytId:'9FGilxCbdz8',
-    gif:`${_EXDB_CDN}/Bicycle%20Crunch/0.gif`,
-    cues:"Slow and controlled. Elbow to opposite knee. Don't pull your neck." },
-
-  legRaises:      { name:'Leg Raises',       workSecs:40, restSecs:20, icon:'🦵',
-    ytId:'l4kQd9eWclE',
-    gif:`${_EXDB_CDN}/Leg%20Raise/0.gif`,
-    cues:'Lower back pressed flat. Control the descent. Legs stay straight.' },
-
-  supermanHold:   { name:'Superman Hold',    workSecs:30, restSecs:10, icon:'🦸',
-    ytId:'z6PJMT2y8GQ',
-    gif:`${_EXDB_CDN}/Superman/0.gif`,
-    cues:'Lift arms and legs simultaneously. Squeeze glutes and back. Breathe.' },
-
-  inchWorms:      { name:'Inchworms',        workSecs:40, restSecs:20, icon:'🐛',
-    ytId:'X0kCQdVr7rE',
-    gif:`${_EXDB_CDN}/Inchworm/0.gif`,
-    cues:'Walk hands out to plank. Walk feet to hands. Repeat. Keep legs straight.' },
-
-  sprintInPlace:  { name:'Sprint in Place',  workSecs:30, restSecs:30, icon:'🚀',
-    ytId:'r8UBvJgQKCQ',
-    gif:'https://upload.wikimedia.org/wikipedia/commons/b/b4/High_knees.gif',
-    cues:'Max effort. Pump arms hard. Stay on balls of feet. Full speed.' },
-
-  lateralJumps:   { name:'Lateral Jumps',    workSecs:40, restSecs:20, icon:'↔️',
-    ytId:'2yFBUg0OaLQ',
-    gif:`${_EXDB_CDN}/Lateral%20Bound/0.gif`,
-    cues:'Jump side to side over imaginary line. Stay light and quick. Land soft.' },
-
-  deadBugs:       { name:'Dead Bugs',        workSecs:40, restSecs:20, icon:'🐞',
-    ytId:'4XLEnwUr1d8',
-    gif:`${_EXDB_CDN}/Dead%20Bug/0.gif`,
-    cues:'Opposite arm and leg extend slowly. Keep lower back flush to floor.' },
-
-  starJumps:      { name:'Star Jumps',       workSecs:40, restSecs:20, icon:'✨',
-    ytId:'f7j7bGQPy9Y',
-    gif:'https://upload.wikimedia.org/wikipedia/commons/5/52/Jumpingjacks_wbs.gif',
-    cues:'Explode from squat. Arms and legs out in star shape. Land softly and repeat.' },
+  burpees:         { name:'Burpees',           workSecs:40, restSecs:20, icon:'💥', ytId:'dZgVxmf6jkA', gif:'https://upload.wikimedia.org/wikipedia/commons/9/9a/Burpees.gif',             cues:'Squat → plank → push-up → jump. Keep core tight throughout.' },
+  mountainClimbers:{ name:'Mountain Climbers', workSecs:40, restSecs:20, icon:'🧗', ytId:'nmwgirgXLYM', gif:`${_EXDB}/Mountain%20Climber/0.gif`,                                           cues:'Plank. Drive knees to chest alternately. Hips stay low and level.' },
+  jumpingJacks:    { name:'Jumping Jacks',     workSecs:45, restSecs:15, icon:'⭐', ytId:'c4DAnQ6DtF8', gif:'https://upload.wikimedia.org/wikipedia/commons/5/52/Jumpingjacks_wbs.gif',    cues:'Full arm range. Arms over head each rep. Land softly on balls of feet.' },
+  highKnees:       { name:'High Knees',        workSecs:40, restSecs:20, icon:'🏃', ytId:'oDdkytliOqE', gif:`${_EXDB}/High%20Knees/0.gif`,                                                 cues:'Drive knees above hip height. Pump arms. Stay light and quick.' },
+  squat:           { name:'Squat Jumps',       workSecs:35, restSecs:25, icon:'🦵', ytId:'Azl5tkCzDcc', gif:`${_EXDB}/Jump%20Squat/0.gif`,                                                 cues:'Squat deep, explode up. Land soft with knees tracking toes.' },
+  pushUps:         { name:'Push-Ups',          workSecs:40, restSecs:20, icon:'💪', ytId:'IODxDxX7oi4', gif:`${_EXDB}/Push-up/0.gif`,                                                      cues:'Elbows 45°. Full range. Core braced. Control the descent.' },
+  plank:           { name:'Plank Hold',        workSecs:45, restSecs:15, icon:'🏋️', ytId:'pSHjTRCQxIw', gif:`${_EXDB}/Plank/0.gif`,                                                       cues:"Neutral spine. Squeeze glutes. Breathe steadily. Don't let hips sag." },
+  jumpingLunges:   { name:'Jump Lunges',       workSecs:35, restSecs:25, icon:'⚡', ytId:'G86Rp4nEpEQ', gif:`${_EXDB}/Jump%20Lunge/0.gif`,                                                 cues:'Switch legs mid-air. Land with 90° knee angles. Use arms for balance.' },
+  bicycleCrunches: { name:'Bicycle Crunches',  workSecs:40, restSecs:20, icon:'🔄', ytId:'9FGilxCbdz8', gif:`${_EXDB}/Bicycle%20Crunch/0.gif`,                                             cues:"Slow and controlled. Elbow to opposite knee. Don't pull your neck." },
+  legRaises:       { name:'Leg Raises',        workSecs:40, restSecs:20, icon:'🦵', ytId:'l4kQd9eWclE', gif:`${_EXDB}/Leg%20Raise/0.gif`,                                                  cues:'Lower back pressed flat. Control the descent. Legs stay straight.' },
+  supermanHold:    { name:'Superman Hold',     workSecs:30, restSecs:10, icon:'🦸', ytId:'z6PJMT2y8GQ', gif:`${_EXDB}/Superman/0.gif`,                                                     cues:'Lift arms and legs simultaneously. Squeeze glutes and back. Breathe.' },
+  inchWorms:       { name:'Inchworms',         workSecs:40, restSecs:20, icon:'🐛', ytId:'X0kCQdVr7rE', gif:`${_EXDB}/Inchworm/0.gif`,                                                     cues:'Walk hands out to plank. Walk feet to hands. Repeat. Keep legs straight.' },
+  sprintInPlace:   { name:'Sprint in Place',   workSecs:30, restSecs:30, icon:'🚀', ytId:'r8UBvJgQKCQ', gif:'https://upload.wikimedia.org/wikipedia/commons/b/b4/High_knees.gif',          cues:'Max effort. Pump arms hard. Stay on balls of feet. Full speed.' },
+  lateralJumps:    { name:'Lateral Jumps',     workSecs:40, restSecs:20, icon:'↔️', ytId:'2yFBUg0OaLQ', gif:`${_EXDB}/Lateral%20Bound/0.gif`,                                              cues:'Jump side to side over imaginary line. Stay light and quick. Land soft.' },
+  deadBugs:        { name:'Dead Bugs',         workSecs:40, restSecs:20, icon:'🐞', ytId:'4XLEnwUr1d8', gif:`${_EXDB}/Dead%20Bug/0.gif`,                                                   cues:'Opposite arm and leg extend slowly. Keep lower back flush to floor.' },
+  starJumps:       { name:'Star Jumps',        workSecs:40, restSecs:20, icon:'✨', ytId:'f7j7bGQPy9Y', gif:'https://upload.wikimedia.org/wikipedia/commons/5/52/Jumpingjacks_wbs.gif',    cues:'Explode from squat. Arms and legs out in star shape. Land softly and repeat.' },
 };
 
 // ── 4-WEEK PROGRAM ─────────────────────────
@@ -138,6 +73,15 @@ let _timerInterval = null;
 let _timerLeft = 0, _timerTotal = 0, _isResting = false;
 let _curExList = [], _curExIdx = 0, _curWk = 0, _curDi = 0;
 let _ratings = { energy: 0, effort: 0 };
+// Custom workout builder
+let _customSel      = {};   // { exId: true }
+let _customOrder    = [];   // [exId, ...] in pick order
+let _customWorkSecs = 40;
+let _customRestSecs = 20;
+let _customRounds   = 1;
+let _inCustom       = false;
+// Library inline video
+let _openVideoId    = null;
 
 const wKey = (w, d) => `w${w}d${d}`;
 const eKey = (w, d, e) => `w${w}d${d}_${e}`;
@@ -150,19 +94,275 @@ function _migrate() {
     const raw = localStorage.getItem('hiit_v3');
     if (raw && !H().migrated) {
       const d = JSON.parse(raw);
-      Object.assign(H(), {
-        currentWeek: d.currentWeek || 0,
-        completedWorkouts: d.completedWorkouts || {},
-        completedExercises: d.completedExercises || {},
-        totalMins: d.totalMins || 0,
-        streak: d.streak || 0,
-        lastWorkoutDate: d.lastWorkoutDate || null,
-        logs: d.logs || [],
-        migrated: true,
-      });
+      Object.assign(H(), { currentWeek:d.currentWeek||0, completedWorkouts:d.completedWorkouts||{}, completedExercises:d.completedExercises||{}, totalMins:d.totalMins||0, streak:d.streak||0, lastWorkoutDate:d.lastWorkoutDate||null, logs:d.logs||[], migrated:true });
       save();
     }
   } catch {}
+}
+
+// ── EXPORTS ──────────────────────────────
+export function renderHIIT() {
+  _migrate();
+  _ensureModal();
+  if (_view === 'progress') return _renderProgress();
+  if (_view === 'build')    return _renderBuildWorkout();
+  if (_view === 'library')  return _renderLibrary();
+  return _renderProgram();
+}
+
+export function scheduleHIITCharts() {
+  setTimeout(() => { if (_view === 'progress') _drawSparklines(); }, 0);
+}
+
+// ── SHARED TAB BAR ────────────────────────
+function _tabs(active) {
+  const tabs = [
+    { id:'program', label:'Program' },
+    { id:'build',   label:'Build Workout' },
+    { id:'library', label:'Exercise Library' },
+    { id:'progress',label:'Progress' },
+  ];
+  return `<div class="hiit-tabs">
+    ${tabs.map(t => `<button class="hiit-tab${active===t.id?' active':''}" onclick="hiitSwitchView('${t.id}')">${t.label}</button>`).join('')}
+  </div>`;
+}
+
+function _pageHead(sub) {
+  return `<div class="page-header">
+    <div class="label" style="margin-bottom:6px">No Equipment · Home · Fat Burn</div>
+    <h1 class="display page-title">HIIT</h1>
+    <div class="page-sub">${sub}</div>
+  </div>`;
+}
+
+// ── PROGRAM VIEW ──────────────────────────
+function _renderProgram() {
+  const h = H();
+  const wk = HIIT_PROGRAM[h.currentWeek];
+  const todayDow = new Date().getDay();
+  const dowMap   = { Monday:1,Tuesday:2,Wednesday:3,Thursday:4,Friday:5,Saturday:6,Sunday:0 };
+  const totalDone = Object.values(h.completedWorkouts).filter(Boolean).length;
+  const totalEx   = Object.values(h.completedExercises).filter(Boolean).length;
+
+  return `
+${_pageHead('4-week rotating program · 20–30 min/day')}
+${_tabs('program')}
+
+<div class="hiit-stats-row" style="margin-bottom:16px">
+  <div class="hiit-stat"><span class="hiit-stat-v">${h.streak}</span><span class="hiit-stat-k">Streak</span></div>
+  <div class="hiit-stat"><span class="hiit-stat-v">${totalDone}</span><span class="hiit-stat-k">Workouts</span></div>
+  <div class="hiit-stat"><span class="hiit-stat-v">${h.totalMins}</span><span class="hiit-stat-k">Mins</span></div>
+  <div class="hiit-stat"><span class="hiit-stat-v">${Math.round(h.totalMins*8.5)}</span><span class="hiit-stat-k">~Cals</span></div>
+  <div class="hiit-stat"><span class="hiit-stat-v">${totalEx}</span><span class="hiit-stat-k">Done</span></div>
+</div>
+
+<div class="hiit-week-switcher" style="margin-bottom:16px">
+  ${HIIT_PROGRAM.map((w,i) => `<button class="hiit-wk-btn${h.currentWeek===i?' active':''}" onclick="hiitSwitchWeek(${i})">WK ${w.week}: ${w.theme}</button>`).join('')}
+</div>
+
+<div class="hiit-day-grid" style="margin-bottom:24px">
+  ${wk.days.map((day, di) => {
+    const key    = wKey(h.currentWeek, di);
+    const isDone = !!h.completedWorkouts[key];
+    const isToday = dowMap[day.day] === todayDow;
+    const isRest  = day.type === 'rest';
+    const tc      = TYPE_COLOR[day.type] || 'var(--text-2)';
+
+    const exRows = isRest ? '' : `<div class="hiit-ex-list">
+      ${day.exercises.map(id => {
+        const ex = HIIT_EX[id]; if (!ex) return '';
+        const ek   = eKey(h.currentWeek, di, id);
+        const done = !!h.completedExercises[ek];
+        return `<div class="hiit-ex-item">
+          <div class="hiit-ex-chk${done?' on':''}" onclick="hiitToggleEx('${ek}',this)"></div>
+          <div class="hiit-ex-info">
+            <div class="hiit-ex-name">${ex.icon} ${ex.name}</div>
+            <div class="hiit-ex-meta">${ex.workSecs}s work · ${ex.restSecs}s rest</div>
+          </div>
+          <button class="hiit-demo-btn" onclick="hiitOpenDemo('${id}')">▶ DEMO</button>
+        </div>`;
+      }).join('')}
+    </div>`;
+
+    const restBody = isRest
+      ? `<div class="hiit-rest-body">😴 Recovery Day<br><span class="muted fs11">Stretch, hydrate, sleep well.</span></div>`
+      : '';
+
+    const footer = isRest ? '' : `<div class="hiit-day-foot">
+      <span class="muted fs11">⏱ ${day.duration} min · ${day.exercises.length} exercises</span>
+      ${isDone
+        ? `<button class="hiit-done-btn" onclick="hiitStartWorkout(${h.currentWeek},${di})">✓ DONE — REDO</button>`
+        : `<button class="btn btn-fire hiit-start-btn" onclick="hiitStartWorkout(${h.currentWeek},${di})">▶ START</button>`
+      }
+    </div>`;
+
+    return `<div class="hiit-day-card${isToday?' is-today':''}${isDone?' is-done':''}">
+      <div class="hiit-day-hdr">
+        <span class="hiit-day-name">${day.day.toUpperCase()}</span>
+        <span class="hiit-type-tag" style="color:${tc};background:${tc}22">${day.label}</span>
+      </div>
+      ${exRows}${restBody}${footer}
+    </div>`;
+  }).join('')}
+</div>
+
+<div class="card" style="margin-bottom:24px">
+  <div class="sec-head" style="margin-bottom:12px">Week ${wk.week} — ${wk.theme}</div>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+    ${[[wk.days.filter(d=>d.type!=='rest').length,'Workout Days'],[wk.days.filter(d=>d.type==='rest').length,'Rest Days'],[wk.days.filter((_,i)=>h.completedWorkouts[wKey(h.currentWeek,i)]).length,'Done'],[wk.days.reduce((s,d)=>s+(d.duration||0),0),'Total Min']]
+    .map(([v,k])=>`<div class="card" style="text-align:center;padding:10px 8px"><div style="font-size:22px;font-weight:700;color:var(--fire);font-family:var(--ff-mono)">${v}</div><div class="label" style="font-size:9px;margin-top:2px">${k}</div></div>`).join('')}
+  </div>
+</div>`;
+}
+
+// ── BUILD WORKOUT VIEW ────────────────────
+function _renderBuildWorkout() {
+  const allIds = Object.keys(HIIT_EX);
+  const selCount = _customOrder.length;
+  const estMins = selCount ? Math.round(selCount * _customRounds * (_customWorkSecs + _customRestSecs) / 60) : 0;
+
+  return `
+${_pageHead('Pick exercises · set timing · go')}
+${_tabs('build')}
+
+<div class="alert alert-fire" style="margin-bottom:16px">
+  <span>🔥</span>
+  <div>Select exercises below, set your work/rest timing, then hit <strong>START</strong>. Mix and match any combination.</div>
+</div>
+
+<div class="sec-head" style="margin-bottom:10px">Choose Exercises</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:20px">
+  ${allIds.map(id => {
+    const ex  = HIIT_EX[id];
+    const sel = !!_customSel[id];
+    const ord = _customOrder.indexOf(id);
+    return `<div class="hiit-pick-card${sel?' selected':''}" onclick="hiitTogglePick('${id}')">
+      <div class="hiit-pick-icon">${ex.icon}</div>
+      <div class="hiit-pick-name">${ex.name}</div>
+      <div class="hiit-pick-meta">${ex.workSecs}s / ${ex.restSecs}s</div>
+      ${sel ? `<div class="hiit-pick-badge">${ord+1}</div>` : ''}
+    </div>`;
+  }).join('')}
+</div>
+
+<div class="sec-head" style="margin-bottom:10px">Timing &amp; Rounds</div>
+<div class="card" style="margin-bottom:16px">
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;align-items:center">
+    <div>
+      <label class="label" style="display:block;margin-bottom:6px">Work Time</label>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="btn" style="padding:4px 10px;font-size:16px" onclick="hiitAdjust('work',-5)">−</button>
+        <span id="hiit-work-disp" style="font-size:22px;font-weight:700;color:var(--fire);font-family:var(--ff-mono);min-width:44px;text-align:center">${_customWorkSecs}s</span>
+        <button class="btn" style="padding:4px 10px;font-size:16px" onclick="hiitAdjust('work',5)">+</button>
+      </div>
+    </div>
+    <div>
+      <label class="label" style="display:block;margin-bottom:6px">Rest Time</label>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="btn" style="padding:4px 10px;font-size:16px" onclick="hiitAdjust('rest',-5)">−</button>
+        <span id="hiit-rest-disp" style="font-size:22px;font-weight:700;color:var(--steel);font-family:var(--ff-mono);min-width:44px;text-align:center">${_customRestSecs}s</span>
+        <button class="btn" style="padding:4px 10px;font-size:16px" onclick="hiitAdjust('rest',5)">+</button>
+      </div>
+    </div>
+    <div>
+      <label class="label" style="display:block;margin-bottom:6px">Rounds</label>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="btn" style="padding:4px 10px;font-size:16px" onclick="hiitAdjust('rounds',-1)">−</button>
+        <span id="hiit-rounds-disp" style="font-size:22px;font-weight:700;color:var(--ember);font-family:var(--ff-mono);min-width:32px;text-align:center">${_customRounds}</span>
+        <button class="btn" style="padding:4px 10px;font-size:16px" onclick="hiitAdjust('rounds',1)">+</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="sec-head" style="margin-bottom:10px">Workout Preview ${selCount ? `<span class="muted" style="font-weight:400;text-transform:none">— ${selCount} exercises × ${_customRounds} round${_customRounds!==1?'s':''} · ~${estMins} min</span>` : ''}</div>
+<div class="card" style="margin-bottom:20px;min-height:60px">
+  ${selCount === 0
+    ? `<div style="text-align:center;padding:20px;color:var(--text-3);font-size:13px">No exercises selected yet. Tap cards above to add them.</div>`
+    : `<div style="display:flex;flex-direction:column;gap:6px">
+        ${_customOrder.map((id, i) => {
+          const ex = HIIT_EX[id];
+          return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--bg-2);border-radius:var(--r-md)">
+            <span style="font-size:10px;font-family:var(--ff-mono);color:var(--text-3);min-width:16px">${i+1}</span>
+            <span style="font-size:18px">${ex.icon}</span>
+            <span style="flex:1;font-size:13px;font-weight:500">${ex.name}</span>
+            <span style="font-size:11px;color:var(--fire);font-family:var(--ff-mono)">${_customWorkSecs}s</span>
+            <span style="font-size:11px;color:var(--text-3)">+</span>
+            <span style="font-size:11px;color:var(--steel);font-family:var(--ff-mono)">${_customRestSecs}s</span>
+            <button style="border:none;background:none;color:var(--text-3);cursor:pointer;padding:2px 6px;font-size:14px" onclick="hiitRemovePick('${id}')">✕</button>
+          </div>`;
+        }).join('')}
+      </div>
+      ${_customRounds > 1 ? `<div style="margin-top:8px;font-size:11px;color:var(--text-2);text-align:center">↑ Repeats ${_customRounds}× = ${selCount*_customRounds} total exercises</div>` : ''}`
+  }
+</div>
+
+<div style="display:flex;gap:10px;margin-bottom:32px">
+  <button class="btn btn-fire" style="flex:1;padding:14px;font-size:14px;letter-spacing:0.08em" onclick="hiitStartCustom()" ${selCount===0?'disabled':''}>
+    ▶ START CUSTOM WORKOUT ${selCount?`(${selCount*_customRounds} exercises)`:''}
+  </button>
+  ${selCount ? `<button class="btn" style="padding:14px 18px" onclick="hiitClearPicks()">Clear</button>` : ''}
+</div>`;
+}
+
+// ── EXERCISE LIBRARY VIEW ─────────────────
+function _renderLibrary() {
+  const freq   = _exFrequency();
+  const allIds = Object.keys(HIIT_EX);
+  return `
+${_pageHead('All exercises with video demos')}
+${_tabs('library')}
+
+<div class="alert" style="background:rgba(122,179,200,0.08);border:1px solid rgba(122,179,200,0.2);margin-bottom:16px;display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:var(--r-md)">
+  <span style="color:var(--steel)">▶</span>
+  <div style="font-size:12px;color:var(--text-2)">Tap <strong style="color:var(--text)">▶ Play Video</strong> on any exercise to watch the demo inline. Tap <strong style="color:var(--text)">Add to Workout</strong> to queue it in the Build tab.</div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;margin-bottom:32px">
+  ${allIds.map(id => {
+    const ex    = HIIT_EX[id];
+    const count = freq[id] || 0;
+    const isOpen = _openVideoId === id;
+    return `<div class="card hiit-ex-card" id="hiit-lib-${id}" style="padding:0;overflow:hidden">
+      <div style="padding:14px 14px 10px;cursor:pointer" onclick="hiitLibExpand('${id}')">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <div style="font-size:30px;line-height:1;flex-shrink:0">${ex.icon}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:700;font-size:13px;letter-spacing:0.04em;text-transform:uppercase">${ex.name}</div>
+            <div style="font-size:10px;color:var(--text-2);margin-top:2px;display:flex;gap:10px">
+              <span style="color:var(--fire)">${ex.workSecs}s work</span>
+              <span style="color:var(--steel)">${ex.restSecs}s rest</span>
+            </div>
+          </div>
+          ${count ? `<span class="hiit-freq-badge">${count}×</span>` : ''}
+        </div>
+        <div style="font-size:11px;color:var(--text-2);line-height:1.6">${ex.cues}</div>
+      </div>
+
+      ${isOpen ? `
+        <div style="background:var(--bg);border-top:1px solid var(--border)">
+          <div id="hiit-vid-${id}" style="width:100%;background:#000;min-height:200px;display:flex;align-items:center;justify-content:center">
+            <iframe
+              src="https://www.youtube-nocookie.com/embed/${ex.ytId}?rel=0&autoplay=1&playsinline=1&modestbranding=1"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowfullscreen title="${ex.name} tutorial"
+              style="width:100%;height:220px;border:none;display:block"
+            ></iframe>
+          </div>
+        </div>` : ''}
+
+      <div style="padding:8px 14px 12px;display:flex;gap:6px;border-top:1px solid var(--border)">
+        <button class="btn${isOpen?' btn-fire':''}" style="flex:1;font-size:11px;padding:6px 8px" onclick="hiitLibExpand('${id}')">
+          ${isOpen ? '⏹ Hide Video' : '▶ Play Video'}
+        </button>
+        <button class="btn" style="font-size:11px;padding:6px 10px" onclick="hiitOpenDemo('${id}')">Demo</button>
+        <button class="btn" style="font-size:11px;padding:6px 10px;${_customSel[id]?'color:var(--fire);border-color:var(--fire)':''}" onclick="hiitLibAdd('${id}')">
+          ${_customSel[id]?'✓ Added':'+ Add'}
+        </button>
+      </div>
+    </div>`;
+  }).join('')}
+</div>`;
 }
 
 // ── EXERCISE FREQUENCY ────────────────────
@@ -176,190 +376,6 @@ function _exFrequency() {
   return freq;
 }
 
-// ── EXPORTS ──────────────────────────────
-export function renderHIIT() {
-  _migrate();
-  _ensureModal();
-  return _view === 'progress' ? _renderProgress() : _renderProgram();
-}
-
-export function scheduleHIITCharts() {
-  setTimeout(() => { if (_view === 'progress') _drawSparklines(); }, 0);
-}
-
-// ── PROGRAM VIEW ──────────────────────────
-function _renderProgram() {
-  const h = H();
-  const wk = HIIT_PROGRAM[h.currentWeek];
-  const todayDow = new Date().getDay();
-  const dowMap = { Monday:1, Tuesday:2, Wednesday:3, Thursday:4, Friday:5, Saturday:6, Sunday:0 };
-  const totalDone = Object.values(h.completedWorkouts).filter(Boolean).length;
-  const totalEx = Object.values(h.completedExercises).filter(Boolean).length;
-
-  return `
-<div class="page-header">
-  <div class="label" style="margin-bottom:6px">No Equipment · Home · Fat Burn</div>
-  <h1 class="display page-title">HIIT</h1>
-  <div class="page-sub">4-week rotating program · 20–30 min/day</div>
-</div>
-
-<div class="hiit-tabs">
-  <button class="hiit-tab active" onclick="hiitSwitchView('program')">Program</button>
-  <button class="hiit-tab" onclick="hiitSwitchView('progress')">Progress &amp; Insights</button>
-</div>
-
-<div class="hiit-stats-row mb16" style="margin-bottom:16px">
-  <div class="hiit-stat"><span class="hiit-stat-v">${h.streak}</span><span class="hiit-stat-k">Streak</span></div>
-  <div class="hiit-stat"><span class="hiit-stat-v">${totalDone}</span><span class="hiit-stat-k">Workouts</span></div>
-  <div class="hiit-stat"><span class="hiit-stat-v">${h.totalMins}</span><span class="hiit-stat-k">Mins</span></div>
-  <div class="hiit-stat"><span class="hiit-stat-v">${Math.round(h.totalMins * 8.5)}</span><span class="hiit-stat-k">~Cals</span></div>
-  <div class="hiit-stat"><span class="hiit-stat-v">${totalEx}</span><span class="hiit-stat-k">Exercises</span></div>
-</div>
-
-<div class="hiit-week-switcher mb16" style="margin-bottom:16px">
-  ${HIIT_PROGRAM.map((w, i) => `
-    <button class="hiit-wk-btn ${h.currentWeek === i ? 'active' : ''}" onclick="hiitSwitchWeek(${i})">
-      WK ${w.week}: ${w.theme}
-    </button>`).join('')}
-</div>
-
-<div class="hiit-day-grid mb24" style="margin-bottom:24px">
-  ${wk.days.map((day, di) => {
-    const key    = wKey(h.currentWeek, di);
-    const isDone = !!h.completedWorkouts[key];
-    const isToday = h.currentWeek === 0 && dowMap[day.day] === todayDow;
-    const isRest  = day.type === 'rest';
-    const tc      = TYPE_COLOR[day.type] || 'var(--text-2)';
-
-    const exRows = isRest ? '' : `
-      <div class="hiit-ex-list">
-        ${day.exercises.map(id => {
-          const ex = HIIT_EX[id]; if (!ex) return '';
-          const ek   = eKey(h.currentWeek, di, id);
-          const done = !!h.completedExercises[ek];
-          return `<div class="hiit-ex-item">
-            <div class="hiit-ex-chk ${done ? 'on' : ''}" onclick="hiitToggleEx('${ek}',this)" title="Mark complete"></div>
-            <div class="hiit-ex-info">
-              <div class="hiit-ex-name">${ex.icon} ${ex.name}</div>
-              <div class="hiit-ex-meta">${ex.workSecs}s work · ${ex.restSecs}s rest</div>
-            </div>
-            <button class="hiit-demo-btn" onclick="hiitOpenDemo('${id}')">▶ DEMO</button>
-          </div>`;
-        }).join('')}
-      </div>`;
-
-    const restBody = isRest
-      ? `<div class="hiit-rest-body">😴 Recovery Day<br><span class="muted fs11">Stretch, hydrate, sleep well.</span></div>`
-      : '';
-
-    const footer = isRest ? '' : `
-      <div class="hiit-day-foot">
-        <span class="muted fs11">⏱ ${day.duration} min · ${day.exercises.length} exercises</span>
-        ${isDone
-          ? `<button class="hiit-done-btn" onclick="hiitStartWorkout(${h.currentWeek},${di})" title="Redo">✓ DONE</button>`
-          : `<button class="btn btn-fire hiit-start-btn" onclick="hiitStartWorkout(${h.currentWeek},${di})">▶ START</button>`
-        }
-      </div>`;
-
-    return `<div class="hiit-day-card ${isToday ? 'is-today' : ''} ${isDone ? 'is-done' : ''}">
-      <div class="hiit-day-hdr">
-        <span class="hiit-day-name">${day.day.toUpperCase()}</span>
-        <span class="hiit-type-tag" style="color:${tc};background:${tc}22">${day.label}</span>
-      </div>
-      ${exRows}${restBody}${footer}
-    </div>`;
-  }).join('')}
-</div>
-
-<div class="card mb24" style="margin-bottom:24px">
-  <div class="sec-head" style="margin-bottom:12px">Week ${wk.week} — ${wk.theme}</div>
-  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
-    ${[
-      [wk.days.filter(d => d.type !== 'rest').length, 'Workout Days'],
-      [wk.days.filter(d => d.type === 'rest').length, 'Rest Days'],
-      [wk.days.filter((d,i) => h.completedWorkouts[wKey(h.currentWeek,i)]).length, 'Done'],
-      [wk.days.reduce((s,d) => s+(d.duration||0), 0), 'Total Min'],
-    ].map(([v,k]) => `<div class="card" style="text-align:center;padding:10px 8px">
-      <div style="font-size:22px;font-weight:700;color:var(--fire);font-family:var(--ff-mono)">${v}</div>
-      <div class="label" style="font-size:9px;margin-top:2px">${k}</div>
-    </div>`).join('')}
-  </div>
-</div>
-
-${_renderExerciseGrid()}`;
-}
-
-function _renderExerciseGrid() {
-  const freq = _exFrequency();
-  const totalEx = Object.values(freq).reduce((s, v) => s + v, 0);
-  if (!totalEx) return '';
-  const sorted = Object.entries(freq)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 16);
-  const max = sorted[0]?.[1] || 1;
-  return `
-<div class="sec-head" style="margin-bottom:12px">Exercise Tracker</div>
-<div class="card mb24" style="margin-bottom:24px">
-  <div class="muted fs11" style="margin-bottom:12px">${totalEx} total reps tracked across all workouts</div>
-  <div style="display:flex;flex-direction:column;gap:8px">
-    ${sorted.map(([id, count]) => {
-      const ex  = HIIT_EX[id]; if (!ex) return '';
-      const pct = Math.round((count / max) * 100);
-      return `<div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:3px;font-size:12px">
-          <span>${ex.icon} ${ex.name}</span>
-          <span class="mono" style="color:var(--fire)">${count}×</span>
-        </div>
-        <div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden">
-          <div style="height:100%;width:${pct}%;background:var(--fire);border-radius:2px;transition:width 0.4s"></div>
-        </div>
-      </div>`;
-    }).join('')}
-  </div>
-  <button class="btn" style="margin-top:14px;font-size:11px;padding:5px 12px" onclick="hiitSwitchView('exercises')">View All Exercises →</button>
-</div>`;
-}
-
-// ── EXERCISE LIBRARY VIEW ─────────────────
-function _renderExerciseLibrary() {
-  const freq = _exFrequency();
-  const allIds = Object.keys(HIIT_EX);
-  return `
-<div class="page-header">
-  <div class="label" style="margin-bottom:6px">No Equipment · Home · Fat Burn</div>
-  <h1 class="display page-title">HIIT</h1>
-  <div class="page-sub">Exercise library &amp; personal stats</div>
-</div>
-
-<div class="hiit-tabs">
-  <button class="hiit-tab" onclick="hiitSwitchView('program')">Program</button>
-  <button class="hiit-tab" onclick="hiitSwitchView('progress')">Progress &amp; Insights</button>
-  <button class="hiit-tab active" onclick="hiitSwitchView('exercises')">Exercise Library</button>
-</div>
-
-<div class="sec-head" style="margin-bottom:12px">All Exercises (${allIds.length})</div>
-<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin-bottom:24px">
-  ${allIds.map(id => {
-    const ex    = HIIT_EX[id];
-    const count = freq[id] || 0;
-    return `<div class="card hiit-ex-card" style="cursor:pointer;transition:border-color 0.2s" onclick="hiitOpenDemo('${id}')">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-        <div style="font-size:28px;line-height:1">${ex.icon}</div>
-        <div>
-          <div style="font-weight:600;font-size:13px">${ex.name}</div>
-          <div class="muted fs11">${ex.workSecs}s work · ${ex.restSecs}s rest</div>
-        </div>
-        ${count ? `<span class="hiit-freq-badge">${count}×</span>` : ''}
-      </div>
-      <div style="font-size:11px;color:var(--text-2);line-height:1.5">${ex.cues}</div>
-      <div style="margin-top:10px;display:flex;gap:6px">
-        <button class="btn" style="font-size:10px;padding:4px 10px;flex:1" onclick="event.stopPropagation();hiitOpenDemo('${id}')">▶ VIDEO DEMO</button>
-      </div>
-    </div>`;
-  }).join('')}
-</div>`;
-}
-
 // ── PROGRESS VIEW ─────────────────────────
 function _renderProgress() {
   const h     = H();
@@ -367,44 +383,35 @@ function _renderProgress() {
   const freq  = _exFrequency();
   const topEx = Object.entries(freq).sort((a,b) => b[1]-a[1]).slice(0,5);
   return `
-<div class="page-header">
-  <div class="label" style="margin-bottom:6px">No Equipment · Home · Fat Burn</div>
-  <h1 class="display page-title">HIIT</h1>
-  <div class="page-sub">Session logs &amp; performance insights</div>
-</div>
-
-<div class="hiit-tabs">
-  <button class="hiit-tab" onclick="hiitSwitchView('program')">Program</button>
-  <button class="hiit-tab active" onclick="hiitSwitchView('progress')">Progress &amp; Insights</button>
-  <button class="hiit-tab" onclick="hiitSwitchView('exercises')">Exercise Library</button>
-</div>
+${_pageHead('Session logs & performance insights')}
+${_tabs('progress')}
 
 <div id="hiit-insight-box" style="margin-bottom:16px">${_buildAIInsight()}</div>
 
-<div class="g2 mb24" style="margin-bottom:24px">
+<div class="g2" style="margin-bottom:24px">
   <div class="card">
-    <div class="label mb16" style="margin-bottom:12px">This Week</div>
+    <div class="label" style="margin-bottom:12px">This Week</div>
     ${_buildWeekBarsHTML()}
   </div>
   <div class="card">
-    <div class="label mb16" style="margin-bottom:12px">Overall Stats</div>
+    <div class="label" style="margin-bottom:12px">Overall Stats</div>
     ${_buildOverallStats()}
   </div>
   <div class="card">
-    <div class="label mb16" style="margin-bottom:12px">Weight Trend</div>
+    <div class="label" style="margin-bottom:12px">Weight Trend</div>
     <div style="height:90px"><canvas id="hiit-weight-chart" style="width:100%;height:90px"></canvas></div>
     <div id="hiit-weight-delta" style="margin-top:6px;font-size:11px;color:var(--text-2)"></div>
   </div>
   <div class="card">
-    <div class="label mb16" style="margin-bottom:12px">Energy &amp; Effort</div>
+    <div class="label" style="margin-bottom:12px">Energy &amp; Effort</div>
     <div style="height:90px"><canvas id="hiit-energy-chart" style="width:100%;height:90px"></canvas></div>
     <div id="hiit-energy-insight" style="margin-top:6px;font-size:11px;color:var(--text-2)"></div>
   </div>
 </div>
 
 ${topEx.length ? `
-<div class="sec-head" style="margin-bottom:12px">Top Exercises This Program</div>
-<div class="card mb24" style="margin-bottom:24px">
+<div class="sec-head" style="margin-bottom:12px">Top Exercises</div>
+<div class="card" style="margin-bottom:24px">
   <div style="display:flex;flex-direction:column;gap:8px">
     ${topEx.map(([id, count]) => {
       const ex = HIIT_EX[id]; if (!ex) return '';
@@ -413,8 +420,7 @@ ${topEx.length ? `
         <span style="font-size:16px;width:22px">${ex.icon}</span>
         <div style="flex:1">
           <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
-            <span>${ex.name}</span>
-            <span class="mono" style="color:var(--fire)">${count}×</span>
+            <span>${ex.name}</span><span class="mono" style="color:var(--fire)">${count}×</span>
           </div>
           <div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden">
             <div style="height:100%;width:${Math.round((count/max)*100)}%;background:var(--fire);border-radius:2px"></div>
@@ -423,15 +429,14 @@ ${topEx.length ? `
       </div>`;
     }).join('')}
   </div>
-  <button class="btn" style="margin-top:12px;font-size:11px;padding:5px 12px" onclick="hiitSwitchView('exercises')">Full Exercise Library →</button>
 </div>
 ` : ''}
 
 <div class="sec-head" style="margin-bottom:12px">30-Day Activity</div>
-<div class="card mb24" style="margin-bottom:24px">${_buildHeatmap()}</div>
+<div class="card" style="margin-bottom:24px">${_buildHeatmap()}</div>
 
 <div class="sec-head" style="margin-bottom:12px">Log Session</div>
-<div class="card mb24" style="margin-bottom:24px">
+<div class="card" style="margin-bottom:24px">
   <div class="food-form-grid">
     <div>
       <label class="label">Date</label>
@@ -459,13 +464,13 @@ ${topEx.length ? `
     <div>
       <label class="label">Energy 1–5</label>
       <div style="display:flex;gap:6px;margin-top:6px" id="hiit-energy-row">
-        ${[1,2,3,4,5].map(n => `<button class="hiit-rating-btn" data-type="energy" data-v="${n}" onclick="hiitSetRating('energy',${n})">${n}</button>`).join('')}
+        ${[1,2,3,4,5].map(n=>`<button class="hiit-rating-btn" data-type="energy" data-v="${n}" onclick="hiitSetRating('energy',${n})">${n}</button>`).join('')}
       </div>
     </div>
     <div>
       <label class="label">Effort 1–5</label>
       <div style="display:flex;gap:6px;margin-top:6px" id="hiit-effort-row">
-        ${[1,2,3,4,5].map(n => `<button class="hiit-rating-btn" data-type="effort" data-v="${n}" onclick="hiitSetRating('effort',${n})">${n}</button>`).join('')}
+        ${[1,2,3,4,5].map(n=>`<button class="hiit-rating-btn" data-type="effort" data-v="${n}" onclick="hiitSetRating('effort',${n})">${n}</button>`).join('')}
       </div>
     </div>
     <div style="grid-column:1/-1">
@@ -477,7 +482,7 @@ ${topEx.length ? `
 </div>
 
 <div class="sec-head" style="margin-bottom:12px">Session History</div>
-<div class="card mb24" style="margin-bottom:24px">
+<div class="card" style="margin-bottom:24px">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
     <span class="muted fs11">${h.logs.length} sessions logged</span>
     ${h.logs.length ? `<button class="btn" style="font-size:11px;padding:4px 10px;color:var(--danger)" onclick="hiitClearLogs()">Clear All</button>` : ''}
@@ -491,34 +496,33 @@ function _buildWeekBarsHTML() {
   const h    = H();
   const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const today = new Date();
-  const data  = Array.from({ length: 7 }, (_, i) => {
-    const d  = new Date(today); d.setDate(today.getDate() - 6 + i);
+  const data  = Array.from({length:7}, (_,i) => {
+    const d  = new Date(today); d.setDate(today.getDate()-6+i);
     const ds = d.toISOString().split('T')[0];
-    const log = h.logs.find(l => l.date === ds);
-    return { day: days[d.getDay()], mins: log ? log.mins : 0 };
+    const log = h.logs.find(l => l.date===ds);
+    return { day:days[d.getDay()], mins:log?log.mins:0 };
   });
-  const maxMins = Math.max(...data.map(d => d.mins), 1);
+  const maxMins = Math.max(...data.map(d=>d.mins), 1);
   return `<div style="display:flex;align-items:flex-end;gap:4px;height:60px">
-    ${data.map(d => `
-      <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
-        <div style="font-size:8px;color:var(--text-2);font-family:var(--ff-mono)">${d.mins || ''}</div>
-        <div style="width:100%;background:${d.mins ? 'var(--fire)' : 'var(--border)'};height:${Math.max((d.mins/maxMins)*40,d.mins?3:1)}px;border-radius:2px 2px 0 0;opacity:${d.mins?1:0.3}"></div>
-        <div style="font-size:9px;color:var(--text-3)">${d.day}</div>
-      </div>`).join('')}
+    ${data.map(d=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
+      <div style="font-size:8px;color:var(--text-2);font-family:var(--ff-mono)">${d.mins||''}</div>
+      <div style="width:100%;background:${d.mins?'var(--fire)':'var(--border)'};height:${Math.max((d.mins/maxMins)*40,d.mins?3:1)}px;border-radius:2px 2px 0 0;opacity:${d.mins?1:0.3}"></div>
+      <div style="font-size:9px;color:var(--text-3)">${d.day}</div>
+    </div>`).join('')}
   </div>`;
 }
 
 function _buildOverallStats() {
   const h    = H();
   const total = Object.values(h.completedWorkouts).filter(Boolean).length + h.logs.length;
-  const mins  = h.totalMins + h.logs.reduce((s,l) => s+l.mins, 0);
-  const cals  = h.logs.reduce((s,l) => s+l.cals, 0) + Math.round(h.totalMins*8.5);
-  const eff   = h.logs.filter(l => l.effort);
-  const avg   = eff.length ? (eff.reduce((s,l) => s+l.effort,0)/eff.length).toFixed(1) : '—';
+  const mins  = h.totalMins + h.logs.reduce((s,l)=>s+l.mins,0);
+  const cals  = h.logs.reduce((s,l)=>s+l.cals,0) + Math.round(h.totalMins*8.5);
+  const eff   = h.logs.filter(l=>l.effort);
+  const avg   = eff.length?(eff.reduce((s,l)=>s+l.effort,0)/eff.length).toFixed(1):'—';
   const exDone = Object.values(h.completedExercises).filter(Boolean).length;
   return `<div style="display:flex;flex-direction:column;gap:6px">
     ${[['Sessions',total],['Total Mins',mins],['~Cals Burned',cals.toLocaleString()],['Exercises Done',exDone],['Avg Effort',avg+'/5'],['Streak 🔥',h.streak+' days']]
-      .map(([k,v]) => `<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid var(--border)">
+      .map(([k,v])=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid var(--border)">
         <span class="muted">${k}</span><span class="mono">${v}</span>
       </div>`).join('')}
   </div>`;
@@ -528,15 +532,15 @@ function _buildHeatmap() {
   const h    = H();
   const today = new Date();
   const start = new Date(today); start.setDate(today.getDate()-28-today.getDay());
-  const cells = Array.from({length:35},(_,i) => {
+  const cells = Array.from({length:35},(_,i)=>{
     const d  = new Date(start); d.setDate(start.getDate()+i);
     const ds = d.toISOString().split('T')[0];
-    const log = h.logs.find(l => l.date===ds);
-    const w  = log ? (log.mins>=30?'w4':log.mins>=20?'w3':log.mins>=10?'w2':'w1') : 'w0';
+    const log = h.logs.find(l=>l.date===ds);
+    const w  = log?(log.mins>=30?'w4':log.mins>=20?'w3':log.mins>=10?'w2':'w1'):'w0';
     return `<div class="hiit-hm-cell ${w}" title="${ds}${log?': '+log.mins+'min':''}"></div>`;
   });
   return `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-bottom:4px">
-    ${['S','M','T','W','T','F','S'].map(l => `<div style="font-size:8px;color:var(--text-3);text-align:center;font-family:var(--ff-mono)">${l}</div>`).join('')}
+    ${['S','M','T','W','T','F','S'].map(l=>`<div style="font-size:8px;color:var(--text-3);text-align:center;font-family:var(--ff-mono)">${l}</div>`).join('')}
   </div>
   <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px">${cells.join('')}</div>
   <div style="display:flex;gap:6px;align-items:center;margin-top:8px">
@@ -549,7 +553,7 @@ function _buildHeatmap() {
 function _buildLogList() {
   const h = H();
   if (!h.logs.length) return `<div style="text-align:center;padding:24px;color:var(--text-2);font-size:13px">No sessions logged yet. Complete a workout! 🔥</div>`;
-  return h.logs.slice(0,30).map(l => {
+  return h.logs.slice(0,30).map(l=>{
     const d = new Date(l.date+'T12:00:00');
     const stars = '★'.repeat(l.effort||0)+'☆'.repeat(5-(l.effort||0));
     return `<div style="display:flex;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);align-items:flex-start">
@@ -575,7 +579,7 @@ function _buildAIInsight() {
   const h = H();
   let msg = '';
   if (!h.logs.length && !Object.keys(h.completedWorkouts).length) {
-    msg = "Complete your first workout and log it here to get personalized insights. 💪";
+    msg = "Start with the <strong>Program</strong> tab for guided daily workouts, or use <strong>Build Workout</strong> to pick your own exercises. 💪";
   } else if (h.streak >= 7) {
     msg = `🔥 <strong>${h.streak}-day streak!</strong> Elite consistency. Your body is in fat-burning adaptation mode.`;
   } else if (h.streak >= 3) {
@@ -600,9 +604,9 @@ const _MODAL_HTML = `
       <div id="hiit-modal-name" style="font-size:22px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--fire);margin-top:4px;line-height:1.1">BURPEES</div>
       <div id="hiit-modal-cue" style="font-size:12px;color:var(--text-2);margin-top:6px;margin-bottom:10px;line-height:1.5"></div>
     </div>
-    <div style="display:flex;gap:4px;padding:0 18px">
+    <div style="display:flex;gap:4px;padding:0 18px;flex-wrap:wrap">
       <button class="hiit-vtab active" id="hiit-vtab-video" onclick="hiitSetVTab('video')">▶ VIDEO</button>
-      <button class="hiit-vtab" id="hiit-vtab-gif" onclick="hiitSetVTab('gif')">🎞 DEMO GIF</button>
+      <button class="hiit-vtab" id="hiit-vtab-gif" onclick="hiitSetVTab('gif')">🎞 GIF</button>
       <a id="hiit-yt-link" href="#" target="_blank" rel="noopener" class="hiit-vtab" style="text-decoration:none;margin-left:auto">↗ YouTube</a>
     </div>
     <div class="hiit-media-box" id="hiit-media-box">
@@ -634,8 +638,20 @@ function _ensureModal() {
 }
 
 function _openWorkoutModal(w, d) {
-  _curWk = w; _curDi = d;
+  _curWk = w; _curDi = d; _inCustom = false;
   _curExList = HIIT_PROGRAM[w].days[d].exercises.filter(id => HIIT_EX[id]);
+  _curExIdx = 0; _isResting = false;
+  document.getElementById('hiit-mbtn-start').style.display = '';
+  document.getElementById('hiit-mbtn-skip').style.display  = '';
+  _loadExInModal(_curExList[0], true);
+  document.getElementById('hiit-modal-overlay').classList.add('open');
+}
+
+function _openCustomWorkoutModal() {
+  _inCustom = true; _curWk = -1; _curDi = -1;
+  const repeated = [];
+  for (let r = 0; r < _customRounds; r++) repeated.push(..._customOrder);
+  _curExList = repeated.filter(id => HIIT_EX[id]);
   _curExIdx = 0; _isResting = false;
   document.getElementById('hiit-mbtn-start').style.display = '';
   document.getElementById('hiit-mbtn-skip').style.display  = '';
@@ -645,7 +661,7 @@ function _openWorkoutModal(w, d) {
 
 function _openDemoModal(exId) {
   _curExList = [exId]; _curExIdx = 0;
-  _curWk = -1; _curDi = -1; _isResting = false;
+  _curWk = -1; _curDi = -1; _isResting = false; _inCustom = false;
   document.getElementById('hiit-mbtn-start').style.display = 'none';
   document.getElementById('hiit-mbtn-skip').style.display  = 'none';
   _loadExInModal(exId, false);
@@ -654,18 +670,20 @@ function _openDemoModal(exId) {
 
 function _loadExInModal(exId, withTimer) {
   const ex = HIIT_EX[exId]; if (!ex) return;
-  _clearTimer(); // clear first, then set up new state
+  _clearTimer();
+  // Use custom timings when in custom workout mode
+  const workSecs = _inCustom ? _customWorkSecs : ex.workSecs;
+  const restSecs = _inCustom ? _customRestSecs : ex.restSecs;
+
   document.getElementById('hiit-modal-prog').textContent =
-    withTimer ? `Exercise ${_curExIdx + 1} / ${_curExList.length}` : 'Exercise Preview';
+    withTimer ? `Exercise ${_curExIdx+1} / ${_curExList.length}` : 'Exercise Preview';
   document.getElementById('hiit-modal-name').textContent = ex.name.toUpperCase();
   document.getElementById('hiit-modal-cue').textContent  = ex.cues;
-  // Update YouTube link
   const ytLink = document.getElementById('hiit-yt-link');
   if (ytLink) ytLink.href = `https://www.youtube.com/watch?v=${ex.ytId}`;
-  // Show video tab
   _setVTab('video');
   if (withTimer) {
-    _timerLeft = ex.workSecs; _timerTotal = ex.workSecs;
+    _timerLeft = workSecs; _timerTotal = workSecs;
     const btn = document.getElementById('hiit-mbtn-start');
     if (btn) btn.textContent = 'START';
     _updateTimerUI();
@@ -678,11 +696,11 @@ function _buildExCard(ex) {
     <div style="font-size:15px;font-weight:700;letter-spacing:0.06em;color:var(--text);text-transform:uppercase;margin-bottom:12px">${ex.name}</div>
     <div style="display:flex;justify-content:center;gap:12px;margin-bottom:14px">
       <div style="background:rgba(255,107,26,0.12);border:1px solid rgba(255,107,26,0.3);border-radius:var(--r-sm);padding:6px 14px">
-        <div style="font-size:20px;font-weight:700;color:var(--fire);font-family:var(--ff-mono)">${ex.workSecs}s</div>
+        <div style="font-size:20px;font-weight:700;color:var(--fire);font-family:var(--ff-mono)">${_inCustom?_customWorkSecs:ex.workSecs}s</div>
         <div style="font-size:9px;color:var(--text-2);letter-spacing:0.1em">WORK</div>
       </div>
       <div style="background:rgba(122,179,200,0.1);border:1px solid rgba(122,179,200,0.25);border-radius:var(--r-sm);padding:6px 14px">
-        <div style="font-size:20px;font-weight:700;color:var(--steel);font-family:var(--ff-mono)">${ex.restSecs}s</div>
+        <div style="font-size:20px;font-weight:700;color:var(--steel);font-family:var(--ff-mono)">${_inCustom?_customRestSecs:ex.restSecs}s</div>
         <div style="font-size:9px;color:var(--text-2);letter-spacing:0.1em">REST</div>
       </div>
     </div>
@@ -739,26 +757,26 @@ function _updateTimerUI() {
   d.style.color = _isResting ? 'var(--steel)' : 'var(--ember)';
   if (l) l.textContent = _isResting ? 'REST — BREATHE' : 'WORK — GO!';
   const pct = (_timerLeft / _timerTotal) * 100;
-  if (b) { b.style.width = pct + '%'; b.style.background = _isResting ? 'var(--steel)' : 'var(--fire)'; }
+  if (b) { b.style.width=pct+'%'; b.style.background=_isResting?'var(--steel)':'var(--fire)'; }
 }
 
 function _finishWorkout() {
   _clearTimer();
-  if (_curWk >= 0) {
+  if (_curWk >= 0 && !_inCustom) {
     const h   = H();
     const key = wKey(_curWk, _curDi);
     if (!h.completedWorkouts[key]) {
       h.completedWorkouts[key] = true;
       h.totalMins += HIIT_PROGRAM[_curWk].days[_curDi].duration || 0;
       _updateStreak();
-      _confetti();
-      setTimeout(() => {
-        _showToast('🔥 Workout done! Log your session in Progress tab.');
-        window.hiitSwitchView('progress');
-      }, 800);
+      save();
     }
-    save();
   }
+  _confetti();
+  setTimeout(() => {
+    _showToast('🔥 Workout done! Log your session in Progress tab.');
+    window.hiitSwitchView('progress');
+  }, 800);
   _closeModal();
 }
 
@@ -768,56 +786,55 @@ function _closeModal() {
   if (box) box.innerHTML = '';
   const mo = document.getElementById('hiit-modal-overlay');
   if (mo) mo.classList.remove('open');
-  const el = document.getElementById('page-hiit');
-  if (el && el.classList.contains('active') && _view === 'program') el.innerHTML = renderHIIT();
+  // Re-render program view to update done states
+  if (_view === 'program') {
+    const el = document.getElementById('page-hiit');
+    if (el && el.classList.contains('active')) el.innerHTML = renderHIIT();
+  }
 }
 
 function _updateStreak() {
   const h     = H();
   const today = new Date().toDateString();
   if (h.lastWorkoutDate === today) return;
-  const yest  = new Date(Date.now() - 86400000).toDateString();
-  h.streak = h.lastWorkoutDate === yest ? h.streak + 1 : 1;
+  const yest  = new Date(Date.now()-86400000).toDateString();
+  h.streak = h.lastWorkoutDate===yest ? h.streak+1 : 1;
   h.lastWorkoutDate = today;
 }
 
 // ── SPARKLINES ────────────────────────────
 function _drawSparklines() {
   const h     = H();
-  const wLogs = h.logs.filter(l => l.weight).slice(-14).reverse();
-  const eLogs = h.logs.filter(l => l.energy || l.effort).slice(-14).reverse();
+  const wLogs = h.logs.filter(l=>l.weight).slice(-14).reverse();
+  const eLogs = h.logs.filter(l=>l.energy||l.effort).slice(-14).reverse();
   _drawLine('hiit-weight-chart', wLogs.map(l=>l.weight), cssV('--fire')||'#ff6b1a');
   _drawLine('hiit-energy-chart', eLogs.map(l=>l.energy||0), cssV('--steel')||'#7ab3c8', eLogs.map(l=>l.effort||0), cssV('--ember')||'#ffb347');
   const wDelta = document.getElementById('hiit-weight-delta');
   if (wDelta) {
-    if (wLogs.length >= 2) {
-      const delta = (wLogs[wLogs.length-1].weight - wLogs[0].weight).toFixed(1);
-      const sign  = delta > 0 ? '+' : '';
-      wDelta.innerHTML = `<span style="color:${delta<0?'var(--forge-green)':delta>0?'var(--danger)':'var(--text-2)'}">${sign}${delta} over ${wLogs.length} entries</span>`;
-    } else wDelta.textContent = 'Log weight to track trend';
+    if (wLogs.length>=2) {
+      const delta=(wLogs[wLogs.length-1].weight-wLogs[0].weight).toFixed(1);
+      const sign=delta>0?'+':'';
+      wDelta.innerHTML=`<span style="color:${delta<0?'var(--forge-green)':delta>0?'var(--danger)':'var(--text-2)'}">${sign}${delta} over ${wLogs.length} entries</span>`;
+    } else wDelta.textContent='Log weight to track trend';
   }
-  const eIns = document.getElementById('hiit-energy-insight');
+  const eIns=document.getElementById('hiit-energy-insight');
   if (eIns) {
-    if (eLogs.length >= 3) {
-      const recent = eLogs.slice(-3).reduce((s,l)=>s+(l.energy||0),0)/3;
-      const older  = eLogs.slice(0,3).reduce((s,l)=>s+(l.energy||0),0)/3;
-      eIns.textContent = recent>older+0.4?'📈 Energy improving — keep the momentum!'
-        :recent<older-0.4?'⚡ Energy dipped — check sleep & hydration.'
-        :'✅ Energy levels are steady.';
-    } else eIns.textContent = 'Log more sessions for trend data.';
+    if (eLogs.length>=3) {
+      const recent=eLogs.slice(-3).reduce((s,l)=>s+(l.energy||0),0)/3;
+      const older=eLogs.slice(0,3).reduce((s,l)=>s+(l.energy||0),0)/3;
+      eIns.textContent=recent>older+0.4?'📈 Energy improving — keep the momentum!':recent<older-0.4?'⚡ Energy dipped — check sleep & hydration.':'✅ Energy levels are steady.';
+    } else eIns.textContent='Log more sessions for trend data.';
   }
 }
 
 function _drawLine(canvasId, data1, c1, data2, c2) {
-  const canvas = document.getElementById(canvasId);
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const W = canvas.clientWidth || 240, H2 = 80;
-  canvas.width = W; canvas.height = H2;
-  ctx.clearRect(0,0,W,H2);
-  if (!data1.length) { ctx.fillStyle=cssV('--text-3')||'#5a5545';ctx.font='11px monospace';ctx.fillText('Log data to see chart',8,H2/2);return; }
-  function draw(data, color) {
-    if (!data||!data.length) return;
+  const canvas=document.getElementById(canvasId); if(!canvas) return;
+  const ctx=canvas.getContext('2d');
+  const W=canvas.clientWidth||240,H2=80;
+  canvas.width=W;canvas.height=H2;ctx.clearRect(0,0,W,H2);
+  if(!data1.length){ctx.fillStyle=cssV('--text-3')||'#5a5545';ctx.font='11px monospace';ctx.fillText('Log data to see chart',8,H2/2);return;}
+  function draw(data,color){
+    if(!data||!data.length)return;
     const mn=Math.min(...data)*0.96,mx=Math.max(...data)*1.04,rng=mx-mn||1;
     const xs=data.map((_,i)=>i*(W-20)/(data.length-1||1)+10);
     const ys=data.map(v=>H2-12-((v-mn)/rng)*(H2-24));
@@ -826,13 +843,13 @@ function _drawLine(canvasId, data1, c1, data2, c2) {
     xs.forEach((x,i)=>{ctx.beginPath();ctx.arc(x,ys[i],3,0,Math.PI*2);ctx.fillStyle=color;ctx.fill();});
   }
   draw(data1,c1);
-  if (data2&&data2.length) draw(data2,c2);
+  if(data2&&data2.length) draw(data2,c2);
 }
 
 // ── CONFETTI & TOAST ─────────────────────
 function _confetti() {
   const colors=[cssV('--fire')||'#ff6b1a',cssV('--ember')||'#ffb347',cssV('--forge-green')||'#4dffaa',cssV('--text')||'#f2ede4'];
-  for (let i=0;i<48;i++) {
+  for(let i=0;i<48;i++){
     const el=document.createElement('div');
     el.style.cssText=`position:fixed;width:8px;height:8px;border-radius:2px;pointer-events:none;z-index:9999;left:${Math.random()*100}vw;top:0;background:${colors[Math.floor(Math.random()*colors.length)]};animation:cfall ${0.9+Math.random()*0.9}s ease-in forwards;animation-delay:${Math.random()*0.8}s;transform:rotate(${Math.random()*360}deg)`;
     document.body.appendChild(el);
@@ -842,7 +859,7 @@ function _confetti() {
 
 function _showToast(msg) {
   let t=document.getElementById('hiit-toast');
-  if (!t){t=document.createElement('div');t.id='hiit-toast';t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--fire);color:#0d0d0b;padding:9px 22px;border-radius:var(--r-md);font-weight:600;font-size:12px;opacity:0;transition:all .3s;z-index:9998;pointer-events:none;font-family:var(--ff-mono);letter-spacing:0.06em';document.body.appendChild(t);}
+  if(!t){t=document.createElement('div');t.id='hiit-toast';t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--fire);color:#0d0d0b;padding:9px 22px;border-radius:var(--r-md);font-weight:600;font-size:12px;opacity:0;transition:all .3s;z-index:9998;pointer-events:none;font-family:var(--ff-mono);letter-spacing:0.06em';document.body.appendChild(t);}
   t.textContent=msg;t.style.opacity='1';t.style.transform='translateX(-50%) translateY(0)';
   setTimeout(()=>{t.style.opacity='0';t.style.transform='translateX(-50%) translateY(16px)';},3200);
 }
@@ -856,23 +873,88 @@ window.hiitSwitchView = v => {
 };
 
 window.hiitSwitchWeek = i => {
-  H().currentWeek = i;
-  save();
+  H().currentWeek = i; save();
   window.hiitSwitchView('program');
 };
 
-// FIX: accept element to immediately toggle visual class
 window.hiitToggleEx = (ek, el) => {
   const next = !H().completedExercises[ek];
-  H().completedExercises[ek] = next;
-  save();
-  if (el) el.classList.toggle('on', next); // update checkbox visually without full re-render
+  H().completedExercises[ek] = next; save();
+  if (el) el.classList.toggle('on', next);
 };
 
 window.hiitStartWorkout = (w, d) => _openWorkoutModal(w, d);
 window.hiitOpenDemo     = exId  => _openDemoModal(exId);
 window.hiitSetVTab      = tab   => _setVTab(tab);
 
+// ── Build workout handlers ──
+window.hiitTogglePick = id => {
+  if (_customSel[id]) {
+    delete _customSel[id];
+    _customOrder = _customOrder.filter(x => x !== id);
+  } else {
+    _customSel[id] = true;
+    _customOrder.push(id);
+  }
+  window.hiitSwitchView('build');
+};
+
+window.hiitRemovePick = id => {
+  delete _customSel[id];
+  _customOrder = _customOrder.filter(x => x !== id);
+  window.hiitSwitchView('build');
+};
+
+window.hiitClearPicks = () => {
+  _customSel = {}; _customOrder = [];
+  window.hiitSwitchView('build');
+};
+
+window.hiitAdjust = (type, delta) => {
+  if (type === 'work') {
+    _customWorkSecs = Math.max(10, Math.min(120, _customWorkSecs + delta));
+    const el = document.getElementById('hiit-work-disp');
+    if (el) el.textContent = _customWorkSecs + 's';
+  } else if (type === 'rest') {
+    _customRestSecs = Math.max(0, Math.min(60, _customRestSecs + delta));
+    const el = document.getElementById('hiit-rest-disp');
+    if (el) el.textContent = _customRestSecs + 's';
+  } else {
+    _customRounds = Math.max(1, Math.min(10, _customRounds + delta));
+    const el = document.getElementById('hiit-rounds-disp');
+    if (el) el.textContent = _customRounds;
+  }
+};
+
+window.hiitStartCustom = () => {
+  if (!_customOrder.length) { _showToast('Select at least one exercise first.'); return; }
+  _openCustomWorkoutModal();
+};
+
+// ── Library inline video ──
+window.hiitLibExpand = id => {
+  _openVideoId = _openVideoId === id ? null : id;
+  window.hiitSwitchView('library');
+};
+
+window.hiitLibAdd = id => {
+  if (!_customSel[id]) {
+    _customSel[id] = true;
+    _customOrder.push(id);
+    _showToast(`✅ ${HIIT_EX[id].name} added to Build Workout`);
+    // Update button text in place without full re-render
+    const btn = document.querySelector(`#hiit-lib-${id} .hiit-lib-add-btn`);
+    if (btn) { btn.textContent = '✓ Added'; btn.style.color='var(--fire)'; btn.style.borderColor='var(--fire)'; }
+  } else {
+    delete _customSel[id];
+    _customOrder = _customOrder.filter(x => x !== id);
+    _showToast(`Removed ${HIIT_EX[id].name}`);
+    const btn = document.querySelector(`#hiit-lib-${id} .hiit-lib-add-btn`);
+    if (btn) { btn.textContent = '+ Add'; btn.style.color=''; btn.style.borderColor=''; }
+  }
+};
+
+// ── Modal timer ──
 window.hiitModalStart = () => {
   const btn = document.getElementById('hiit-mbtn-start');
   if (_timerInterval) { _clearTimer(); if (btn) btn.textContent='RESUME'; return; }
@@ -884,10 +966,10 @@ window.hiitModalStart = () => {
       if (!_isResting) {
         if (_curWk >= 0) { H().completedExercises[eKey(_curWk,_curDi,_curExList[_curExIdx])]=true; save(); }
         const ex = HIIT_EX[_curExList[_curExIdx]];
-        if (ex && ex.restSecs > 0) { _isResting=true;_timerLeft=ex.restSecs;_timerTotal=ex.restSecs;_updateTimerUI();return; }
+        const restSecs = _inCustom ? _customRestSecs : (ex?.restSecs || 0);
+        if (restSecs > 0) { _isResting=true;_timerLeft=restSecs;_timerTotal=restSecs;_updateTimerUI();return; }
       }
-      _isResting = false;
-      _curExIdx++;
+      _isResting = false; _curExIdx++;
       if (_curExIdx >= _curExList.length) { _finishWorkout(); return; }
       _loadExInModal(_curExList[_curExIdx], true);
       if (btn) btn.textContent = 'START';
@@ -900,16 +982,17 @@ window.hiitModalStart = () => {
 window.hiitModalSkip = () => {
   _clearTimer();
   if (_isResting) {
-    _isResting = false; _curExIdx++;
-    if (_curExIdx >= _curExList.length) { _finishWorkout(); return; }
-    _loadExInModal(_curExList[_curExIdx], true);
+    _isResting=false; _curExIdx++;
+    if (_curExIdx>=_curExList.length){_finishWorkout();return;}
+    _loadExInModal(_curExList[_curExIdx],true);
   } else {
-    const ex = HIIT_EX[_curExList[_curExIdx]];
-    if (ex && ex.restSecs > 0) { _isResting=true;_timerLeft=ex.restSecs;_timerTotal=ex.restSecs;_updateTimerUI(); }
-    else { _curExIdx++; if (_curExIdx>=_curExList.length){_finishWorkout();return;} _loadExInModal(_curExList[_curExIdx],true); }
+    const ex=HIIT_EX[_curExList[_curExIdx]];
+    const restSecs=_inCustom?_customRestSecs:(ex?.restSecs||0);
+    if (restSecs>0){_isResting=true;_timerLeft=restSecs;_timerTotal=restSecs;_updateTimerUI();}
+    else{_curExIdx++;if(_curExIdx>=_curExList.length){_finishWorkout();return;}_loadExInModal(_curExList[_curExIdx],true);}
   }
-  const btn = document.getElementById('hiit-mbtn-start');
-  if (btn) btn.textContent = 'START';
+  const btn=document.getElementById('hiit-mbtn-start');
+  if(btn) btn.textContent='START';
 };
 
 window.hiitModalClose = () => _closeModal();
@@ -923,13 +1006,13 @@ window.hiitSetRating = (type, val) => {
 window.hiitSubmitLog = () => {
   const date   = document.getElementById('hiit-log-date')?.value;
   const type   = document.getElementById('hiit-log-type')?.value;
-  const mins   = parseInt(document.getElementById('hiit-log-mins')?.value)   || 0;
-  const cals   = parseInt(document.getElementById('hiit-log-cals')?.value)   || (mins ? Math.round(mins*8.5) : 0);
+  const mins   = parseInt(document.getElementById('hiit-log-mins')?.value) || 0;
+  const cals   = parseInt(document.getElementById('hiit-log-cals')?.value) || (mins?Math.round(mins*8.5):0);
   const weight = parseFloat(document.getElementById('hiit-log-weight')?.value) || null;
-  const notes  = document.getElementById('hiit-log-notes')?.value?.trim()    || '';
-  if (!date || !mins) { _showToast('Fill in date and duration.'); return; }
-  H().logs.unshift({ date, type, mins, cals, weight, notes, energy:_ratings.energy, effort:_ratings.effort, ts:Date.now() });
-  _ratings = { energy:0, effort:0 };
+  const notes  = document.getElementById('hiit-log-notes')?.value?.trim() || '';
+  if (!date||!mins){_showToast('Fill in date and duration.');return;}
+  H().logs.unshift({date,type,mins,cals,weight,notes,energy:_ratings.energy,effort:_ratings.effort,ts:Date.now()});
+  _ratings={energy:0,effort:0};
   save();
   _showToast('✅ Session logged!');
   window.hiitSwitchView('progress');
@@ -937,5 +1020,5 @@ window.hiitSubmitLog = () => {
 
 window.hiitClearLogs = () => {
   if (!confirm('Clear all HIIT session logs?')) return;
-  H().logs = []; save(); window.hiitSwitchView('progress');
+  H().logs=[]; save(); window.hiitSwitchView('progress');
 };
