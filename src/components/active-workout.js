@@ -265,11 +265,11 @@ function renderExerciseBlock(ex, exIdx) {
         <div class="overload-suggest">
           💡 ${isBodyweight
             ? `Target: ${suggestion.reps} reps — ${suggestion.rationale}`
-            : `${suggestion.weight} lbs × ${suggestion.reps} — ${suggestion.rationale}`
+            : `${formatWeight(suggestion.weight)} × ${suggestion.reps} — ${suggestion.rationale}`
           }
         </div>
       ` : suggestion.isColdStart && suggestion.weight ? `
-        <div class="overload-suggest">💡 Start ~${isBodyweight ? 'Bodyweight' : suggestion.weight + ' lbs'}</div>
+        <div class="overload-suggest">💡 Start ~${isBodyweight ? 'Bodyweight' : formatWeight(suggestion.weight)}</div>
       ` : ''}
       ${cuesHTML}
     </div>

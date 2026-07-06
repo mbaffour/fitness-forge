@@ -251,7 +251,10 @@ export function recordPR(exId, weight, reps) {
   const prev = state.prs[exId];
   if (!prev || e1rm > prev.e1rm) {
     state.prs[exId] = { weight, reps, date: new Date().toISOString(), e1rm };
-    awardAchievement(`pr_${exId}`, `New PR: ${exId.replace(/_/g,' ')}`, `${weight} lbs × ${reps} reps`);
+    // Store the description unit-neutrally (no frozen 'lbs') so it stays correct
+    // if the user later switches display units. The unit-aware weight is shown
+    // from state.prs via formatWeight() at display time.
+    awardAchievement(`pr_${exId}`, `New PR: ${exId.replace(/_/g,' ')}`, `${weight} × ${reps} reps`);
     save();
     return true;
   }

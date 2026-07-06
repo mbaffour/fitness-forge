@@ -2,7 +2,7 @@
 //   FITNESS FORGE — Body Stats Tracker
 // ═══════════════════════════════════════════
 
-import { state, addBodyCheckIn } from '../store.js';
+import { state, addBodyCheckIn, formatWeight, weightUnitLabel } from '../store.js';
 import { initWeightTrendChart } from './charts.js';
 
 export function renderBodyStats() {
@@ -13,7 +13,10 @@ export function renderBodyStats() {
   let trendIcon = '';
   let trendColor = 'var(--text-2)';
   if (latest && previous) {
-    const diff = latest.weight - previous.weight;
+    // Weights are stored in lbs; convert the delta to the display unit so it
+    // stays consistent with the weightUnitLabel() shown beside it.
+    const toDisplay = weightUnitLabel() === 'kg' ? (v) => v / 2.20462 : (v) => v;
+    const diff = toDisplay(latest.weight - previous.weight);
     if (diff < 0) { trendIcon = `↓ ${Math.abs(diff).toFixed(1)}`; trendColor = 'var(--forge-green)'; }
     else if (diff > 0) { trendIcon = `↑ ${diff.toFixed(1)}`; trendColor = 'var(--danger)'; }
     else { trendIcon = '→ 0.0'; }
@@ -31,11 +34,11 @@ export function renderBodyStats() {
   <div class="card card-fire">
     <div class="label mb16" style="margin-bottom:8px">Current Weight</div>
     ${latest ? `
-      <div class="display" style="font-size:56px;line-height:1">${latest.weight}</div>
-      <div class="muted fs13" style="margin-top:4px">lbs · ${new Date(latest.date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
-      ${trendIcon ? `<div class="mono" style="color:${trendColor};margin-top:8px;font-size:14px">${trendIcon} lbs vs last check-in</div>` : ''}
+      <div class="display" style="font-size:56px;line-height:1">${formatWeight(latest.weight, false)}</div>
+      <div class="muted fs13" style="margin-top:4px">${weightUnitLabel()} · ${new Date(latest.date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
+      ${trendIcon ? `<div class="mono" style="color:${trendColor};margin-top:8px;font-size:14px">${trendIcon} ${weightUnitLabel()} vs last check-in</div>` : ''}
     ` : `
-      <div class="display" style="font-size:40px;color:var(--text-3)">${profile?.weight || '—'}</div>
+      <div class="display" style="font-size:40px;color:var(--text-3)">${profile?.weight ? formatWeight(profile.weight, false) : '—'}</div>
       <div class="muted fs12 mt8">From profile · Add a check-in to track changes</div>
     `}
   </div>
@@ -113,7 +116,7 @@ ${bodyLog.length > 0 ? `
       ${bodyLog.slice(0, 20).map(e => `
         <tr>
           <td class="mono muted fs11">${new Date(e.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</td>
-          <td class="mono fire">${e.weight} lbs</td>
+          <td class="mono fire">${formatWeight(e.weight)}</td>
           <td class="mono muted fs11">${e.bodyFatPct ? e.bodyFatPct + '%' : '—'}</td>
           <td class="mono muted fs11">${e.measurements?.chest ? e.measurements.chest + '"' : '—'}</td>
           <td class="mono muted fs11">${e.measurements?.waist ? e.measurements.waist + '"' : '—'}</td>
