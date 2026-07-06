@@ -2,7 +2,7 @@
 //   FITNESS FORGE — Achievements & Streaks
 // ═══════════════════════════════════════════
 
-import { state } from '../store.js';
+import { state, formatWeight, weightUnitLabel } from '../store.js';
 import { estimateOneRepMax } from '../engine/overload.js';
 import { EXERCISES } from '../data/exercises.js';
 
@@ -84,8 +84,8 @@ ${Object.keys(prs).length > 0 ? `
     return `
     <div class="pr-card">
       <div class="label" style="margin-bottom:4px">${exName}</div>
-      <div class="display" style="font-size:24px;color:var(--fire)">${pr.weight} <span style="font-size:14px">lbs</span></div>
-      <div class="mono muted fs11">${pr.reps} reps · est. 1RM ${pr.e1rm} lbs</div>
+      <div class="display" style="font-size:24px;color:var(--fire)">${formatWeight(pr.weight, false)} <span style="font-size:14px">${weightUnitLabel()}</span></div>
+      <div class="mono muted fs11">${pr.reps} reps · est. 1RM ${formatWeight(pr.e1rm)}</div>
       <div class="muted fs10 mt8" style="margin-top:6px">${new Date(pr.date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>
     </div>
     `;

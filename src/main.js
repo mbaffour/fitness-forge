@@ -21,6 +21,7 @@ import {
   startFast, endFast, getActiveFast,
   addSleepEntry, removeSleepEntry,
   addActivityEntry, removeActivityEntry,
+  formatWeight, weightUnitLabel,
 } from './store.js';
 import { generateProgram } from './engine/generator.js';
 import { EXERCISES } from './data/exercises.js';
@@ -58,6 +59,20 @@ window.__forge_store = {
   startFast, endFast, getActiveFast,
   addSleepEntry, removeSleepEntry,
   addActivityEntry, removeActivityEntry,
+  formatWeight, weightUnitLabel,
+};
+
+// ── WEIGHT UNIT TOGGLE (display-only preference) ──
+window.setWeightUnit = (unit) => {
+  const u = unit === 'kg' ? 'kg' : 'lbs';
+  state.settings.weightUnit = u;
+  save();
+  // Re-render the current page so weight displays pick up the new unit.
+  const el = document.getElementById(`page-${currentPage}`);
+  if (el) {
+    el.innerHTML = PAGES[currentPage]?.render() || '';
+    if (CHART_PAGES[currentPage]) CHART_PAGES[currentPage]();
+  }
 };
 
 // ── PAGES ──
