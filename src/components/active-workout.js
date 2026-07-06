@@ -3,7 +3,7 @@
 //   Live set-by-set session overlay
 // ═══════════════════════════════════════════
 
-import { state, logSession, recordPR, updateStreak, checkFirstSession } from '../store.js';
+import { state, logSession, recordPR, updateStreak, checkFirstSession, formatWeight } from '../store.js';
 import { suggestNextSet, detectPR, computeSessionVolume, estimateOneRepMax } from '../engine/overload.js';
 import { EXERCISES } from '../data/exercises.js';
 
@@ -200,7 +200,7 @@ function buildOverlayHTML() {
 
 <div class="session-volume-bar">
   <span class="label">Total Volume:</span>
-  <span class="mono fire" id="session-volume">0 lbs</span>
+  <span class="mono fire" id="session-volume">${formatWeight(0)}</span>
   <span class="label" style="margin-left:16px">Sets Done:</span>
   <span class="mono" id="session-sets-done">0</span>
 </div>
@@ -258,18 +258,18 @@ function renderExerciseBlock(ex, exIdx) {
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <div class="session-ex-name">${ex.exName}</div>
         <span class="tag t-dim" style="font-size:9px">${ex.targetSets}×${ex.targetReps}</span>
-        ${pr ? `<span class="tag t-green" style="font-size:9px" title="1RM ~${pr.e1rm} lbs">PR: ${pr.weight}×${pr.reps}</span>` : ''}
+        ${pr ? `<span class="tag t-green" style="font-size:9px" title="1RM ~${formatWeight(pr.e1rm)}">PR: ${formatWeight(pr.weight, false)}×${pr.reps}</span>` : ''}
       </div>
       ${muscleTagsHTML}
       ${suggestion && !suggestion.isColdStart ? `
         <div class="overload-suggest">
           💡 ${isBodyweight
             ? `Target: ${suggestion.reps} reps — ${suggestion.rationale}`
-            : `${suggestion.weight} lbs × ${suggestion.reps} — ${suggestion.rationale}`
+            : `${formatWeight(suggestion.weight)} × ${suggestion.reps} — ${suggestion.rationale}`
           }
         </div>
       ` : suggestion.isColdStart && suggestion.weight ? `
-        <div class="overload-suggest">💡 Start ~${isBodyweight ? 'Bodyweight' : suggestion.weight + ' lbs'}</div>
+        <div class="overload-suggest">💡 Start ~${isBodyweight ? 'Bodyweight' : formatWeight(suggestion.weight)}</div>
       ` : ''}
       ${cuesHTML}
     </div>
@@ -309,7 +309,7 @@ function renderSetRow(exIdx, setIdx, set, isBodyweight) {
   return `
 <div class="${cls}" id="set-row-${exIdx}-${setIdx}">
   <span class="set-num">${setIdx + 1}</span>
-  ${isBodyweight ? '' : `<span class="set-val">${set.weight ? set.weight + ' lbs' : '–'}</span>`}
+  ${isBodyweight ? '' : `<span class="set-val">${set.weight ? formatWeight(set.weight) : '–'}</span>`}
   <span class="set-val">${set.reps || '–'}</span>
   <span class="set-rir">${rirLabel !== '–' ? 'RIR ' + rirLabel : '–'}</span>
   ${set.completed ? '<span class="set-done-badge">✓</span>' : '<span></span>'}
@@ -431,7 +431,7 @@ function updateVolumeDisplay() {
   const sets = sessionState.exercises.reduce((s, ex) => s + ex.sets.filter(s => s.completed).length, 0);
   const volEl  = document.getElementById('session-volume');
   const setsEl = document.getElementById('session-sets-done');
-  if (volEl)  volEl.textContent  = vol > 0 ? `${vol.toLocaleString()} lbs` : '0 lbs';
+  if (volEl)  volEl.textContent  = vol > 0 ? formatWeight(vol) : formatWeight(0);
   if (setsEl) setsEl.textContent = sets;
 }
 
@@ -454,7 +454,7 @@ function closeOverlay() {
 function showPRToast(exName, weight, reps, e1rm) {
   const toast = document.createElement('div');
   toast.className = 'pr-toast';
-  toast.innerHTML = `🏆 NEW PR — ${exName}: ${weight} lbs × ${reps} (est. 1RM: ${e1rm} lbs)`;
+  toast.innerHTML = `🏆 NEW PR — ${exName}: ${formatWeight(weight)} × ${reps} (est. 1RM: ${formatWeight(e1rm)})`;
   document.body.appendChild(toast);
   setTimeout(() => toast.classList.add('show'), 50);
   setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 400); }, 3500);
@@ -480,7 +480,7 @@ function showSessionSummary(session) {
 </div>
 <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:8px">
   <div><div class="label">Sets</div><div class="mono fire">${sets}</div></div>
-  <div><div class="label">Volume</div><div class="mono fire">${vol > 0 ? vol.toLocaleString() + ' lbs' : '—'}</div></div>
+  <div><div class="label">Volume</div><div class="mono fire">${vol > 0 ? formatWeight(vol) : '—'}</div></div>
   <div><div class="label">Duration</div><div class="mono fire">${dur}m</div></div>
 </div>
 ${prs.length ? `<div class="fs12" style="color:var(--forge-green);margin-bottom:8px">🏆 ${prs.length} PR${prs.length > 1 ? 's' : ''} this session!</div>` : ''}

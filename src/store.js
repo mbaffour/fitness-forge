@@ -64,6 +64,25 @@ export function save() {
   try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {}
 }
 
+// ── WEIGHT UNIT (display only) ──
+// All weights are STORED in lbs. This is a display-layer preference so the
+// existing data and overload engine (which compute in lbs) stay untouched.
+const LBS_PER_KG = 2.20462;
+
+export function weightUnitLabel() {
+  return state.settings?.weightUnit === 'kg' ? 'kg' : 'lbs';
+}
+
+// Convert a lbs value to the user's chosen display unit and append the label.
+// Returns e.g. "185 lbs" or "84 kg". Pass withLabel=false for the number only.
+export function formatWeight(lbs, withLabel = true) {
+  if (lbs == null || lbs === '' || isNaN(lbs)) return withLabel ? `– ${weightUnitLabel()}` : '–';
+  const kg = state.settings?.weightUnit === 'kg';
+  const val = kg ? Math.round(lbs / LBS_PER_KG) : Math.round(lbs);
+  const num = val.toLocaleString();
+  return withLabel ? `${num} ${kg ? 'kg' : 'lbs'}` : num;
+}
+
 // ── EXISTING FUNCTIONS ──
 
 export function setProfile(profile) {
@@ -232,7 +251,10 @@ export function recordPR(exId, weight, reps) {
   const prev = state.prs[exId];
   if (!prev || e1rm > prev.e1rm) {
     state.prs[exId] = { weight, reps, date: new Date().toISOString(), e1rm };
-    awardAchievement(`pr_${exId}`, `New PR: ${exId.replace(/_/g,' ')}`, `${weight} lbs × ${reps} reps`);
+    // Store the description unit-neutrally (no frozen 'lbs') so it stays correct
+    // if the user later switches display units. The unit-aware weight is shown
+    // from state.prs via formatWeight() at display time.
+    awardAchievement(`pr_${exId}`, `New PR: ${exId.replace(/_/g,' ')}`, `${weight} × ${reps} reps`);
     save();
     return true;
   }
@@ -341,8 +363,21 @@ function _calcSleepDuration(bedtime, wakeTime) {
 function _calcSleepScore(durationHours, quality) {
   const durPts  = Math.min(Math.round((durationHours / 7) * 40), 40);
   const qualPts = Math.round(((quality || 3) / 5) * 40);
-  const consPts = state.sleepLog.length >= 3 ? 10 : 10; // simplified; give 10 pts by default
+  const consPts = _calcSleepConsistency(durationHours);
   return Math.min(durPts + qualPts + consPts, 100);
+}
+
+// Consistency (0–10 pts): rewards a stable sleep duration versus recent nights.
+// Compares this night to the mean of the last few logged durations — the closer
+// it is, the more points. With fewer than 2 prior entries there is no baseline,
+// so award the full 10 to avoid penalising new users.
+function _calcSleepConsistency(durationHours) {
+  const recent = state.sleepLog.slice(0, 6).map(e => e.durationHours).filter(h => typeof h === 'number');
+  if (recent.length < 2) return 10;
+  const mean = recent.reduce((a, b) => a + b, 0) / recent.length;
+  const deviation = Math.abs(durationHours - mean);
+  // 0h off → 10 pts, 2h+ off → 0 pts (linear in between).
+  return Math.max(0, Math.round(10 - (deviation / 2) * 10));
 }
 
 // ── ACTIVITY ──

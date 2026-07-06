@@ -5,7 +5,7 @@
 // ════════════════════════════════════════
 
 import { MUSCLE_GROUPS, getExercisesForGroup, EXERCISES } from '../data/exercises.js';
-import { state } from '../store.js';
+import { state, formatWeight, weightUnitLabel } from '../store.js';
 import { showExerciseModal } from './modal.js';
 
 // Rep schemes by intensity
@@ -52,7 +52,9 @@ function weightSuggestion(exId, bw, level, intensity) {
   if (rawLbs < 10) return null;
 
   const isDB = exId.includes('_db') || exId.includes('curl_') || exId.includes('shrug_db') || exId === 'lat_raise' || exId === 'front_raise' || exId === 'farmer';
-  const label = isDB ? `${rawLbs/2}–${rawLbs/2 + 5} lbs per DB` : `${rawLbs}–${rawLbs + 10} lbs`;
+  const label = isDB
+    ? `${formatWeight(rawLbs/2, false)}–${formatWeight(rawLbs/2 + 5, false)} ${weightUnitLabel()} per DB`
+    : `${formatWeight(rawLbs, false)}–${formatWeight(rawLbs + 10, false)} ${weightUnitLabel()}`;
 
   return { text: label, note: 'Starting estimate — adjust to your strength' };
 }

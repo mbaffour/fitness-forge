@@ -1,4 +1,4 @@
-import { state, save, setPhase, setWeek, logWorkout, clearLog, resetAll, updateProfile } from '../store.js';
+import { state, save, setPhase, setWeek, logWorkout, clearLog, resetAll, updateProfile, formatWeight } from '../store.js';
 import { GOAL_OPTIONS, LEVEL_OPTIONS, PHASE_NAMES, PHASE_DESCS } from '../data/exercises.js';
 import { calcBMR, calcTDEE, calcMacros, ACTIVITY_MULTIPLIERS } from '../engine/bmr.js';
 import { renderCardioLog, scheduleCardioCharts } from './cardio-log.js';
@@ -132,7 +132,7 @@ ${recentLogs.length > 0 ? `
           <div style="font-weight:500;font-size:14px">${l.label}</div>
           <div class="mono muted fs11" style="margin-top:3px">
             Phase ${l.phase} · Week ${l.week}
-            ${l.totalVolume ? ` · ${l.totalVolume.toLocaleString()} lbs vol` : ''}
+            ${l.totalVolume ? ` · ${formatWeight(l.totalVolume)} vol` : ''}
             ${l.duration ? ` · ${l.duration}m` : ''}
           </div>
         </div>
@@ -537,7 +537,7 @@ function renderSessionsTab(workoutLog) {
         <div style="font-weight:500;font-size:14px">${l.label}</div>
         <div class="mono muted fs11" style="margin-top:3px">
           Phase ${l.phase} · Week ${l.week}
-          ${l.totalVolume ? ` · ${l.totalVolume.toLocaleString()} lbs` : ''}
+          ${l.totalVolume ? ` · ${formatWeight(l.totalVolume)}` : ''}
           ${l.duration ? ` · ${l.duration}m` : ''}
         </div>
         ${l.notes ? `<div class="dim fs12" style="margin-top:4px">${l.notes}</div>` : ''}
@@ -584,7 +584,7 @@ ${showBackupReminder ? `
           ['Level',      levelLabel(profile.level)],
           ['Equipment',  profile.equipment?.replace(/_/g,' ') || '—'],
           ['Days/week',  profile.daysPerWeek],
-          ['Bodyweight', profile.weight ? `${profile.weight} lbs` : 'Not set'],
+          ['Bodyweight', profile.weight ? formatWeight(profile.weight) : 'Not set'],
           ['BMR',        profile.bmr  ? `${profile.bmr} kcal/day` : 'Not set'],
           ['TDEE',       profile.tdee ? `${profile.tdee} kcal/day` : 'Not set'],
         ].map(([k,v]) => `
@@ -677,6 +677,17 @@ ${showBackupReminder ? `
     <select class="form-input" style="width:120px" onchange="saveRestSetting(this.value)">
       ${[['60','60 sec'],['90','90 sec'],['120','2 min'],['180','3 min'],['300','5 min']].map(([v,l]) =>
         `<option value="${v}" ${(state.settings?.restSeconds ?? 90) == v ? 'selected' : ''}>${l}</option>`
+      ).join('')}
+    </select>
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0">
+    <div>
+      <div style="font-size:13px;font-weight:500">Weight Units</div>
+      <div class="muted fs11" style="margin-top:2px">How weights are shown across the app</div>
+    </div>
+    <select class="form-input" style="width:120px" onchange="setWeightUnit(this.value)">
+      ${[['lbs','Pounds (lbs)'],['kg','Kilograms (kg)']].map(([v,l]) =>
+        `<option value="${v}" ${(state.settings?.weightUnit || 'lbs') === v ? 'selected' : ''}>${l}</option>`
       ).join('')}
     </select>
   </div>
