@@ -5,10 +5,11 @@ import { setProfile, setProgram } from '../store.js';
 const STEPS = [
   {
     id: 'name',
-    q: "What's your name?",
-    sub: "We'll use this to personalize your plan.",
+    q: "What should we call you?",
+    sub: "Optional — no account or sign-in needed. Skip to jump straight in.",
     type: 'text',
-    placeholder: 'Enter your name',
+    placeholder: 'Your name (optional)',
+    optional: true,
   },
   {
     id: 'goal',
@@ -131,6 +132,11 @@ export function renderOnboarding(onComplete) {
           ${currentStep === total - 1 ? 'Build My Program 🔥' : 'Continue →'}
         </button>
       </div>
+      ${step.optional && (step.type === 'text' || step.type === 'number') ? `
+        <div class="tc mt-3">
+          <button class="quiz-skip" onclick="quizSkip()">Skip${step.id === 'name' ? ' — continue as guest' : ''}</button>
+        </div>
+      ` : ''}
     </div>
   </div>
 </div>
@@ -151,14 +157,22 @@ export function renderOnboarding(onComplete) {
     if (currentStep > 0) { currentStep--; render(); }
   };
 
+  // Skip an optional text/number step (guest / free mode for the name step).
+  window.quizSkip = () => {
+    const step = STEPS[currentStep];
+    answers[step.id] = step.type === 'number' ? null : '';
+    if (currentStep < STEPS.length - 1) { currentStep++; render(); }
+    else window.quizNext();
+  };
+
   window.quizNext = () => {
     const step = STEPS[currentStep];
 
     // Collect text/number inputs
     if (step.type === 'text') {
       const val = document.querySelector('#text-input')?.value?.trim();
-      if (!val) { shake(); return; }
-      answers[step.id] = val;
+      if (!val && !step.optional) { shake(); return; }
+      answers[step.id] = val || '';
     }
     if (step.type === 'number') {
       const val = document.querySelector('#num-input')?.value;

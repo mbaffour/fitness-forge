@@ -99,6 +99,8 @@ function playBeep() {
     beep(1100, 0.14, 0.12);
     beep(1320, 0.28, 0.2);
   } catch {}
+  // Haptic buzz so you don't need to watch the screen mid-set (mobile).
+  try { navigator.vibrate?.([120, 60, 120]); } catch {}
 }
 
 window.toggleRestPause = () => {
@@ -229,6 +231,20 @@ function renderExerciseBlock(ex, exIdx) {
   const isBodyweight = suggestion.isBodyweight;
   const exData = EXERCISES[ex.exId];
 
+  // Ghosted "last session" performance — confirm-not-type (Hevy/Strong pattern).
+  const lastPerf = (() => {
+    for (const s of (state.sessions || [])) {
+      const e = s.exercises?.find(x => x.exId === ex.exId);
+      const done = e?.sets?.filter(x => x.completed) || [];
+      if (done.length) {
+        const mw = Math.max(...done.map(x => x.weight || 0));
+        const top = done.find(x => (x.weight || 0) === mw) || done[0];
+        return isBodyweight ? `${top.reps} reps` : `${formatWeight(mw)} × ${top.reps}`;
+      }
+    }
+    return null;
+  })();
+
   // Build existing sets
   const existingSets = ex.sets.map((set, setIdx) => renderSetRow(exIdx, setIdx, set, isBodyweight)).join('');
 
@@ -288,6 +304,8 @@ function renderExerciseBlock(ex, exIdx) {
   <div id="set-rows-${exIdx}">
     ${existingSets}
   </div>
+
+  ${lastPerf ? `<div class="set-prev mt-2">↩ Last session: ${lastPerf}</div>` : ''}
 
   ${nextSetNum < ex.targetSets + 3 ? `
   <div class="set-input-row" id="next-set-${exIdx}">
