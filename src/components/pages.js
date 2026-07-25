@@ -88,7 +88,7 @@ export function renderDashboard() {
 
 <!-- QUICK STATS ROW -->
 <div class="g4 mb24" style="margin-bottom:24px">
-  <div class="stat s-fire" style="cursor:pointer" onclick="navigate('log')">
+  <div class="stat s-fire" style="cursor:pointer" onclick="navigate('cardio')">
     <div class="label">Sessions</div>
     <div class="display" style="font-size:28px;margin-top:6px">${totalSessions}</div>
   </div>

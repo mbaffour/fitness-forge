@@ -39,6 +39,24 @@
 
   --shadow: 0 4px 24px rgba(0,0,0,0.5);
   --glow:   0 0 32px rgba(255,107,26,0.15);
+
+  /* Card / panel surface — follows each theme's card color (--bg-2).
+     Previously referenced (7×) but never defined → transparent surfaces. */
+  --surface: var(--bg-2);
+
+  /* Display font for big glanceable numerals — Fira Code, per the
+     "Fira Code everywhere" rule. Previously referenced (5×) but undefined. */
+  --ff-display: 'Fira Code', monospace;
+
+  /* Spacing scale — use these instead of raw px in markup. */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 20px;
+  --s-6: 24px;
+  --s-7: 32px;
+  --s-8: 48px;
 }
 
 /* ══ THEMES ══
@@ -736,6 +754,21 @@ select.input { cursor: pointer; }
 .fs12   { font-size: 12px; }
 .fs11   { font-size: 11px; }
 .fs13   { font-size: 13px; }
+.fs10   { font-size: 10px; }
+.f-wrap { flex-wrap: wrap; }
+.f1     { flex: 1; }
+.rel    { position: relative; }
+.pointer{ cursor: pointer; }
+/* Spacing-scale utilities (prefer over raw inline px) */
+.p-4 { padding: var(--s-4); }
+.p-5 { padding: var(--s-5); }
+.p-6 { padding: var(--s-6); }
+.gap-1 { gap: var(--s-1); } .gap-2 { gap: var(--s-2); } .gap-3 { gap: var(--s-3); }
+.gap-4 { gap: var(--s-4); } .gap-5 { gap: var(--s-5); } .gap-6 { gap: var(--s-6); }
+.mt-2 { margin-top: var(--s-2); } .mt-3 { margin-top: var(--s-3); } .mt-4 { margin-top: var(--s-4); }
+.mt-5 { margin-top: var(--s-5); } .mt-6 { margin-top: var(--s-6); } .mt-7 { margin-top: var(--s-7); }
+.mb-2 { margin-bottom: var(--s-2); } .mb-3 { margin-bottom: var(--s-3); } .mb-4 { margin-bottom: var(--s-4); }
+.mb-5 { margin-bottom: var(--s-5); } .mb-6 { margin-bottom: var(--s-6); } .mb-7 { margin-bottom: var(--s-7); }
 
 /* ══ EXERCISE DETAIL MODAL ══ */
 .modal-overlay {
@@ -1969,3 +2002,152 @@ details[open] summary span:last-child { transform: rotate(180deg); display: inli
   position: absolute; top: -20px; width: 8px; height: 8px; border-radius: 1px;
   animation: cfall linear forwards;
 }
+
+/* ═══════════════════════════════════════════
+   v3.0 REDESIGN — responsive nav, segmented
+   control, hero, equipment, quiz, coach-marks
+   ═══════════════════════════════════════════ */
+
+/* ── Segmented control (canonical toggle; replaces wtab/int-btn/tab-btn drift) ── */
+.seg { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.seg-btn {
+  font-family: var(--ff-mono); font-size: 12px; letter-spacing: 0.04em;
+  padding: 7px 14px; border-radius: var(--r-md);
+  background: var(--bg-2); color: var(--text-2);
+  border: 1px solid var(--border); cursor: pointer;
+  transition: background-color .18s ease, border-color .18s ease, color .18s ease;
+}
+.seg-btn:hover { border-color: var(--border-hi); color: var(--text); }
+.seg-btn.active { background: var(--fire-dim); border-color: var(--fire-glow); color: var(--fire); }
+
+/* ── Sub-tabs inside a hub ── */
+.hub-tabs {
+  display: flex; gap: var(--s-2); overflow-x: auto;
+  padding-bottom: var(--s-2); margin-bottom: var(--s-5);
+  border-bottom: 1px solid var(--border);
+  -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+.hub-tabs::-webkit-scrollbar { display: none; }
+.hub-tab {
+  flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--ff-mono); font-size: 12px; font-weight: 600;
+  letter-spacing: 0.04em; text-transform: uppercase;
+  padding: 8px 12px; border-radius: var(--r-md) var(--r-md) 0 0;
+  color: var(--text-2); cursor: pointer; border: none; background: transparent;
+  border-bottom: 2px solid transparent; white-space: nowrap;
+}
+.hub-tab:hover { color: var(--text); }
+.hub-tab.active { color: var(--fire); border-bottom-color: var(--fire); }
+
+/* ── Bottom tab bar (mobile) ── */
+.tabbar { display: none; }
+@media (max-width: 768px) {
+  .tabbar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 90;
+    display: flex; align-items: stretch;
+    background: var(--surface); border-top: 1px solid var(--border);
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  .tabbar-btn {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 3px; padding: 8px 2px 6px;
+    background: none; border: none; cursor: pointer; color: var(--text-3);
+    font-family: var(--ff-mono); font-size: 9px; letter-spacing: 0.04em;
+  }
+  .tabbar-btn .tb-ic { font-size: 18px; line-height: 1; }
+  .tabbar-btn.active { color: var(--fire); }
+  /* Give page content room above the bar */
+  main { padding-bottom: 76px !important; }
+  /* Hide the desktop sidebar drawer trigger overlap handled elsewhere */
+}
+/* Focus mode: hide all nav chrome during an active workout */
+body.session-active .tabbar,
+body.session-active .topbar,
+body.session-active .sidebar { display: none !important; }
+
+/* ── Hero "Today's Workout" card ── */
+.hero-card {
+  position: relative; overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--fire);
+  border-radius: var(--r-lg);
+  padding: var(--s-6);
+}
+.hero-card::after {
+  content: ''; position: absolute; top: -40%; right: -10%;
+  width: 240px; height: 240px; border-radius: 50%;
+  background: radial-gradient(circle, var(--fire-glow), transparent 70%);
+  pointer-events: none;
+}
+.hero-eyebrow {
+  font-family: var(--ff-mono); font-size: 10px; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--text-2);
+}
+.hero-title {
+  font-family: var(--ff-display); font-weight: 800; font-size: 28px;
+  line-height: 1.1; margin: 6px 0 10px; text-transform: uppercase;
+}
+.hero-meta { display: flex; flex-wrap: wrap; gap: var(--s-4); margin-bottom: var(--s-5); }
+.hero-meta > div { display: flex; flex-direction: column; gap: 2px; }
+.hero-meta .k { font-family: var(--ff-mono); font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); }
+.hero-meta .v { font-family: var(--ff-mono); font-size: 15px; color: var(--text); }
+
+/* ── Streak strip (7-day) ── */
+.streak-strip { display: flex; gap: 6px; }
+.streak-cell {
+  flex: 1; aspect-ratio: 1; max-width: 40px; border-radius: var(--r-sm);
+  background: var(--bg-2); border: 1px solid var(--border);
+  display: grid; place-items: center;
+  font-family: var(--ff-mono); font-size: 9px; color: var(--text-3);
+}
+.streak-cell.on { background: var(--fire-dim); border-color: var(--fire-glow); color: var(--fire); }
+.streak-cell.today { outline: 1px solid var(--fire); }
+
+/* ── Equipment chips (multi-select toggles) ── */
+.eq-grid { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.eq-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--ff-mono); font-size: 12px;
+  padding: 8px 12px; border-radius: var(--r-md);
+  background: var(--bg-2); border: 1px solid var(--border);
+  color: var(--text-2); cursor: pointer; user-select: none;
+  transition: background-color .15s, border-color .15s, color .15s;
+}
+.eq-chip .eq-ic { font-size: 15px; }
+.eq-chip:hover { border-color: var(--border-hi); color: var(--text); }
+.eq-chip.on { background: var(--fire-dim); border-color: var(--fire); color: var(--fire); }
+.eq-chip.on::before { content: '✓'; font-size: 11px; }
+
+/* ── Onboarding quiz ── */
+.quiz-wrap { max-width: 560px; margin: 0 auto; padding: var(--s-6) var(--s-4) 96px; }
+.quiz-progress { height: 4px; background: var(--bg-2); border-radius: 99px; overflow: hidden; margin-bottom: var(--s-7); }
+.quiz-progress > i { display: block; height: 100%; background: var(--fire); transition: width .35s ease; }
+.quiz-step { animation: fadeUp .3s ease both; }
+.quiz-q { font-family: var(--ff-display); font-weight: 800; font-size: 24px; line-height: 1.2; margin-bottom: 6px; }
+.quiz-sub { color: var(--text-2); font-size: 13px; margin-bottom: var(--s-6); }
+.quiz-opts { display: flex; flex-direction: column; gap: var(--s-3); }
+.quiz-opt {
+  display: flex; align-items: center; gap: var(--s-4);
+  padding: var(--s-4); border-radius: var(--r-md);
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text); cursor: pointer; text-align: left; width: 100%;
+  transition: background-color .15s, border-color .15s, transform .08s;
+}
+.quiz-opt:hover { border-color: var(--border-hi); }
+.quiz-opt:active { transform: scale(0.99); }
+.quiz-opt.sel { border-color: var(--fire); background: var(--fire-dim); }
+.quiz-opt .qo-ic { font-size: 24px; width: 30px; text-align: center; }
+.quiz-opt .qo-lbl { font-weight: 600; font-size: 14px; }
+.quiz-opt .qo-desc { font-size: 11px; color: var(--text-2); margin-top: 2px; }
+.quiz-nav { display: flex; gap: var(--s-3); margin-top: var(--s-6); }
+.quiz-skip { background: none; border: none; color: var(--text-3); font-family: var(--ff-mono); font-size: 12px; cursor: pointer; text-decoration: underline; }
+
+/* ── Ghosted "previous set" value in the workout player ── */
+.set-prev { color: var(--text-3); font-family: var(--ff-mono); font-size: 10px; letter-spacing: 0.03em; }
+
+/* ── First-run coach-mark overlay ── */
+.coach-overlay { position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,0.72); backdrop-filter: blur(2px); display: grid; place-items: center; padding: 24px; animation: fadeIn .2s ease; }
+.coach-card { background: var(--surface); border: 1px solid var(--border-hi); border-radius: var(--r-lg); max-width: 340px; padding: var(--s-6); text-align: center; }
+.coach-card h3 { font-family: var(--ff-display); font-size: 18px; text-transform: uppercase; margin-bottom: var(--s-3); }
+.coach-card p { color: var(--text-2); font-size: 13px; line-height: 1.6; margin-bottom: var(--s-5); }

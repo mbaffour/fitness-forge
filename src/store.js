@@ -39,6 +39,9 @@ const defaultState = {
   },
   // ── v2.9 additions ──
   overloadState: { nextVariant: 0 },   // rotating A(0) → B(1) → C(2) index for Overload mode
+  // ── v3.0 additions ──
+  gymProfiles:  [],     // [{ id, name, items:[itemId,...] }] — saved equipment setups
+  activeGymId:  null,   // id of the active gym profile (Fitbod-style)
 };
 
 export const state = (() => {
@@ -55,6 +58,8 @@ export const state = (() => {
         prs:       parsed.prs || {},
         hiitState: { ...defaultState.hiitState, ...(parsed.hiitState || {}) },
         overloadState: { ...defaultState.overloadState, ...(parsed.overloadState || {}) },
+        gymProfiles: parsed.gymProfiles || [],
+        activeGymId: parsed.activeGymId ?? null,
       };
     }
     return { ...defaultState };
@@ -132,6 +137,49 @@ export function resetAll() {
 export function updateProfile(patches) {
   if (!state.profile) state.profile = {};
   Object.assign(state.profile, patches);
+  save();
+}
+
+// ── DISPLAY NAME (guest / free mode safe) ──
+// Name is optional; default gracefully everywhere it's shown.
+export function displayName() {
+  const n = (state.profile?.name || '').trim();
+  return n || 'Athlete';
+}
+
+// ── GYM / EQUIPMENT PROFILES (v3.0) ──
+
+// The active owned-item list. Falls back to the profile's onboarding preset
+// (mapped to items) so equipment works even before any profile is saved.
+const _PRESET_ITEMS = {
+  bodyweight: [],
+  dumbbells:  ['dumbbells','bench'],
+  home_basic: ['dumbbells','resistance_bands','pull_up_bar','bench'],
+  full_gym:   ['dumbbells','barbell','bench','kettlebell','resistance_bands','cable','pull_up_bar','machine','rings_trx','ab_wheel'],
+};
+
+export function getOwnedItems() {
+  const active = state.gymProfiles.find(p => p.id === state.activeGymId);
+  if (active) return active.items.slice();
+  return (_PRESET_ITEMS[state.profile?.equipment] || _PRESET_ITEMS.full_gym).slice();
+}
+
+export function saveGymProfile(name, items) {
+  const id = Date.now();
+  state.gymProfiles.push({ id, name: name || `Setup ${state.gymProfiles.length + 1}`, items: items.slice() });
+  state.activeGymId = id;
+  save();
+  return id;
+}
+
+export function setActiveGym(id) {
+  state.activeGymId = id;
+  save();
+}
+
+export function deleteGymProfile(id) {
+  state.gymProfiles = state.gymProfiles.filter(p => p.id !== id);
+  if (state.activeGymId === id) state.activeGymId = state.gymProfiles[0]?.id ?? null;
   save();
 }
 

@@ -179,6 +179,7 @@ function renderOverlay() {
   overlay.className = 'active-session-overlay';
   overlay.innerHTML = buildOverlayHTML();
   mainArea.appendChild(overlay);
+  document.body.classList.add('session-active');  // focus mode: hide nav chrome
 }
 
 function buildOverlayHTML() {
@@ -443,6 +444,7 @@ function closeOverlay() {
 
   const overlay = document.getElementById('active-session-overlay');
   if (overlay) overlay.remove();
+  document.body.classList.remove('session-active');  // exit focus mode
 
   // Restore pages
   const mainArea = document.getElementById('main-area');
@@ -504,7 +506,7 @@ function showSessionSummary(session) {
 </div>
 ${prs.length ? `<div class="fs12" style="color:var(--forge-green);margin-bottom:8px">🏆 ${prs.length} PR${prs.length > 1 ? 's' : ''} this session!</div>` : ''}
 <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-  <button class="btn btn-fire btn-sm" onclick="navigate('log');this.closest('.session-summary-toast').remove()">View Log →</button>
+  <button class="btn btn-fire btn-sm" onclick="navigate('cardio');this.closest('.session-summary-toast').remove()">View Log →</button>
   <button class="btn btn-ghost btn-sm" onclick="this.closest('.session-summary-toast').remove()">Close</button>
 </div>
 `;
