@@ -1,8 +1,16 @@
 import { state, save, setPhase, setWeek, logWorkout, clearLog, resetAll, updateProfile, formatWeight } from '../store.js';
-import { GOAL_OPTIONS, LEVEL_OPTIONS, PHASE_NAMES, PHASE_DESCS } from '../data/exercises.js';
+import { GOAL_OPTIONS, LEVEL_OPTIONS, PHASE_NAMES, PHASE_DESCS, EXERCISES, MUSCLE_GROUPS } from '../data/exercises.js';
 import { calcBMR, calcTDEE, calcMacros, ACTIVITY_MULTIPLIERS } from '../engine/bmr.js';
 import { renderCardioLog, scheduleCardioCharts } from './cardio-log.js';
 import { initStrengthChart, initVolumeChart, initWeeklyFrequencyChart, initMuscleFrequencyChart } from './charts.js';
+import { exPreviewHTML } from './modal.js';
+
+// Muscle-group color chip used across workout cards.
+function muscleChipHTML(groupId) {
+  const g = MUSCLE_GROUPS.find(m => m.id === groupId);
+  if (!g) return '';
+  return `<span class="muscle-chip" style="--chip:${g.color}">${g.icon} ${g.label}</span>`;
+}
 
 const THEMES = [
   { id: 'forge',   name: 'Forge',    desc: 'Dark industrial', bg: '#0d0d0b', accent: '#ff6b1a' },
@@ -238,20 +246,29 @@ function renderExerciseCard(workout, sched, currentPhase, dayName) {
         </tr>
       </thead>
       <tbody>
-        ${workout.exercises.map(ex => `
+        ${workout.exercises.map(ex => {
+          const meta = EXERCISES[ex.id] || {};
+          return `
           <tr>
             <td>
-              <div class="ex-name" style="cursor:pointer" onclick="openExDetail('${ex.id}')">
-                ${ex.name} <span style="font-size:9px;color:var(--fire);font-family:var(--ff-mono);opacity:0.7">↗</span>
+              <div style="display:flex;gap:10px;align-items:center">
+                <div style="cursor:pointer" onclick="openExDetail('${ex.id}')">
+                  ${exPreviewHTML(meta, { variant: 'thumb' }) || `<div class="ov-ex-noimg" style="width:52px;height:52px;font-size:20px">${meta.type === 'compound' ? '🏋️' : '💪'}</div>`}
+                </div>
+                <div style="min-width:0">
+                  <div class="ex-name" style="cursor:pointer" onclick="openExDetail('${ex.id}')">
+                    ${ex.name} <span style="font-size:9px;color:var(--fire);font-family:var(--ff-mono);opacity:0.7">↗</span>
+                  </div>
+                  <div class="ex-chips" style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px">${(meta.groups || []).map(muscleChipHTML).join('')}</div>
+                </div>
               </div>
-              <div class="ex-note">${ex.muscle}</div>
             </td>
             <td><span class="mono fire">${ex.sets}</span></td>
             <td><span class="mono fs12">${ex.reps}</span></td>
             <td><span class="mono muted fs11">${ex.rest}</span></td>
             <td><span class="muted fs11">${ex.note}</span></td>
           </tr>
-        `).join('')}
+        `;}).join('')}
       </tbody>
     </table>
   </div>

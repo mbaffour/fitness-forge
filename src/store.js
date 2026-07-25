@@ -37,6 +37,8 @@ const defaultState = {
     logs:               [],
     migrated:           false,
   },
+  // ── v2.9 additions ──
+  overloadState: { nextVariant: 0 },   // rotating A(0) → B(1) → C(2) index for Overload mode
 };
 
 export const state = (() => {
@@ -52,6 +54,7 @@ export const state = (() => {
         settings:  { ...defaultState.settings,  ...(parsed.settings  || {}) },
         prs:       parsed.prs || {},
         hiitState: { ...defaultState.hiitState, ...(parsed.hiitState || {}) },
+        overloadState: { ...defaultState.overloadState, ...(parsed.overloadState || {}) },
       };
     }
     return { ...defaultState };
@@ -129,6 +132,18 @@ export function resetAll() {
 export function updateProfile(patches) {
   if (!state.profile) state.profile = {};
   Object.assign(state.profile, patches);
+  save();
+}
+
+// ── OVERLOAD MODE (rotating A/B/C variant) ──
+
+export function getOverloadVariant() {
+  return ((state.overloadState?.nextVariant || 0) % 3 + 3) % 3;
+}
+
+export function advanceOverloadVariant() {
+  if (!state.overloadState) state.overloadState = { nextVariant: 0 };
+  state.overloadState.nextVariant = (getOverloadVariant() + 1) % 3;
   save();
 }
 

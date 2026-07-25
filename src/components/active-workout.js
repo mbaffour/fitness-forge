@@ -453,11 +453,30 @@ function closeOverlay() {
 
 function showPRToast(exName, weight, reps, e1rm) {
   const toast = document.createElement('div');
-  toast.className = 'pr-toast';
+  toast.className = 'pr-toast pr-celebrate';
   toast.innerHTML = `🏆 NEW PR — ${exName}: ${formatWeight(weight)} × ${reps} (est. 1RM: ${formatWeight(e1rm)})`;
   document.body.appendChild(toast);
   setTimeout(() => toast.classList.add('show'), 50);
   setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 400); }, 3500);
+  fireConfetti();
+}
+
+// Celebratory confetti burst in the design-system accent colors.
+function fireConfetti() {
+  const layer = document.createElement('div');
+  layer.className = 'pr-confetti';
+  const colors = ['var(--fire)', 'var(--forge-green)', 'var(--steel)', 'var(--ember)'];
+  for (let i = 0; i < 60; i++) {
+    const bit = document.createElement('i');
+    bit.style.left = Math.random() * 100 + 'vw';
+    bit.style.background = colors[i % colors.length];
+    bit.style.animationDuration = (1.6 + Math.random() * 1.4) + 's';
+    bit.style.animationDelay = (Math.random() * 0.5) + 's';
+    bit.style.width = bit.style.height = (5 + Math.random() * 6) + 'px';
+    layer.appendChild(bit);
+  }
+  document.body.appendChild(layer);
+  setTimeout(() => layer.remove(), 3600);
 }
 
 function showSessionSummary(session) {
