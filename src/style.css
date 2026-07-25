@@ -152,6 +152,89 @@ html[data-theme="ember"] {
   --glow:   0 0 40px rgba(255,120,40,0.15);
 }
 
+/* ═══════════════════════════════════════════
+   v3.1 EXPRESSIVE THEMES
+   heat (default look) · instrument · vivid
+   Each sets color tokens PLUS signature treatments.
+   --grad drives accent surfaces; flat themes leave it a solid color.
+   ═══════════════════════════════════════════ */
+
+:root { --grad: var(--fire); }   /* flat by default; expressive themes override */
+
+/* ── B · FORGE HEAT (default) — molten gradients + glow ── */
+html[data-theme="heat"] {
+  --bg:#0b0a0d; --bg-2:#151016; --bg-3:#1d151b; --bg-4:#261a22;
+  --surface:#151016;
+  --border:#2c1f27; --border-hi:#48333d;
+  --text:#fbeee6; --text-2:#b79a92; --text-3:#736060;
+  --fire:#ff6b1a; --fire-dim:rgba(255,107,26,0.14); --fire-glow:rgba(255,74,60,0.32); --fire-bright:#ff8a4d;
+  --ember:#ffb347; --steel:#7ab3c8; --forge-green:#4dffaa; --danger:#ff4466;
+  --grad:linear-gradient(92deg,#ffb347,#ff6b1a 46%,#ff3b6b);
+  --glow:0 0 34px rgba(255,74,60,0.22);
+}
+/* gradient display type (inline color:… falls back to solid, so never invisible) */
+html[data-theme="heat"] .page-title,
+html[data-theme="heat"] .hero-title,
+html[data-theme="heat"] .display,
+html[data-theme="heat"] .stat-val {
+  background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent;
+}
+html[data-theme="heat"] .btn-fire,
+html[data-theme="heat"] .m-cta {
+  background:var(--grad); color:#fff; border:none; box-shadow:0 6px 22px rgba(255,74,60,0.30);
+}
+html[data-theme="heat"] .hero-card { border-left-color:transparent; }
+html[data-theme="heat"] .hero-card::after { background:radial-gradient(circle, rgba(255,74,60,0.30), transparent 70%); }
+html[data-theme="heat"] .ring { box-shadow:0 0 16px rgba(255,74,60,0.18); }
+html[data-theme="heat"] .seg-btn.active,
+html[data-theme="heat"] .hub-tab.active,
+html[data-theme="heat"] .eq-chip.on { box-shadow:0 0 14px rgba(255,74,60,0.18); }
+
+/* ── C · INSTRUMENT — blueprint grid, cyan/amber telemetry ── */
+html[data-theme="instrument"] {
+  --bg:#0c1116; --bg-2:#0f151a; --bg-3:#141d24; --bg-4:#1a252e;
+  --surface:#0f151a;
+  --border:#22323d; --border-hi:#33505f;
+  --text:#dbe9f1; --text-2:#7fa0b0; --text-3:#3f5a6a;
+  --fire:#4fd0e0; --fire-dim:rgba(79,208,224,0.12); --fire-glow:rgba(79,208,224,0.30); --fire-bright:#7ee0ec;
+  --ember:#ffb020; --steel:#4fd0e0; --forge-green:#5be0a0; --danger:#ff6b6b;
+  --grad:var(--fire);
+  --r-sm:3px; --r-md:4px; --r-lg:6px; --r-xl:8px; --r2:5px;
+}
+html[data-theme="instrument"] .card,
+html[data-theme="instrument"] .hero-card,
+html[data-theme="instrument"] .stat {
+  background-image:linear-gradient(#16222b 1px, transparent 1px), linear-gradient(90deg,#16222b 1px, transparent 1px);
+  background-size:22px 22px; background-color:var(--surface);
+}
+html[data-theme="instrument"] .btn-fire {
+  background:transparent; color:var(--fire); border:1px solid var(--border-hi); box-shadow:none;
+}
+html[data-theme="instrument"] .stat-val,
+html[data-theme="instrument"] .hero-meta .v { color:var(--ember); font-variant-numeric:tabular-nums; }
+html[data-theme="instrument"] .hero-card { border-left-color:var(--fire); }
+
+/* ── D · SPORT VIVID — bright surfaces, pills, color-per-muscle ── */
+html[data-theme="vivid"] {
+  --bg:#eeeeec; --bg-2:#ffffff; --bg-3:#f4f4f2; --bg-4:#ffffff;
+  --surface:#ffffff;
+  --border:#e5e5e0; --border-hi:#d2d2ca;
+  --text:#12121a; --text-2:#6a6a62; --text-3:#9a9a90;
+  --fire:#ff5a1f; --fire-dim:rgba(255,90,31,0.10); --fire-glow:rgba(255,90,31,0.22); --fire-bright:#ff7a45;
+  --ember:#ff9f1c; --steel:#2f6bff; --forge-green:#16c784; --danger:#e5484d;
+  --grad:linear-gradient(92deg,#ff7a1f,#ff5a1f);
+  --glow:0 6px 20px rgba(0,0,0,0.06);
+}
+html[data-theme="vivid"] .btn, html[data-theme="vivid"] .btn-fire { border-radius:999px; }
+html[data-theme="vivid"] .card, html[data-theme="vivid"] .stat { box-shadow:0 1px 2px rgba(0,0,0,0.05); }
+html[data-theme="vivid"] .btn-fire { background:var(--grad); color:#fff; }
+/* dark hero block for contrast against the light page */
+html[data-theme="vivid"] .hero-card { background:#12121a; border-left-color:#ff5a1f; }
+html[data-theme="vivid"] .hero-card .hero-title { color:#fff; }
+html[data-theme="vivid"] .hero-card .hero-eyebrow { color:#ffd23f; }
+html[data-theme="vivid"] .hero-card .hero-meta .k { color:rgba(255,255,255,0.5); }
+html[data-theme="vivid"] .hero-card .hero-meta .v { color:#fff; }
+
 /* ── Smooth theme transitions ── */
 body,
 .sidebar, .sidebar-head, .sidebar-body, .sidebar-foot,

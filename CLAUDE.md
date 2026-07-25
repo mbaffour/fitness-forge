@@ -107,10 +107,19 @@ Depth is communicated through surface color stepping — never box-shadow:
 
 ### Theme System
 
-Five themes via `html[data-theme="..."]` (default `forge` = no attribute):
-`forge` | `day` | `ambient` | `steel` | `ember`
+Eight themes via `html[data-theme="..."]`. The **default is `heat`** (Forge Heat).
+`forge` is the flat "Machinist" base (no attribute).
 
-Applied immediately on load in `main.js` to prevent flash. Changed via `window.setTheme(name)`. Charts re-read CSS vars on every init so they adapt automatically.
+- **Expressive** (each sets color tokens **plus** signature treatments): `heat`
+  (molten gradients via `--grad` + glow), `instrument` (blueprint grid, cyan/amber
+  telemetry, squared radii), `vivid` (light surfaces, pill CTAs, dark hero block).
+- **Flat color variants**: `forge` | `day` | `ambient` | `steel` | `ember`.
+
+Expressive themes drive accent surfaces through `--grad` (a solid color on flat
+themes, a gradient on `heat`/`vivid`) and add scoped `html[data-theme="…"]`
+component overrides in `style.css`. Applied immediately on load in `main.js` to
+prevent flash. Changed via `window.setTheme(name)`. Charts re-read CSS vars on
+every init so they adapt automatically.
 
 ---
 

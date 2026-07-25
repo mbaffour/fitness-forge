@@ -13,11 +13,14 @@ function muscleChipHTML(groupId) {
 }
 
 const THEMES = [
-  { id: 'forge',   name: 'Forge',    desc: 'Dark industrial', bg: '#0d0d0b', accent: '#ff6b1a' },
-  { id: 'day',     name: 'Daylight', desc: 'Warm light',      bg: '#f5f0e8', accent: '#c84808' },
-  { id: 'ambient', name: 'Ambient',  desc: 'Deep space',      bg: '#07070f', accent: '#8b74ff' },
-  { id: 'steel',   name: 'Steel',    desc: 'Cold navy',       bg: '#060c12', accent: '#36b4e4' },
-  { id: 'ember',   name: 'Ember',    desc: 'Campfire warm',   bg: '#0e0808', accent: '#ff7828' },
+  { id: 'heat',       name: 'Forge Heat', desc: 'Molten gradients + glow', bg: '#0b0a0d', accent: '#ff3b6b' },
+  { id: 'instrument', name: 'Instrument', desc: 'Blueprint telemetry',     bg: '#0f151a', accent: '#4fd0e0' },
+  { id: 'vivid',      name: 'Sport Vivid',desc: 'Bright & bold',           bg: '#f4f4f2', accent: '#ff5a1f' },
+  { id: 'forge',      name: 'Machinist',  desc: 'Flat dark industrial',    bg: '#0d0d0b', accent: '#ff6b1a' },
+  { id: 'day',        name: 'Daylight',   desc: 'Warm light',              bg: '#f5f0e8', accent: '#c84808' },
+  { id: 'ambient',    name: 'Ambient',    desc: 'Deep space',              bg: '#07070f', accent: '#8b74ff' },
+  { id: 'steel',      name: 'Steel',      desc: 'Cold navy',               bg: '#060c12', accent: '#36b4e4' },
+  { id: 'ember',      name: 'Ember',      desc: 'Campfire warm',           bg: '#0e0808', accent: '#ff7828' },
 ];
 
 // ── HELPERS ──

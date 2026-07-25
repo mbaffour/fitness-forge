@@ -30,9 +30,10 @@ import { EXERCISES } from './data/exercises.js';
 import { startActiveWorkout } from './components/active-workout.js';
 
 // ── THEME ──
+// 'forge' is the base (no attribute = Machinist). 'heat' is the default look.
 function applyTheme(name) {
-  const valid = ['forge', 'day', 'ambient', 'steel', 'ember'];
-  const t = valid.includes(name) ? name : 'forge';
+  const valid = ['forge', 'heat', 'instrument', 'vivid', 'day', 'ambient', 'steel', 'ember'];
+  const t = valid.includes(name) ? name : 'heat';
   if (t === 'forge') {
     document.documentElement.removeAttribute('data-theme');
   } else {
@@ -41,7 +42,7 @@ function applyTheme(name) {
 }
 
 // Apply immediately on load to avoid flash
-applyTheme(state.settings?.theme || 'forge');
+applyTheme(state.settings?.theme || 'heat');
 
 window.setTheme = (name) => {
   state.settings.theme = name;
