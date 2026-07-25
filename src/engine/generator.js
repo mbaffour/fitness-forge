@@ -3,7 +3,17 @@
 //   Builds a personalized plan from user profile
 // ═══════════════════════════════════════════
 
-import { EXERCISES, CARDIO_STRUCTURES } from '../data/exercises.js';
+import { EXERCISES, CARDIO_STRUCTURES, getExercisesForGroup } from '../data/exercises.js';
+
+// ── PROGRESSIVE-OVERLOAD FULL-BODY VARIANTS ──
+// Three sessions whose muscle groups, unioned, cover every major group in
+// MUSCLE_GROUPS at least once (most twice). Used by the guaranteed-coverage
+// 3-day split and by the standalone Overload mode page.
+export const OVERLOAD_VARIANTS = [
+  { key: 'A', label: 'Full Body A', groups: ['quads','chest','shoulders','triceps','calves','core'] },
+  { key: 'B', label: 'Full Body B', groups: ['hamstrings','glutes','back','biceps','traps','core'] },
+  { key: 'C', label: 'Full Body C', groups: ['chest','back','quads','glutes','shoulders','forearms','core'] },
+];
 
 // Helper: pick exercises by equipment availability + difficulty
 function pick(pool, equip, level, count) {
@@ -39,10 +49,10 @@ function buildLower(equip, level, goal, phase) {
   ];
   const s = schemes[phase - 1] || schemes[0];
 
-  const squatPool = ['squat_bb','squat_front','squat_db','squat_bw','bss'];
-  const hingPool  = ['rdl_bb','rdl_db','deadlift','trap_dl'];
-  const accPool   = ['legpress','lunge_db','lunge_bw','lunge_bb','stepup'];
-  const isoPool   = ['legcurl','hipthrust_bb','hipthrust_bw','calfr_bb','calfr_bw'];
+  const squatPool = ['squat_bb','squat_front','squat_db','squat_bw','bss','hack_squat'];
+  const hingPool  = ['rdl_bb','rdl_db','deadlift','trap_dl','good_morning'];
+  const accPool   = ['legpress','lunge_db','lunge_bw','lunge_bb','stepup','leg_ext'];
+  const isoPool   = ['legcurl','hipthrust_bb','hipthrust_bw','calfr_bb','calfr_bw','seated_calf','glute_kickback','hip_abduction','hip_adduction'];
   const corePool  = ['plank','deadbug','pallof','hollow','legraise'];
   const powerPool = ['boxjump','bss'];
 
@@ -79,10 +89,10 @@ function buildUpperPush(equip, level, goal, phase) {
   ];
   const s = schemes[phase - 1] || schemes[0];
 
-  const chestPool = ['bench_bb','bench_db','incline_bb','incline_db','pushup','pushup_inc'];
-  const pressPool = ['ohp_bb','ohp_db','pushpress'];
+  const chestPool = ['bench_bb','bench_db','incline_bb','incline_db','pushup','pushup_inc','decline_bench','machine_press'];
+  const pressPool = ['ohp_bb','ohp_db','pushpress','arnold_press'];
   const fliesPool = ['cable_fly','db_fly'];
-  const delt      = ['lat_raise','front_raise'];
+  const delt      = ['lat_raise','front_raise','rear_delt_fly','upright_row'];
   const triPool   = ['tri_push','tri_oh','skull','cgbench','dips'];
 
   const exercises = [];
@@ -126,10 +136,10 @@ function buildUpperPull(equip, level, goal, phase) {
   ];
   const s = schemes[phase - 1] || schemes[0];
 
-  const pullPool  = ['pullup','chinup','lat_pull'];
-  const rowPool   = ['row_bb','row_db','row_cable','row_chest','row_tbar'];
-  const rearPool  = ['face_pull'];
-  const curlPool  = ['curl_bb','curl_db','curl_hammer','curl_incline'];
+  const pullPool  = ['pullup','chinup','lat_pull','pullover'];
+  const rowPool   = ['row_bb','row_db','row_cable','row_chest','row_tbar','pendlay_row'];
+  const rearPool  = ['face_pull','rear_delt_fly'];
+  const curlPool  = ['curl_bb','curl_db','curl_hammer','curl_incline','preacher_curl','cable_curl','concentration_curl','reverse_curl'];
   const shruPool  = ['shrug_bb','shrug_db'];
 
   const exercises = [];
@@ -166,6 +176,48 @@ function buildFullBody(equip, level, goal, phase) {
   const pull  = buildUpperPull(equip, level, goal, phase).slice(0, 2);
   const core  = [exRow('plank', '3', '30–45s', '45s', '')].filter(Boolean);
   return [...lower, ...push, ...pull, ...core];
+}
+
+// Pick one exercise for a muscle group, preferring compounds and avoiding
+// exercises already used this session. Falls back to reuse, then null.
+function pickForGroup(group, equip, level, used) {
+  const all = getExercisesForGroup(group, equip, level);
+  let pool = all.filter(e => !used.has(e.id));
+  if (!pool.length) pool = all;
+  if (!pool.length) return null;
+  const compounds = pool.filter(e => e.type === 'compound');
+  const src = compounds.length ? compounds : pool;
+  return src[Math.floor(Math.random() * src.length)];
+}
+
+// Guaranteed full-coverage full-body session for the given A/B/C variant.
+// Compounds use the phase rep scheme; isolations use a hypertrophy scheme.
+export function buildFullBodyOverload(equip, level, goal, phase, variant) {
+  const schemes = [
+    { sets: '3', reps: '10–12', rest: '90s' },
+    { sets: '4', reps: '8–10',  rest: '90s' },
+    { sets: '4', reps: '6–8',   rest: '2 min' },
+    { sets: '5', reps: '5–6',   rest: '2.5 min' },
+  ];
+  const s = schemes[phase - 1] || schemes[0];
+  const v = OVERLOAD_VARIANTS[((variant % 3) + 3) % 3];
+
+  const used = new Set();
+  const exercises = [];
+  v.groups.forEach(group => {
+    const ex = pickForGroup(group, equip, level, used);
+    if (!ex) return;
+    used.add(ex.id);
+    const isIso = ex.type === 'isolation';
+    exercises.push(exRow(
+      ex.id,
+      isIso ? '3' : s.sets,
+      isIso ? '12–15' : s.reps,
+      isIso ? '60s' : s.rest,
+      isIso ? 'Full range, squeeze the contraction' : 'Progressive overload — beat last session'
+    ));
+  });
+  return exercises.filter(Boolean);
 }
 
 function buildCardioSession(type, level) {
@@ -246,7 +298,8 @@ function buildPhaseWorkouts(equip, level, goal, splitDays) {
       const label = d.label.toLowerCase();
       let exercises;
       if (label.includes('full body')) {
-        exercises = buildFullBody(equip, level, goal, p);
+        // Guaranteed full-muscle coverage across the three weekly sessions.
+        exercises = buildFullBodyOverload(equip, level, goal, p, i);
       } else if (label.includes('lower')) {
         exercises = buildLower(equip, level, goal, p);
       } else if (label.includes('upper push') || label.includes('push')) {

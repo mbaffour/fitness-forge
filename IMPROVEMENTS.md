@@ -69,3 +69,40 @@ work, so they were left as-is to keep the diff focused:
 - **One-click full JSON backup export + import** — `src/components/pages.js`
   already provides "Save Backup" (`exportData`) and "Restore Backup"
   (`importData`) plus per-log CSV exports, in Settings -> Backup & Restore.
+
+---
+
+## v2.9 — More exercises, progressive-overload mode & fun graphics
+
+### 1. 24 new exercises
+Added machine/cable staples and gap-fillers so all 12 muscle groups have several
+selectable options across equipment tiers — including previously thin areas
+(forearms, adductors/abductors, rear delts, direct core variety). New ids are wired
+into the generator pools (`src/engine/generator.js`) and classified in the overload
+engine (`src/engine/overload.js`: `BW_EXERCISES`, isolation list, cold-start
+`multipliers`). Files: `src/data/exercises.js`, `generator.js`, `overload.js`.
+
+### 2. Progressive-overload mode (targets every muscle group over 3 sessions/week)
+- **Guaranteed-coverage 3-day split.** New `buildFullBodyOverload(equip, level, goal,
+  phase, variant)` fills group-priority slots (reusing `getExercisesForGroup`) so the
+  union of variants A/B/C covers all 12 groups (most 2×/week). The onboarding 3-day
+  option now routes "Full Body A/B/C" through it instead of the generic `buildFullBody`.
+- **New Overload page** (`src/components/overload-mode.js`, added to the Train nav).
+  Shows a rotating A→B→C session, each lift's next weight/rep target from the existing
+  `suggestNextSet()` engine (with its rationale), a weekly muscle-coverage heatmap, and
+  progress rings. "Start Workout" reuses the existing active-workout overlay, so all
+  logging/PR/rest-timer behavior is unchanged. Rotation index persists via a new
+  `state.overloadState` (merged like `hiitState`, zero migration).
+
+### 3. Fun graphics ("go bold", within the design system)
+- Reusable animated exercise preview extracted from the modal (`exPreviewHTML` in
+  `modal.js`) and shown inline on Overload and Workout cards.
+- Muscle-group color chips + icons on exercise rows/cards (from `MUSCLE_GROUPS`).
+- Weekly muscle-coverage heatmap (CSS grid, tinted by training frequency; honestly
+  reflects equipment gaps by checking exercise availability).
+- Animated `conic-gradient` progress rings.
+- Celebratory confetti + pop animation on new PRs (`active-workout.js`).
+All colors use CSS vars; new styles appended to `src/style.css`.
+
+### 4. Housekeeping
+- `sw.js`: precache the new module and bump the cache to `forge-v12`.

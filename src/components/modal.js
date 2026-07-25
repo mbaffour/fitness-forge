@@ -6,6 +6,23 @@
 
 const GIF_CDN = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises';
 
+// Reusable animated exercise preview (crossfades the start/end frames via the
+// `gifFlip` keyframe). Returns '' when the exercise has no image so callers can
+// drop it in unconditionally. `variant:'thumb'` renders the compact card size.
+export function exPreviewHTML(ex, { variant = 'full' } = {}) {
+  if (!ex?.imgKey) return '';
+  const cls = variant === 'thumb' ? 'ex-gif-wrap ex-gif-thumb' : 'ex-gif-wrap';
+  return `
+    <div class="${cls}">
+      <img class="frame-0" src="${GIF_CDN}/${ex.imgKey}/0.jpg"
+           onerror="this.closest('.ex-gif-wrap').style.display='none'"
+           alt="${(ex.name || 'exercise')} — start position" loading="lazy">
+      <img class="frame-1" src="${GIF_CDN}/${ex.imgKey}/1.jpg"
+           onerror="this.style.display='none'"
+           alt="${(ex.name || 'exercise')} — end position" loading="lazy">
+    </div>`;
+}
+
 export function showExerciseModal(ex) {
   // Remove any existing modal
   document.getElementById('ex-modal')?.remove();
@@ -41,18 +58,7 @@ export function showExerciseModal(ex) {
 
     <!-- ── ANIMATED EXERCISE PREVIEW ─────── -->
     ${ex.imgKey ? `
-    <div class="ex-gif-wrap" id="gif-wrap-${ex.id || 'ex'}">
-      <img class="frame-0"
-           src="${GIF_CDN}/${ex.imgKey}/0.jpg"
-           onerror="this.closest('.ex-gif-wrap').style.display='none'"
-           alt="${ex.name} — start position"
-           loading="lazy">
-      <img class="frame-1"
-           src="${GIF_CDN}/${ex.imgKey}/1.jpg"
-           onerror="this.style.display='none'"
-           alt="${ex.name} — end position"
-           loading="lazy">
-    </div>
+    ${exPreviewHTML(ex)}
     <div class="ex-gif-source">Images: free-exercise-db · public domain</div>
     ` : ''}
 

@@ -129,6 +129,7 @@ fitness-forge/
 │   ├── components/
 │   │   ├── pages.js              # renderDashboard, renderWorkout, renderProgress, etc.
 │   │   ├── active-workout.js     # Live set-by-set workout overlay with rest timer
+│   │   ├── overload-mode.js      # Progressive-overload 3-day full-body mode (full muscle coverage)
 │   │   ├── onboarding.js         # Quiz + manual builder flows
 │   │   ├── freestyle.js          # Freestyle session builder
 │   │   ├── nutrition.js          # Nutrition page + macro tracking
@@ -185,3 +186,4 @@ fitness-forge/
 | `v2.2-stable` | 5-theme system with visual swatch picker |
 | `v2.3-stable` | Collapsible sidebar drawer, back button, improved Backup & Restore UI |
 | `v2.4-stable` | Design polish (Fira Code everywhere, CSS var tokens), animated exercise GIF previews, 13 new calisthenics exercises, modal redesign |
+| `v2.9-stable` | Progressive-Overload mode (rotating 3-day full-body split covering all 12 muscle groups with auto-progressed targets), 24 new exercises, inline animated previews + muscle-group chips on cards, weekly muscle-coverage heatmap, progress rings, celebratory PR confetti |

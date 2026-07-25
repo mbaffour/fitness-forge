@@ -15,6 +15,7 @@ const BW_EXERCISES = new Set([
   'pullup','chinup','dips','pushup','squat_bw','lunge_bw',
   'plank','deadbug','hollow','russian','crunch','legraise',
   'hipthrust_bw','calfr_bw','stepup','boxjump',
+  'side_plank','v_up',
 ]);
 
 function classifyExercise(exId) {
@@ -29,7 +30,11 @@ function classifyExercise(exId) {
   if (['legcurl','legpress','cable_fly','db_fly','tri_push','tri_oh','skull',
        'lat_raise','front_raise','face_pull','shrug_bb','shrug_db',
        'curl_bb','curl_db','curl_hammer','curl_incline','str_pull',
-       'russian','crunch','ab_wheel'].includes(exId)) {
+       'russian','crunch','ab_wheel',
+       'leg_ext','seated_calf','glute_kickback','hip_abduction','hip_adduction',
+       'rear_delt_fly','upright_row','pullover','preacher_curl','cable_curl',
+       'concentration_curl','reverse_curl','wrist_curl','rev_wrist_curl',
+       'cable_crunch','wood_chop'].includes(exId)) {
     return 'isolation';
   }
   return 'compound_bb';
@@ -56,12 +61,18 @@ function coldStartWeight(exId, profile) {
   const pct = { beginner: 0.4, intermediate: 0.55, advanced: 0.7 }[level] || 0.55;
   const multipliers = {
     squat_bb: 0.9, squat_front: 0.65, squat_db: 0.25, deadlift: 1.1, trap_dl: 1.0,
-    rdl_bb: 0.7, rdl_db: 0.3, bss: 0.3, legpress: 1.2,
+    rdl_bb: 0.7, rdl_db: 0.3, bss: 0.3, legpress: 1.2, hack_squat: 0.7,
+    good_morning: 0.35, leg_ext: 0.35, seated_calf: 0.4,
+    hip_abduction: 0.3, hip_adduction: 0.3, glute_kickback: 0.15,
     bench_bb: 0.6, bench_db: 0.25, incline_bb: 0.5, incline_db: 0.22,
-    ohp_bb: 0.4, ohp_db: 0.16, pushpress: 0.45,
-    row_bb: 0.55, row_db: 0.22, row_cable: 0.4, row_chest: 0.2, row_tbar: 0.5,
-    lat_pull: 0.5, curl_bb: 0.25, curl_db: 0.1,
-    lat_raise: 0.06, tri_push: 0.15,
+    decline_bench: 0.55, machine_press: 0.5,
+    ohp_bb: 0.4, ohp_db: 0.16, pushpress: 0.45, arnold_press: 0.14, upright_row: 0.3,
+    row_bb: 0.55, row_db: 0.22, row_cable: 0.4, row_chest: 0.2, row_tbar: 0.5, pendlay_row: 0.5,
+    lat_pull: 0.5, pullover: 0.25, rear_delt_fly: 0.05,
+    curl_bb: 0.25, curl_db: 0.1, preacher_curl: 0.2, cable_curl: 0.2,
+    concentration_curl: 0.12, reverse_curl: 0.18,
+    wrist_curl: 0.15, rev_wrist_curl: 0.1,
+    lat_raise: 0.06, tri_push: 0.15, cable_crunch: 0.35, wood_chop: 0.2,
   };
   const mult = multipliers[exId] ?? 0.25;
   const raw = Math.round((bw * pct * mult) / 5) * 5;

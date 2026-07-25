@@ -14,6 +14,7 @@ import { renderSleep, scheduleSleepCharts } from './components/sleep.js';
 import { renderActivity, scheduleActivityCharts } from './components/activity.js';
 import { renderAnalytics, scheduleAnalyticsCharts } from './components/analytics.js';
 import { renderHIIT, scheduleHIITCharts } from './components/hiit.js';
+import { renderOverloadMode } from './components/overload-mode.js';
 import {
   state, save, setPhase, setWeek, logWorkout, clearLog, resetAll,
   logSession, addCardioEntry, addBodyCheckIn, getTodayNutrition,
@@ -82,6 +83,7 @@ const NAV_GROUPS = [
     pages: [
       { id: 'dashboard',    label: 'Dashboard',    icon: '◈' },
       { id: 'workout',      label: 'Workout',      icon: '⚡' },
+      { id: 'overload',     label: 'Overload',     icon: '📈' },
       { id: 'freestyle',    label: 'Freestyle',    icon: '🔀' },
       { id: 'calisthenics', label: 'Calisthenics', icon: '🤸' },
       { id: 'hiit',         label: 'HIIT',         icon: '🔥' },
@@ -118,6 +120,7 @@ const NAV_GROUPS = [
 const PAGES = {
   dashboard:    { render: renderDashboard    },
   workout:      { render: renderWorkout      },
+  overload:     { render: renderOverloadMode },
   freestyle:    { render: renderFreestyle    },
   calisthenics: { render: renderCalisthenics },
   hiit:         { render: renderHIIT         },
@@ -155,6 +158,7 @@ const navHistory = [];
 
 const PAGE_LABELS = {
   dashboard:    'Dashboard',    workout:      'Workout',
+  overload:     'Overload',
   freestyle:    'Freestyle',    calisthenics: 'Calisthenics',
   hiit:         'HIIT',
   schedule:     'Schedule',
