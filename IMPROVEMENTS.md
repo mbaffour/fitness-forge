@@ -150,3 +150,17 @@ a codebase UI audit. All changes preserve the localStorage schema (migrated addi
 
 ### Housekeeping
 - Precache `ui.js` + `equipment.js`; bump SW cache to `forge-v13`.
+
+### Audio + haptic feedback (v3.0)
+Previously only the strength rest-timer beeped (and buzzed). Added a shared
+`src/components/feedback.js` `cue(type)` utility (WebAudio tones + `navigator.vibrate`)
+wired into every feedback surface:
+- **HIIT interval timer**: work→rest and rest→next cues, a 3-2-1 countdown tick, and
+  a finish fanfare (`hiit.js`).
+- **Strength rest timer**: soft ticks for the final 3 seconds + the existing finish cue.
+- **Set completion**: a short tick + light buzz on each logged set.
+- **PR**: a triumphant chime + buzz (supersedes the set cue).
+
+New **Sound** and **Haptics** toggles in Settings → Workout Settings (default ON,
+`settings.sound` / `settings.haptics`); `cue()` no-ops when muted or unsupported.
+Precache `feedback.js`; SW cache bumped to `forge-v14`.

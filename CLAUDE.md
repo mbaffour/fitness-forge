@@ -128,6 +128,7 @@ fitness-forge/
 │   ├── style.css                 # All styles — CSS custom properties (tokens + --s-N spacing scale) + theme overrides
 │   ├── components/
 │   │   ├── ui.js                 # Shared render helpers (card, statTile, sectionHead, segGroup, muscleChip, …)
+│   │   ├── feedback.js           # Shared audio + haptic cue() for timers, set completion, PRs (respects Settings toggles)
 │   │   ├── pages.js              # renderDashboard (hero + streak), renderWorkout, renderProgress, renderSettings, etc.
 │   │   ├── active-workout.js     # Live set-by-set workout overlay: rest timer (haptic), ghosted last-session values, focus mode
 │   │   ├── overload-mode.js      # Progressive-overload 3-day full-body mode (full muscle coverage)

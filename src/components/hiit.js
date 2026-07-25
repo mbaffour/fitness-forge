@@ -3,6 +3,7 @@
 // ═══════════════════════════════════════════
 
 import { state, save } from '../store.js';
+import { cue } from './feedback.js';
 
 // ── EXERCISE DATABASE ──────────────────────
 const _EXDB = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises';
@@ -772,6 +773,7 @@ function _finishWorkout() {
       save();
     }
   }
+  cue('finish');
   _confetti();
   setTimeout(() => {
     _showToast('🔥 Workout done! Log your session in Progress tab.');
@@ -967,14 +969,16 @@ window.hiitModalStart = () => {
         if (_curWk >= 0) { H().completedExercises[eKey(_curWk,_curDi,_curExList[_curExIdx])]=true; save(); }
         const ex = HIIT_EX[_curExList[_curExIdx]];
         const restSecs = _inCustom ? _customRestSecs : (ex?.restSecs || 0);
-        if (restSecs > 0) { _isResting=true;_timerLeft=restSecs;_timerTotal=restSecs;_updateTimerUI();return; }
+        if (restSecs > 0) { _isResting=true;_timerLeft=restSecs;_timerTotal=restSecs;cue('rest');_updateTimerUI();return; }
       }
       _isResting = false; _curExIdx++;
       if (_curExIdx >= _curExList.length) { _finishWorkout(); return; }
+      cue('go');  // next exercise — WORK starts
       _loadExInModal(_curExList[_curExIdx], true);
       if (btn) btn.textContent = 'START';
       return;
     }
+    if (_timerLeft <= 3) cue('tick');  // 3-2-1 countdown before each transition
     _updateTimerUI();
   }, 1000);
 };

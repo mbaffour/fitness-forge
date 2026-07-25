@@ -714,7 +714,7 @@ ${showBackupReminder ? `
       ).join('')}
     </select>
   </div>
-  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0">
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
     <div>
       <div style="font-size:13px;font-weight:500">Weight Units</div>
       <div class="muted fs11" style="margin-top:2px">How weights are shown across the app</div>
@@ -724,6 +724,20 @@ ${showBackupReminder ? `
         `<option value="${v}" ${(state.settings?.weightUnit || 'lbs') === v ? 'selected' : ''}>${l}</option>`
       ).join('')}
     </select>
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
+    <div>
+      <div style="font-size:13px;font-weight:500">Sound</div>
+      <div class="muted fs11" style="margin-top:2px">Beeps on timers, set completion & PRs</div>
+    </div>
+    <button class="seg-btn ${state.settings?.sound !== false ? 'active' : ''}" onclick="toggleSound()">${state.settings?.sound !== false ? 'On' : 'Off'}</button>
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0">
+    <div>
+      <div style="font-size:13px;font-weight:500">Haptics</div>
+      <div class="muted fs11" style="margin-top:2px">Vibration on timers, sets & PRs (supported devices)</div>
+    </div>
+    <button class="seg-btn ${state.settings?.haptics !== false ? 'active' : ''}" onclick="toggleHaptics()">${state.settings?.haptics !== false ? 'On' : 'Off'}</button>
   </div>
 </div>
 
@@ -789,6 +803,22 @@ window.switchLogTab = (tab) => {
 window.saveRestSetting = (val) => {
   state.settings.restSeconds = parseInt(val);
   save();
+};
+
+window.toggleSound = () => {
+  state.settings.sound = !(state.settings.sound !== false);
+  save();
+  const el = document.getElementById('page-settings');
+  if (el) el.innerHTML = renderSettings();
+};
+
+window.toggleHaptics = () => {
+  state.settings.haptics = !(state.settings.haptics !== false);
+  save();
+  // Buzz once when turning on, so the user feels it works.
+  if (state.settings.haptics) { try { navigator.vibrate?.(60); } catch {} }
+  const el = document.getElementById('page-settings');
+  if (el) el.innerHTML = renderSettings();
 };
 
 window.saveBMR = () => {

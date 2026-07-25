@@ -6,6 +6,7 @@
 import { state, logSession, recordPR, updateStreak, checkFirstSession, formatWeight } from '../store.js';
 import { suggestNextSet, detectPR, computeSessionVolume, estimateOneRepMax } from '../engine/overload.js';
 import { EXERCISES } from '../data/exercises.js';
+import { cue } from './feedback.js';
 
 let sessionState = null;  // current in-progress session
 let timerInterval = null;
@@ -30,7 +31,7 @@ function tickRest() {
   if (restTimeLeft <= 0) {
     clearInterval(restInterval);
     restInterval = null;
-    playBeep();
+    cue('finish');
     const bar = document.getElementById('rest-timer-bar');
     if (bar) {
       bar.innerHTML = `<span class="rest-done-flash">REST DONE — GO! 🔥</span>`;
@@ -38,6 +39,7 @@ function tickRest() {
     }
     return;
   }
+  if (restTimeLeft <= 3) cue('tick');  // soft countdown ticks for the last 3s
   updateRestBar();
 }
 
@@ -80,28 +82,6 @@ function stopRestTimer() {
   document.getElementById('rest-timer-bar')?.remove();
 }
 
-function playBeep() {
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const beep = (freq, start, duration) => {
-      const osc  = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.frequency.value = freq;
-      osc.type = 'sine';
-      gain.gain.setValueAtTime(0.3, ctx.currentTime + start);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + duration);
-      osc.start(ctx.currentTime + start);
-      osc.stop(ctx.currentTime + start + duration);
-    };
-    beep(880, 0,   0.12);
-    beep(1100, 0.14, 0.12);
-    beep(1320, 0.28, 0.2);
-  } catch {}
-  // Haptic buzz so you don't need to watch the screen mid-set (mobile).
-  try { navigator.vibrate?.([120, 60, 120]); } catch {}
-}
 
 window.toggleRestPause = () => {
   restPaused = !restPaused;
@@ -385,14 +365,18 @@ window.logSet = (exIdx) => {
 
   ex.sets.push(setData);
 
-  // Check PR
+  // Check PR — a PR cue supersedes the ordinary set-complete cue.
+  let wasPR = false;
   if (!isBodyweight && weight > 0) {
-    const { isPR, previous, improvement } = detectPR(ex.exId, weight, reps, state.prs);
+    const { isPR } = detectPR(ex.exId, weight, reps, state.prs);
     if (isPR) {
+      wasPR = true;
       recordPR(ex.exId, weight, reps);
       showPRToast(ex.exName, weight, reps, estimateOneRepMax(weight, reps));
+      cue('pr');
     }
   }
+  if (!wasPR) cue('setDone');  // rewarding set-completion feedback
 
   updateVolumeDisplay();
   refreshExerciseBlock(exIdx);
