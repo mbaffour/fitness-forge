@@ -69,12 +69,15 @@ export function renderOnboarding(onComplete) {
 <div class="onboard-wrap">
   <div class="onboard-card">
     <div class="onboard-top">
-      <div class="onboard-brand">
-        <div class="onboard-logo">🔥</div>
-        <div>
-          <div class="display" style="font-size:20px;letter-spacing:0.06em">FITNESS FORGE</div>
-          <div class="label" style="margin-top:2px">Build your program</div>
+      <div class="flex i-ctr j-btwn gap-3" style="margin-bottom:18px">
+        <div class="onboard-brand">
+          <div class="onboard-logo">🔥</div>
+          <div>
+            <div class="display" style="font-size:20px;letter-spacing:0.06em">FITNESS FORGE</div>
+            <div class="label" style="margin-top:2px">Build your program</div>
+          </div>
         </div>
+        <button class="btn btn-ghost btn-sm" onclick="quizQuickStart()" title="Use sensible defaults and start training now">Skip setup →</button>
       </div>
 
       <div class="label" style="margin-bottom:8px">Step ${currentStep + 1} of ${total}</div>
@@ -155,6 +158,24 @@ export function renderOnboarding(onComplete) {
 
   window.quizBack = () => {
     if (currentStep > 0) { currentStep--; render(); }
+  };
+
+  // Skip ALL orientation: build a sensible default (bodyweight, works anywhere)
+  // program and drop straight into the app.
+  window.quizQuickStart = () => {
+    const profile = {
+      name:        '',
+      goal:        'general_fitness',
+      level:       'beginner',
+      equipment:   'bodyweight',
+      daysPerWeek: 3,
+      cardioLevel: 'light',
+      weight:      null,
+      weeks:       16,
+    };
+    setProfile(profile);
+    setProgram(generateProgram(profile));
+    onComplete();
   };
 
   // Skip an optional text/number step (guest / free mode for the name step).
