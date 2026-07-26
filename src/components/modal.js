@@ -6,21 +6,33 @@
 
 const GIF_CDN = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises';
 
-// Reusable animated exercise preview (crossfades the start/end frames via the
-// `gifFlip` keyframe). Returns '' when the exercise has no image so callers can
-// drop it in unconditionally. `variant:'thumb'` renders the compact card size.
+// Reusable exercise preview. Uses the crossfaded free-exercise-db frames when the
+// exercise has an `imgKey`; otherwise falls back to its YouTube demo thumbnail so
+// every exercise with any media shows a real visual. Returns '' only when the
+// exercise has neither. `variant:'thumb'` renders the compact card size.
 export function exPreviewHTML(ex, { variant = 'full' } = {}) {
-  if (!ex?.imgKey) return '';
   const cls = variant === 'thumb' ? 'ex-gif-wrap ex-gif-thumb' : 'ex-gif-wrap';
-  return `
+  const name = ex?.name || 'exercise';
+  if (ex?.imgKey) {
+    return `
     <div class="${cls}">
       <img class="frame-0" src="${GIF_CDN}/${ex.imgKey}/0.jpg"
            onerror="this.closest('.ex-gif-wrap').style.display='none'"
-           alt="${(ex.name || 'exercise')} — start position" loading="lazy">
+           alt="${name} — start position" loading="lazy">
       <img class="frame-1" src="${GIF_CDN}/${ex.imgKey}/1.jpg"
            onerror="this.style.display='none'"
-           alt="${(ex.name || 'exercise')} — end position" loading="lazy">
+           alt="${name} — end position" loading="lazy">
     </div>`;
+  }
+  if (ex?.youtubeId) {
+    return `
+    <div class="${cls}">
+      <img src="https://img.youtube.com/vi/${ex.youtubeId}/hqdefault.jpg"
+           onerror="this.closest('.ex-gif-wrap').style.display='none'"
+           alt="${name} — demo" loading="lazy">
+    </div>`;
+  }
+  return '';
 }
 
 export function showExerciseModal(ex) {
