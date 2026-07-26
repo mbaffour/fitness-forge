@@ -6,6 +6,7 @@
 import { state, logSession, recordPR, updateStreak, checkFirstSession, formatWeight } from '../store.js';
 import { suggestNextSet, detectPR, computeSessionVolume, estimateOneRepMax } from '../engine/overload.js';
 import { EXERCISES } from '../data/exercises.js';
+import { cue } from './feedback.js';
 
 let sessionState = null;  // current in-progress session
 let timerInterval = null;
@@ -30,7 +31,7 @@ function tickRest() {
   if (restTimeLeft <= 0) {
     clearInterval(restInterval);
     restInterval = null;
-    playBeep();
+    cue('finish');
     const bar = document.getElementById('rest-timer-bar');
     if (bar) {
       bar.innerHTML = `<span class="rest-done-flash">REST DONE — GO! 🔥</span>`;
@@ -38,6 +39,7 @@ function tickRest() {
     }
     return;
   }
+  if (restTimeLeft <= 3) cue('tick');  // soft countdown ticks for the last 3s
   updateRestBar();
 }
 
@@ -80,26 +82,6 @@ function stopRestTimer() {
   document.getElementById('rest-timer-bar')?.remove();
 }
 
-function playBeep() {
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const beep = (freq, start, duration) => {
-      const osc  = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.frequency.value = freq;
-      osc.type = 'sine';
-      gain.gain.setValueAtTime(0.3, ctx.currentTime + start);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + duration);
-      osc.start(ctx.currentTime + start);
-      osc.stop(ctx.currentTime + start + duration);
-    };
-    beep(880, 0,   0.12);
-    beep(1100, 0.14, 0.12);
-    beep(1320, 0.28, 0.2);
-  } catch {}
-}
 
 window.toggleRestPause = () => {
   restPaused = !restPaused;
@@ -179,6 +161,7 @@ function renderOverlay() {
   overlay.className = 'active-session-overlay';
   overlay.innerHTML = buildOverlayHTML();
   mainArea.appendChild(overlay);
+  document.body.classList.add('session-active');  // focus mode: hide nav chrome
 }
 
 function buildOverlayHTML() {
@@ -227,6 +210,20 @@ function renderExerciseBlock(ex, exIdx) {
   const pr = state.prs[ex.exId];
   const isBodyweight = suggestion.isBodyweight;
   const exData = EXERCISES[ex.exId];
+
+  // Ghosted "last session" performance — confirm-not-type (Hevy/Strong pattern).
+  const lastPerf = (() => {
+    for (const s of (state.sessions || [])) {
+      const e = s.exercises?.find(x => x.exId === ex.exId);
+      const done = e?.sets?.filter(x => x.completed) || [];
+      if (done.length) {
+        const mw = Math.max(...done.map(x => x.weight || 0));
+        const top = done.find(x => (x.weight || 0) === mw) || done[0];
+        return isBodyweight ? `${top.reps} reps` : `${formatWeight(mw)} × ${top.reps}`;
+      }
+    }
+    return null;
+  })();
 
   // Build existing sets
   const existingSets = ex.sets.map((set, setIdx) => renderSetRow(exIdx, setIdx, set, isBodyweight)).join('');
@@ -287,6 +284,8 @@ function renderExerciseBlock(ex, exIdx) {
   <div id="set-rows-${exIdx}">
     ${existingSets}
   </div>
+
+  ${lastPerf ? `<div class="set-prev mt-2">↩ Last session: ${lastPerf}</div>` : ''}
 
   ${nextSetNum < ex.targetSets + 3 ? `
   <div class="set-input-row" id="next-set-${exIdx}">
@@ -366,14 +365,18 @@ window.logSet = (exIdx) => {
 
   ex.sets.push(setData);
 
-  // Check PR
+  // Check PR — a PR cue supersedes the ordinary set-complete cue.
+  let wasPR = false;
   if (!isBodyweight && weight > 0) {
-    const { isPR, previous, improvement } = detectPR(ex.exId, weight, reps, state.prs);
+    const { isPR } = detectPR(ex.exId, weight, reps, state.prs);
     if (isPR) {
+      wasPR = true;
       recordPR(ex.exId, weight, reps);
       showPRToast(ex.exName, weight, reps, estimateOneRepMax(weight, reps));
+      cue('pr');
     }
   }
+  if (!wasPR) cue('setDone');  // rewarding set-completion feedback
 
   updateVolumeDisplay();
   refreshExerciseBlock(exIdx);
@@ -443,6 +446,7 @@ function closeOverlay() {
 
   const overlay = document.getElementById('active-session-overlay');
   if (overlay) overlay.remove();
+  document.body.classList.remove('session-active');  // exit focus mode
 
   // Restore pages
   const mainArea = document.getElementById('main-area');
@@ -504,7 +508,7 @@ function showSessionSummary(session) {
 </div>
 ${prs.length ? `<div class="fs12" style="color:var(--forge-green);margin-bottom:8px">🏆 ${prs.length} PR${prs.length > 1 ? 's' : ''} this session!</div>` : ''}
 <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-  <button class="btn btn-fire btn-sm" onclick="navigate('log');this.closest('.session-summary-toast').remove()">View Log →</button>
+  <button class="btn btn-fire btn-sm" onclick="navigate('cardio');this.closest('.session-summary-toast').remove()">View Log →</button>
   <button class="btn btn-ghost btn-sm" onclick="this.closest('.session-summary-toast').remove()">Close</button>
 </div>
 `;

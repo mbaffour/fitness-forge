@@ -107,10 +107,19 @@ Depth is communicated through surface color stepping — never box-shadow:
 
 ### Theme System
 
-Five themes via `html[data-theme="..."]` (default `forge` = no attribute):
-`forge` | `day` | `ambient` | `steel` | `ember`
+Eight themes via `html[data-theme="..."]`. The **default is `heat`** (Forge Heat).
+`forge` is the flat "Machinist" base (no attribute).
 
-Applied immediately on load in `main.js` to prevent flash. Changed via `window.setTheme(name)`. Charts re-read CSS vars on every init so they adapt automatically.
+- **Expressive** (each sets color tokens **plus** signature treatments): `heat`
+  (molten gradients via `--grad` + glow), `instrument` (blueprint grid, cyan/amber
+  telemetry, squared radii), `vivid` (light surfaces, pill CTAs, dark hero block).
+- **Flat color variants**: `forge` | `day` | `ambient` | `steel` | `ember`.
+
+Expressive themes drive accent surfaces through `--grad` (a solid color on flat
+themes, a gradient on `heat`/`vivid`) and add scoped `html[data-theme="…"]`
+component overrides in `style.css`. Applied immediately on load in `main.js` to
+prevent flash. Changed via `window.setTheme(name)`. Charts re-read CSS vars on
+every init so they adapt automatically.
 
 ---
 
@@ -123,13 +132,16 @@ fitness-forge/
 ├── sw.js                         # Service worker — cache-first (bump version on deploy)
 ├── DESIGN.md                     # Full design token file (google-labs-code/design.md format)
 ├── src/
-│   ├── main.js                   # Boot, shell builder, navigation, theme, global handlers
-│   ├── store.js                  # All state — defaultState, save(), and store functions
-│   ├── style.css                 # All styles — CSS custom properties + theme overrides
+│   ├── main.js                   # Boot, shell builder, responsive nav (HUBS + sidebar + mobile tab bar), theme, global handlers
+│   ├── store.js                  # All state — defaultState, save(), store functions, displayName(), gym profiles
+│   ├── style.css                 # All styles — CSS custom properties (tokens + --s-N spacing scale) + theme overrides
 │   ├── components/
-│   │   ├── pages.js              # renderDashboard, renderWorkout, renderProgress, etc.
-│   │   ├── active-workout.js     # Live set-by-set workout overlay with rest timer
+│   │   ├── ui.js                 # Shared render helpers (card, statTile, sectionHead, segGroup, muscleChip, …)
+│   │   ├── feedback.js           # Shared audio + haptic cue() for timers, set completion, PRs (respects Settings toggles)
+│   │   ├── pages.js              # renderDashboard (hero + streak), renderWorkout, renderProgress, renderSettings, etc.
+│   │   ├── active-workout.js     # Live set-by-set workout overlay: rest timer (haptic), ghosted last-session values, focus mode
 │   │   ├── overload-mode.js      # Progressive-overload 3-day full-body mode (full muscle coverage)
+│   │   ├── equipment.js          # Equipment-specific workouts: item picker, saved gym profiles, coverage heatmap
 │   │   ├── onboarding.js         # Quiz + manual builder flows
 │   │   ├── freestyle.js          # Freestyle session builder
 │   │   ├── nutrition.js          # Nutrition page + macro tracking
@@ -187,3 +199,4 @@ fitness-forge/
 | `v2.3-stable` | Collapsible sidebar drawer, back button, improved Backup & Restore UI |
 | `v2.4-stable` | Design polish (Fira Code everywhere, CSS var tokens), animated exercise GIF previews, 13 new calisthenics exercises, modal redesign |
 | `v2.9-stable` | Progressive-Overload mode (rotating 3-day full-body split covering all 12 muscle groups with auto-progressed targets), 24 new exercises, inline animated previews + muscle-group chips on cards, weekly muscle-coverage heatmap, progress rings, celebratory PR confetti |
+| `v3.0-stable` | UI/UX redesign: fixed design tokens (`--surface`, `--ff-display`, `--s-1..8` spacing scale), shared `ui.js` component helpers, responsive IA (17 nav items → 5 hubs: Today/Train/Log/Progress/Profile with desktop sidebar + mobile bottom tab bar + hub sub-tabs), focus-mode workout player (hides nav, ghosted last-session values, haptic rest timer), hero dashboard + 7-day streak strip, guest/free onboarding (optional name), and **equipment-specific workouts** (item-level `requires:[]` model, saved gym profiles, kettlebell + band exercises) |

@@ -3,6 +3,7 @@
 // ═══════════════════════════════════════════
 
 import { state, save } from '../store.js';
+import { cue } from './feedback.js';
 
 // ── EXERCISE DATABASE ──────────────────────
 const _EXDB = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises';
@@ -313,7 +314,7 @@ function _renderLibrary() {
 ${_pageHead('All exercises with video demos')}
 ${_tabs('library')}
 
-<div class="alert" style="background:rgba(122,179,200,0.08);border:1px solid rgba(122,179,200,0.2);margin-bottom:16px;display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:var(--r-md)">
+<div class="alert" style="background:color-mix(in srgb, var(--steel) 8%, transparent);border:1px solid color-mix(in srgb, var(--steel) 20%, transparent);margin-bottom:16px;display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:var(--r-md)">
   <span style="color:var(--steel)">▶</span>
   <div style="font-size:12px;color:var(--text-2)">Tap <strong style="color:var(--text)">▶ Play Video</strong> on any exercise to watch the demo inline. Tap <strong style="color:var(--text)">Add to Workout</strong> to queue it in the Build tab.</div>
 </div>
@@ -695,11 +696,11 @@ function _buildExCard(ex) {
     <div style="font-size:56px;margin-bottom:10px;animation:workout-pulse 1.6s ease-in-out infinite">${ex.icon}</div>
     <div style="font-size:15px;font-weight:700;letter-spacing:0.06em;color:var(--text);text-transform:uppercase;margin-bottom:12px">${ex.name}</div>
     <div style="display:flex;justify-content:center;gap:12px;margin-bottom:14px">
-      <div style="background:rgba(255,107,26,0.12);border:1px solid rgba(255,107,26,0.3);border-radius:var(--r-sm);padding:6px 14px">
+      <div style="background:var(--fire-dim);border:1px solid color-mix(in srgb, var(--fire) 30%, transparent);border-radius:var(--r-sm);padding:6px 14px">
         <div style="font-size:20px;font-weight:700;color:var(--fire);font-family:var(--ff-mono)">${_inCustom?_customWorkSecs:ex.workSecs}s</div>
         <div style="font-size:9px;color:var(--text-2);letter-spacing:0.1em">WORK</div>
       </div>
-      <div style="background:rgba(122,179,200,0.1);border:1px solid rgba(122,179,200,0.25);border-radius:var(--r-sm);padding:6px 14px">
+      <div style="background:color-mix(in srgb, var(--steel) 10%, transparent);border:1px solid color-mix(in srgb, var(--steel) 25%, transparent);border-radius:var(--r-sm);padding:6px 14px">
         <div style="font-size:20px;font-weight:700;color:var(--steel);font-family:var(--ff-mono)">${_inCustom?_customRestSecs:ex.restSecs}s</div>
         <div style="font-size:9px;color:var(--text-2);letter-spacing:0.1em">REST</div>
       </div>
@@ -772,6 +773,7 @@ function _finishWorkout() {
       save();
     }
   }
+  cue('finish');
   _confetti();
   setTimeout(() => {
     _showToast('🔥 Workout done! Log your session in Progress tab.');
@@ -967,14 +969,16 @@ window.hiitModalStart = () => {
         if (_curWk >= 0) { H().completedExercises[eKey(_curWk,_curDi,_curExList[_curExIdx])]=true; save(); }
         const ex = HIIT_EX[_curExList[_curExIdx]];
         const restSecs = _inCustom ? _customRestSecs : (ex?.restSecs || 0);
-        if (restSecs > 0) { _isResting=true;_timerLeft=restSecs;_timerTotal=restSecs;_updateTimerUI();return; }
+        if (restSecs > 0) { _isResting=true;_timerLeft=restSecs;_timerTotal=restSecs;cue('rest');_updateTimerUI();return; }
       }
       _isResting = false; _curExIdx++;
       if (_curExIdx >= _curExList.length) { _finishWorkout(); return; }
+      cue('go');  // next exercise — WORK starts
       _loadExInModal(_curExList[_curExIdx], true);
       if (btn) btn.textContent = 'START';
       return;
     }
+    if (_timerLeft <= 3) cue('tick');  // 3-2-1 countdown before each transition
     _updateTimerUI();
   }, 1000);
 };

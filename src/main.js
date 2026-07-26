@@ -15,6 +15,7 @@ import { renderActivity, scheduleActivityCharts } from './components/activity.js
 import { renderAnalytics, scheduleAnalyticsCharts } from './components/analytics.js';
 import { renderHIIT, scheduleHIITCharts } from './components/hiit.js';
 import { renderOverloadMode } from './components/overload-mode.js';
+import { renderEquipment } from './components/equipment.js';
 import {
   state, save, setPhase, setWeek, logWorkout, clearLog, resetAll,
   logSession, addCardioEntry, addBodyCheckIn, getTodayNutrition,
@@ -29,9 +30,10 @@ import { EXERCISES } from './data/exercises.js';
 import { startActiveWorkout } from './components/active-workout.js';
 
 // ── THEME ──
+// 'forge' is the base (no attribute = Machinist). 'heat' is the default look.
 function applyTheme(name) {
-  const valid = ['forge', 'day', 'ambient', 'steel', 'ember'];
-  const t = valid.includes(name) ? name : 'forge';
+  const valid = ['forge', 'heat', 'instrument', 'vivid', 'day', 'ambient', 'steel', 'ember'];
+  const t = valid.includes(name) ? name : 'heat';
   if (t === 'forge') {
     document.documentElement.removeAttribute('data-theme');
   } else {
@@ -40,7 +42,7 @@ function applyTheme(name) {
 }
 
 // Apply immediately on load to avoid flash
-applyTheme(state.settings?.theme || 'forge');
+applyTheme(state.settings?.theme || 'heat');
 
 window.setTheme = (name) => {
   state.settings.theme = name;
@@ -77,50 +79,52 @@ window.setWeightUnit = (unit) => {
 };
 
 // ── PAGES ──
-const NAV_GROUPS = [
-  {
-    label: 'Train',
-    pages: [
-      { id: 'dashboard',    label: 'Dashboard',    icon: '◈' },
-      { id: 'workout',      label: 'Workout',      icon: '⚡' },
-      { id: 'overload',     label: 'Overload',     icon: '📈' },
-      { id: 'freestyle',    label: 'Freestyle',    icon: '🔀' },
-      { id: 'calisthenics', label: 'Calisthenics', icon: '🤸' },
-      { id: 'hiit',         label: 'HIIT',         icon: '🔥' },
-      { id: 'schedule',     label: 'Schedule',     icon: '⊞' },
-    ],
-  },
-  {
-    label: 'Track',
-    pages: [
-      { id: 'nutrition',    label: 'Nutrition',    icon: '⊕' },
-      { id: 'fasting',      label: 'Fasting',      icon: '⏱' },
-      { id: 'sleep',        label: 'Sleep',        icon: '🌙' },
-      { id: 'activity',     label: 'Activity',     icon: '⚑' },
-      { id: 'body',         label: 'Body Stats',   icon: '◉' },
-      { id: 'cardio',       label: 'Cardio',       icon: '≡' },
-      { id: 'achievements', label: 'Achievements', icon: '★' },
-    ],
-  },
-  {
-    label: 'Analyze',
-    pages: [
-      { id: 'analytics', label: 'Analytics', icon: '◎' },
-    ],
-  },
-  {
-    label: 'Manage',
-    pages: [
-      { id: 'progress', label: 'Progress', icon: '↑' },
-      { id: 'settings', label: 'Settings', icon: '⚙' },
-    ],
-  },
+// Per-page display metadata (label + icon), used by the sidebar, sub-tabs,
+// and mobile tab bar.
+const PAGE_META = {
+  dashboard:    { label: 'Dashboard',    icon: '◈' },
+  workout:      { label: 'Workout',      icon: '⚡' },
+  overload:     { label: 'Overload',     icon: '📈' },
+  equipment:    { label: 'Equipment',    icon: '🎒' },
+  freestyle:    { label: 'Freestyle',    icon: '🔀' },
+  calisthenics: { label: 'Calisthenics', icon: '🤸' },
+  hiit:         { label: 'HIIT',         icon: '🔥' },
+  schedule:     { label: 'Schedule',     icon: '⊞' },
+  nutrition:    { label: 'Nutrition',    icon: '⊕' },
+  fasting:      { label: 'Fasting',      icon: '⏱' },
+  sleep:        { label: 'Sleep',        icon: '🌙' },
+  activity:     { label: 'Activity',     icon: '⚑' },
+  body:         { label: 'Body Stats',   icon: '◉' },
+  cardio:       { label: 'Cardio',       icon: '≡' },
+  achievements: { label: 'Achievements', icon: '★' },
+  analytics:    { label: 'Analytics',    icon: '◎' },
+  progress:     { label: 'Progress',     icon: '↑' },
+  settings:     { label: 'Settings',     icon: '⚙' },
+};
+
+// Consolidated information architecture: 5 hubs. Each hub's pages appear as
+// sub-tabs at the top of the content, and the hubs drive the mobile tab bar.
+const HUBS = [
+  { id: 'today',    label: 'Today',    icon: '◈', pages: ['dashboard'] },
+  { id: 'train',    label: 'Train',    icon: '⚡', pages: ['workout','overload','equipment','freestyle','calisthenics','hiit','schedule'] },
+  { id: 'log',      label: 'Log',      icon: '✎', pages: ['nutrition','fasting','sleep','activity','body','cardio'] },
+  { id: 'progress', label: 'Progress', icon: '↑', pages: ['progress','analytics','achievements'] },
+  { id: 'profile',  label: 'Profile',  icon: '⚙', pages: ['settings'] },
 ];
+
+// Sidebar groups derived from the hubs (keeps the grouped desktop sidebar).
+const NAV_GROUPS = HUBS.map(h => ({
+  label: h.label,
+  pages: h.pages.map(id => ({ id, ...PAGE_META[id] })),
+}));
+
+const hubOf = (pageId) => HUBS.find(h => h.pages.includes(pageId)) || HUBS[0];
 
 const PAGES = {
   dashboard:    { render: renderDashboard    },
   workout:      { render: renderWorkout      },
   overload:     { render: renderOverloadMode },
+  equipment:    { render: renderEquipment    },
   freestyle:    { render: renderFreestyle    },
   calisthenics: { render: renderCalisthenics },
   hiit:         { render: renderHIIT         },
@@ -136,6 +140,25 @@ const PAGES = {
   progress:     { render: renderProgress     },
   settings:     { render: renderSettings     },
 };
+
+// Sub-tab bar for the hub containing `pageId` (empty for single-page hubs).
+function hubSubtabsHTML(pageId) {
+  const hub = hubOf(pageId);
+  if (!hub || hub.pages.length < 2) return '';
+  return `<div class="hub-tabs">${hub.pages.map(id => `
+    <button class="hub-tab ${id === pageId ? 'active' : ''}" onclick="navigate('${id}')">
+      <span>${PAGE_META[id].icon}</span>${PAGE_META[id].label}
+    </button>`).join('')}</div>`;
+}
+
+// Mobile bottom tab bar (one entry per hub).
+function tabbarHTML(pageId) {
+  const activeHub = hubOf(pageId).id;
+  return `<nav class="tabbar" id="tabbar">${HUBS.map(h => `
+    <button class="tabbar-btn ${h.id === activeHub ? 'active' : ''}" onclick="gotoHub('${h.id}')">
+      <span class="tb-ic">${h.icon}</span>${h.label}
+    </button>`).join('')}</nav>`;
+}
 
 // pages that need Chart.js post-render scheduling
 const CHART_PAGES = {
@@ -158,7 +181,7 @@ const navHistory = [];
 
 const PAGE_LABELS = {
   dashboard:    'Dashboard',    workout:      'Workout',
-  overload:     'Overload',
+  overload:     'Overload',     equipment:    'Equipment',
   freestyle:    'Freestyle',    calisthenics: 'Calisthenics',
   hiit:         'HIIT',
   schedule:     'Schedule',
@@ -267,6 +290,7 @@ function buildShell() {
 
   <!-- MAIN -->
   <main class="main" id="main-area">
+    <div id="hub-subtabs">${hubSubtabsHTML(currentPage)}</div>
     ${Object.entries(PAGES).map(([id, p]) => `
       <div class="page ${id === currentPage ? 'active' : ''}" id="page-${id}">
         ${id === currentPage ? p.render() : ''}
@@ -274,6 +298,9 @@ function buildShell() {
     `).join('')}
   </main>
 </div>
+
+<!-- MOBILE BOTTOM TAB BAR -->
+${tabbarHTML(currentPage)}
   `;
 
   if (CHART_PAGES[currentPage]) CHART_PAGES[currentPage]();
@@ -313,6 +340,14 @@ function navigate(pageId, pushHistory = true) {
     btn.classList.toggle('active', btn.dataset.page === pageId);
   });
 
+  // Refresh hub sub-tabs + mobile tab-bar active state.
+  const sub = document.getElementById('hub-subtabs');
+  if (sub) sub.innerHTML = hubSubtabsHTML(pageId);
+  const activeHub = hubOf(pageId).id;
+  document.querySelectorAll('.tabbar-btn').forEach((btn, i) => {
+    btn.classList.toggle('active', HUBS[i]?.id === activeHub);
+  });
+
   const el = document.getElementById(`page-${pageId}`);
   if (el) {
     el.innerHTML = PAGES[pageId].render();
@@ -322,6 +357,16 @@ function navigate(pageId, pushHistory = true) {
 
   document.getElementById('main-area')?.scrollTo(0, 0);
 }
+
+// Navigate to a hub — land on the hub's current page if already inside it,
+// otherwise its first page.
+function gotoHub(hubId) {
+  const hub = HUBS.find(h => h.id === hubId);
+  if (!hub) return;
+  if (hub.pages.includes(currentPage)) return; // already here
+  navigate(hub.pages[0]);
+}
+window.gotoHub = gotoHub;
 
 // ── GLOBAL HANDLERS ──
 window.navigate = navigate;

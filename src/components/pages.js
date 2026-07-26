@@ -1,4 +1,4 @@
-import { state, save, setPhase, setWeek, logWorkout, clearLog, resetAll, updateProfile, formatWeight } from '../store.js';
+import { state, save, setPhase, setWeek, logWorkout, clearLog, resetAll, updateProfile, formatWeight, displayName } from '../store.js';
 import { GOAL_OPTIONS, LEVEL_OPTIONS, PHASE_NAMES, PHASE_DESCS, EXERCISES, MUSCLE_GROUPS } from '../data/exercises.js';
 import { calcBMR, calcTDEE, calcMacros, ACTIVITY_MULTIPLIERS } from '../engine/bmr.js';
 import { renderCardioLog, scheduleCardioCharts } from './cardio-log.js';
@@ -13,11 +13,14 @@ function muscleChipHTML(groupId) {
 }
 
 const THEMES = [
-  { id: 'forge',   name: 'Forge',    desc: 'Dark industrial', bg: '#0d0d0b', accent: '#ff6b1a' },
-  { id: 'day',     name: 'Daylight', desc: 'Warm light',      bg: '#f5f0e8', accent: '#c84808' },
-  { id: 'ambient', name: 'Ambient',  desc: 'Deep space',      bg: '#07070f', accent: '#8b74ff' },
-  { id: 'steel',   name: 'Steel',    desc: 'Cold navy',       bg: '#060c12', accent: '#36b4e4' },
-  { id: 'ember',   name: 'Ember',    desc: 'Campfire warm',   bg: '#0e0808', accent: '#ff7828' },
+  { id: 'heat',       name: 'Forge Heat', desc: 'Molten gradients + glow', bg: '#0b0a0d', accent: '#ff3b6b' },
+  { id: 'instrument', name: 'Instrument', desc: 'Blueprint telemetry',     bg: '#0f151a', accent: '#4fd0e0' },
+  { id: 'vivid',      name: 'Sport Vivid',desc: 'Bright & bold',           bg: '#f4f4f2', accent: '#ff5a1f' },
+  { id: 'forge',      name: 'Machinist',  desc: 'Flat dark industrial',    bg: '#0d0d0b', accent: '#ff6b1a' },
+  { id: 'day',        name: 'Daylight',   desc: 'Warm light',              bg: '#f5f0e8', accent: '#c84808' },
+  { id: 'ambient',    name: 'Ambient',    desc: 'Deep space',              bg: '#07070f', accent: '#8b74ff' },
+  { id: 'steel',      name: 'Steel',      desc: 'Cold navy',               bg: '#060c12', accent: '#36b4e4' },
+  { id: 'ember',      name: 'Ember',      desc: 'Campfire warm',           bg: '#0e0808', accent: '#ff7828' },
 ];
 
 // ── HELPERS ──
@@ -40,55 +43,71 @@ export function renderDashboard() {
   return `
 <div class="page-header">
   <div class="label" style="margin-bottom:6px">Dashboard</div>
-  <h1 class="display page-title">${profile.name.toUpperCase()}</h1>
+  <h1 class="display page-title">${displayName().toUpperCase()}</h1>
   <div class="page-sub">${goalLabel(profile.goal)} · ${levelLabel(profile.level)} · Week ${currentWeek} of ${program.totalWeeks}</div>
 </div>
 
-<!-- TODAY CARD -->
-<div class="g2 mb24" style="margin-bottom:24px">
-  <div class="card card-fire">
-    <div class="label mb16" style="margin-bottom:12px">Today · ${dayName}</div>
-    ${todaySchedule ? `
-      <div style="display:flex;align-items:center;gap:14px">
-        <div style="font-size:40px">${todaySchedule.type === 'strength' ? '⚡' : todaySchedule.type === 'cardio' ? '🏃' : '🧘'}</div>
-        <div>
-          <div class="display" style="font-size:30px">${todaySchedule.label.toUpperCase()}</div>
-          <div class="dim fs13 mt8">${todaySchedule.type === 'strength' ? 'Strength session' : todaySchedule.type === 'cardio' ? 'Cardio session' : 'Rest & recover'}</div>
-        </div>
-      </div>
-    ` : '<div class="dim">Rest day — recover well.</div>'}
-    <div style="margin-top:20px;display:flex;gap:10px">
-      <button class="btn btn-fire w100" onclick="navigate('workout')">Open Workout →</button>
-    </div>
+<!-- HERO: TODAY'S WORKOUT -->
+${(() => {
+  const type = todaySchedule?.type;
+  const icon = type === 'strength' ? '⚡' : type === 'cardio' ? '🏃' : '🧘';
+  const title = todaySchedule ? todaySchedule.label : 'Rest Day';
+  const focus = type === 'strength' ? 'Strength' : type === 'cardio' ? 'Cardio' : 'Recovery';
+  const cta = type === 'strength'
+    ? `<button class="btn btn-fire btn-lg w100" onclick="navigate('workout')">${icon} Start Today's Workout</button>`
+    : type === 'cardio'
+      ? `<button class="btn btn-fire btn-lg w100" onclick="navigate('cardio')">${icon} Log Cardio</button>`
+      : `<button class="btn btn-ghost btn-lg w100" onclick="navigate('workout')">View Recovery Plan →</button>`;
+  return `
+<div class="hero-card mb-5">
+  <div class="hero-eyebrow">Today · ${dayName} · Phase ${currentPhase} ${PHASE_NAMES[currentPhase-1]} · Week ${currentWeek}/${program.totalWeeks}</div>
+  <div class="hero-title">${title}</div>
+  <div class="hero-meta">
+    <div><span class="k">Focus</span><span class="v">${focus}</span></div>
+    <div><span class="k">Program</span><span class="v">${pct}% done</span></div>
+    <div><span class="k">Streak</span><span class="v">${streak.current} 🔥</span></div>
+    <div><span class="k">Sessions</span><span class="v">${totalSessions}</span></div>
   </div>
+  ${cta}
+</div>`;
+})()}
 
+<!-- 7-DAY STREAK STRIP -->
+${(() => {
+  const logged = new Set([...(sessions||[]), ...(workoutLog||[]), ...(state.cardioLog||[])]
+    .map(e => new Date(e.date).toDateString()));
+  const L = ['S','M','T','W','T','F','S'];
+  const cells = [...Array(7)].map((_, i) => {
+    const d = new Date(); d.setDate(today.getDate() - (6 - i));
+    const on = logged.has(d.toDateString());
+    const isToday = d.toDateString() === today.toDateString();
+    return `<div class="streak-cell ${on ? 'on' : ''} ${isToday ? 'today' : ''}">${on ? '🔥' : L[d.getDay()]}</div>`;
+  }).join('');
+  return `<div class="sec-head">This Week</div><div class="streak-strip mb-6">${cells}</div>`;
+})()}
+
+<div class="g2 mb24" style="margin-bottom:24px">
   <div class="card">
     <div class="label mb16" style="margin-bottom:12px">Program Progress</div>
     <div style="font-family:var(--ff-display);font-size:56px;line-height:1;color:var(--fire)">${pct}%</div>
-    <div class="dim fs13 mt8">Week ${currentWeek} of ${program.totalWeeks}</div>
+    <div class="dim fs13 mt8">Week ${currentWeek} of ${program.totalWeeks} · ${PHASE_NAMES[currentPhase-1]}</div>
     <div class="pbar-wrap" style="margin-top:12px">
       <div class="pbar pbar-fire" style="width:${pct}%"></div>
     </div>
-    <div style="margin-top:16px;display:flex;justify-content:space-between">
-      <div>
-        <div class="label">Phase</div>
-        <div class="mono fs12 mt8" style="margin-top:4px;color:var(--fire)">${PHASE_NAMES[currentPhase-1]}</div>
-      </div>
-      <div style="text-align:right">
-        <div class="label">Streak</div>
-        <div class="mono fs12 mt8" style="margin-top:4px;color:var(--forge-green)">${streak.current} 🔥</div>
-      </div>
-      <div style="text-align:right">
-        <div class="label">Sessions</div>
-        <div class="mono fs12 mt8" style="margin-top:4px">${totalSessions}</div>
-      </div>
+  </div>
+  <div class="card">
+    <div class="label mb16" style="margin-bottom:12px">Jump Back In</div>
+    <div class="flex col gap-2">
+      <button class="btn btn-ghost w100" onclick="navigate('equipment')">🎒 Equipment Workout</button>
+      <button class="btn btn-ghost w100" onclick="navigate('overload')">📈 Progressive Overload</button>
+      <button class="btn btn-ghost w100" onclick="navigate('freestyle')">🔀 Freestyle Session</button>
     </div>
   </div>
 </div>
 
 <!-- QUICK STATS ROW -->
 <div class="g4 mb24" style="margin-bottom:24px">
-  <div class="stat s-fire" style="cursor:pointer" onclick="navigate('log')">
+  <div class="stat s-fire" style="cursor:pointer" onclick="navigate('cardio')">
     <div class="label">Sessions</div>
     <div class="display" style="font-size:28px;margin-top:6px">${totalSessions}</div>
   </div>
@@ -596,7 +615,7 @@ ${showBackupReminder ? `
     ${profile ? `
       <div style="display:flex;flex-direction:column;gap:10px">
         ${[
-          ['Name',       profile.name],
+          ['Name',       displayName()],
           ['Goal',       goalLabel(profile.goal)],
           ['Level',      levelLabel(profile.level)],
           ['Equipment',  profile.equipment?.replace(/_/g,' ') || '—'],
@@ -617,6 +636,7 @@ ${showBackupReminder ? `
   <div class="card">
     <div class="sec-head" style="margin-bottom:16px">Actions</div>
     <div style="display:flex;flex-direction:column;gap:10px">
+      <button class="btn btn-ghost w100" onclick="navigate('equipment')">🎒 Edit Equipment / Gym Profiles</button>
       <button class="btn btn-ghost w100" onclick="navigate('onboard')">↺ Redo Quiz (New Program)</button>
       <button class="btn btn-ghost w100" onclick="navigate('builder')">✏ Manual Builder</button>
       <button class="btn btn-danger w100" onclick="if(confirm('Reset everything? This cannot be undone.')) { resetProgram(); }">✕ Reset All Data</button>
@@ -697,7 +717,7 @@ ${showBackupReminder ? `
       ).join('')}
     </select>
   </div>
-  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0">
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
     <div>
       <div style="font-size:13px;font-weight:500">Weight Units</div>
       <div class="muted fs11" style="margin-top:2px">How weights are shown across the app</div>
@@ -707,6 +727,20 @@ ${showBackupReminder ? `
         `<option value="${v}" ${(state.settings?.weightUnit || 'lbs') === v ? 'selected' : ''}>${l}</option>`
       ).join('')}
     </select>
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
+    <div>
+      <div style="font-size:13px;font-weight:500">Sound</div>
+      <div class="muted fs11" style="margin-top:2px">Beeps on timers, set completion & PRs</div>
+    </div>
+    <button class="seg-btn ${state.settings?.sound !== false ? 'active' : ''}" onclick="toggleSound()">${state.settings?.sound !== false ? 'On' : 'Off'}</button>
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0">
+    <div>
+      <div style="font-size:13px;font-weight:500">Haptics</div>
+      <div class="muted fs11" style="margin-top:2px">Vibration on timers, sets & PRs (supported devices)</div>
+    </div>
+    <button class="seg-btn ${state.settings?.haptics !== false ? 'active' : ''}" onclick="toggleHaptics()">${state.settings?.haptics !== false ? 'On' : 'Off'}</button>
   </div>
 </div>
 
@@ -772,6 +806,22 @@ window.switchLogTab = (tab) => {
 window.saveRestSetting = (val) => {
   state.settings.restSeconds = parseInt(val);
   save();
+};
+
+window.toggleSound = () => {
+  state.settings.sound = !(state.settings.sound !== false);
+  save();
+  const el = document.getElementById('page-settings');
+  if (el) el.innerHTML = renderSettings();
+};
+
+window.toggleHaptics = () => {
+  state.settings.haptics = !(state.settings.haptics !== false);
+  save();
+  // Buzz once when turning on, so the user feels it works.
+  if (state.settings.haptics) { try { navigator.vibrate?.(60); } catch {} }
+  const el = document.getElementById('page-settings');
+  if (el) el.innerHTML = renderSettings();
 };
 
 window.saveBMR = () => {

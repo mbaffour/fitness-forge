@@ -170,7 +170,22 @@ export const EXERCISES = {
   cable_crunch:{ name:'Cable Crunch',             muscle:'Core',                        groups:['core'],                    equip:['full_gym'],                              diff:'int', type:'isolation', imgKey:'Cable_Crunch',                                       musclesFull:{primary:['Rectus Abdominis'],secondary:['Obliques'],stabilizers:[]}, cues:['Kneel below a high pulley, rope by your head','Crunch down by flexing the spine — hips stay fixed','Pull with the abs, not the arms','Squeeze hard at the bottom'], commonErrors:['Hinging at the hips instead of crunching','Pulling with the arms','Using momentum'], youtubeId:'2fbujfCDsjM', exrxSlug:'WeightExercises/RectusAbdominis/CableKneelingCrunch' },
   side_plank:  { name:'Side Plank',               muscle:'Obliques / Core',             groups:['core'],                    equip:['bodyweight','full_gym','dumbbells','home_basic'], diff:'beg', type:'isolation', imgKey:'Side_Bridge',                                musclesFull:{primary:['Obliques','Quadratus Lumborum'],secondary:['Transverse Abdominis','Gluteus Medius'],stabilizers:['Shoulders']}, cues:['Elbow under the shoulder, body in one straight line','Lift the hips and hold — squeeze the side abs','Don\'t let the hips sag toward the floor','Hold both sides equally'], commonErrors:['Hips dropping','Rolling forward or back','Holding your breath'], youtubeId:'K2VljzCC16g', exrxSlug:'WeightExercises/Obliques/SideBridge' },
   v_up:        { name:'V-Up',                     muscle:'Core',                        groups:['core'],                    equip:['bodyweight','full_gym','dumbbells','home_basic'], diff:'int', type:'isolation', imgKey:null,                                          musclesFull:{primary:['Rectus Abdominis'],secondary:['Hip Flexors','Obliques'],stabilizers:[]}, cues:['Lie flat, arms overhead, legs straight','Simultaneously lift the arms and legs to meet over the hips','Keep the legs straight and reach for the toes','Lower under control — don\'t crash down'], commonErrors:['Bending the knees','Using momentum to bounce up','Straining the neck'], youtubeId:'iP2fjvG0g3w', exrxSlug:'WeightExercises/RectusAbdominis/JackKnifeSitUp' },
-  wood_chop:   { name:'Cable Wood Chop',          muscle:'Obliques / Core',             groups:['core'],                    equip:['full_gym','home_basic'],                  diff:'int', type:'isolation', imgKey:'Cable_Chop',                                         musclesFull:{primary:['Obliques','Transverse Abdominis'],secondary:['Rectus Abdominis','Shoulders'],stabilizers:['Hip Stabilizers']}, cues:['Set the cable high, pull diagonally across the body to the opposite hip','Rotate through the torso — pivot the back foot','Keep the arms fairly straight — power comes from the core','Control the return, work both directions'], commonErrors:['Bending the elbows and using the arms','No hip/foot pivot','Rushing the reps'], youtubeId:'0aB2VLgQ9Uk', exrxSlug:'WeightExercises/Obliques/CableChop' },
+  wood_chop:   { name:'Cable Wood Chop',          muscle:'Obliques / Core',             groups:['core'],                    equip:['full_gym','home_basic'],                  diff:'int', type:'isolation', imgKey:'Cable_Chop',                                         requires:['cable'], musclesFull:{primary:['Obliques','Transverse Abdominis'],secondary:['Rectus Abdominis','Shoulders'],stabilizers:['Hip Stabilizers']}, cues:['Set the cable high, pull diagonally across the body to the opposite hip','Rotate through the torso — pivot the back foot','Keep the arms fairly straight — power comes from the core','Control the return, work both directions'], commonErrors:['Bending the elbows and using the arms','No hip/foot pivot','Rushing the reps'], youtubeId:'0aB2VLgQ9Uk', exrxSlug:'WeightExercises/Obliques/CableChop' },
+
+  // ── KETTLEBELL (added v3.0) ────────────────────────────────────────────────
+  kb_swing:    { name:'Kettlebell Swing',         muscle:'Hamstrings / Glutes',         groups:['hamstrings','glutes'],     equip:['full_gym','home_basic'],                  diff:'int', type:'compound', imgKey:'Kettlebell_Swing', requires:['kettlebell'], musclesFull:{primary:['Gluteus Maximus','Hamstrings'],secondary:['Erector Spinae','Core'],stabilizers:['Shoulders','Forearms']}, cues:['Hinge at the hips — this is a hinge, not a squat','Snap the hips to float the bell to chest height','Arms stay relaxed — power comes from the hips','Keep a flat, braced spine throughout'], commonErrors:['Squatting instead of hinging','Lifting with the arms/shoulders','Rounding the lower back'], youtubeId:'YSxHifyI6s8', exrxSlug:'WeightExercises/GluteMaximus/KBTwoArmSwing' },
+  kb_goblet:   { name:'Kettlebell Goblet Squat',  muscle:'Quads / Glutes',              groups:['quads','glutes'],          equip:['full_gym','home_basic'],                  diff:'beg', type:'compound', imgKey:null, requires:['kettlebell'], musclesFull:{primary:['Quadriceps','Gluteus Maximus'],secondary:['Core','Adductors'],stabilizers:['Shoulders']}, cues:['Hold the bell by the horns at chest height','Sit down between the hips, chest tall','Elbows track inside the knees at the bottom','Drive through the whole foot to stand'], commonErrors:['Rounding forward','Heels lifting','Partial depth'], youtubeId:'jmR0Fkq7pFU', exrxSlug:'WeightExercises/Quadriceps/KBGobletSquat' },
+  kb_clean_press:{ name:'Kettlebell Clean & Press', muscle:'Shoulders / Full Body',     groups:['shoulders','triceps','quads'], equip:['full_gym','home_basic'],              diff:'adv', type:'compound', imgKey:null, requires:['kettlebell'], musclesFull:{primary:['Deltoids','Triceps Brachii'],secondary:['Quadriceps','Gluteus Maximus','Core'],stabilizers:['Forearms','Upper Back']}, cues:['Clean the bell to the rack position in one smooth pull','Keep the wrist neutral — don\'t let the bell bang the forearm','Press overhead, brace the core hard','Lower under control back to the rack, then the floor'], commonErrors:['Banging the wrist on the clean','Arching the lower back on the press','Using a jerky, uncoordinated pull'], youtubeId:'-1sV3W8xkxc', exrxSlug:'WeightExercises/DeltoidAnterior/KBCleanAndPress' },
+  kb_snatch:   { name:'Kettlebell Snatch',        muscle:'Shoulders / Posterior Chain', groups:['shoulders','hamstrings','glutes'], equip:['full_gym','home_basic'],           diff:'adv', type:'compound', imgKey:null, requires:['kettlebell'], musclesFull:{primary:['Deltoids','Gluteus Maximus','Hamstrings'],secondary:['Trapezius','Core'],stabilizers:['Forearms','Rotator Cuff']}, cues:['Explosive hip hinge drives the bell overhead in one motion','Punch the hand through at the top to avoid banging the wrist','Lock out overhead with a stable shoulder','Guide the bell back down into the next hinge'], commonErrors:['Muscling it up with the arm','Banging the wrist at lockout','Losing the hinge pattern'], youtubeId:'', exrxSlug:'WeightExercises/DeltoidAnterior/KBSnatch' },
+  kb_row:      { name:'Kettlebell Row',           muscle:'Back / Biceps',               groups:['back','biceps'],           equip:['full_gym','home_basic'],                  diff:'beg', type:'compound', imgKey:null, requires:['kettlebell'], musclesFull:{primary:['Latissimus Dorsi','Rhomboids'],secondary:['Biceps Brachii','Rear Deltoid'],stabilizers:['Core','Erector Spinae']}, cues:['Hinge forward with a flat back, bell hanging','Pull the bell to the hip — lead with the elbow','Squeeze the shoulder blade at the top','Control the descent for a full lat stretch'], commonErrors:['Rounding the back','Rowing to the chest instead of the hip','Twisting the torso'], youtubeId:'y_AVUxdmVXk', exrxSlug:'WeightExercises/LatissimusDorsi/KBOneArmRow' },
+
+  // ── RESISTANCE BANDS (added v3.0) ──────────────────────────────────────────
+  band_pull_apart:{ name:'Band Pull-Apart',       muscle:'Rear Delts / Upper Back',     groups:['shoulders','back'],        equip:['home_basic'],                             diff:'beg', type:'isolation', imgKey:null, requires:['resistance_bands'], musclesFull:{primary:['Posterior Deltoid','Rhomboids'],secondary:['Middle Trapezius'],stabilizers:[]}, cues:['Hold the band at shoulder width, arms straight out','Pull the band apart to your chest, squeezing the shoulder blades','Keep the shoulders down — don\'t shrug','Slow, controlled return'], commonErrors:['Shrugging the traps','Bending the elbows','Snapping back on the return'], youtubeId:'', exrxSlug:'WeightExercises/DeltoidPosterior/BandPullApart' },
+  band_press: { name:'Band Chest Press',          muscle:'Chest / Triceps',             groups:['chest','triceps'],         equip:['home_basic'],                             diff:'beg', type:'compound', imgKey:null, requires:['resistance_bands'], musclesFull:{primary:['Pectoralis Major'],secondary:['Triceps Brachii','Anterior Deltoid'],stabilizers:['Core']}, cues:['Anchor the band behind you at chest height','Press forward and slightly together','Control the return against the band tension','Step further forward for more resistance'], commonErrors:['Letting the band snap you back','Flaring the elbows','Insufficient anchor'], youtubeId:'', exrxSlug:'WeightExercises/PectoralMajorSternal/BandPress' },
+  band_row:    { name:'Band Row',                 muscle:'Back / Biceps',               groups:['back','biceps'],           equip:['home_basic'],                             diff:'beg', type:'compound', imgKey:null, requires:['resistance_bands'], musclesFull:{primary:['Latissimus Dorsi','Rhomboids','Middle Trapezius'],secondary:['Biceps Brachii','Rear Deltoid'],stabilizers:['Core']}, cues:['Anchor the band in front at chest height (or loop around the feet, seated)','Pull the handles to your ribs, squeezing the shoulder blades','Keep the torso tall and still','Control the return'], commonErrors:['Leaning back to yank the band','Shrugging the shoulders','Not squeezing at the end'], youtubeId:'', exrxSlug:'WeightExercises/LatissimusDorsi/BandRow' },
+  band_pulldown:{ name:'Band Lat Pulldown',       muscle:'Lats',                        groups:['back','biceps'],           equip:['home_basic'],                             diff:'beg', type:'compound', imgKey:null, requires:['resistance_bands','pull_up_bar'], musclesFull:{primary:['Latissimus Dorsi'],secondary:['Biceps Brachii','Rear Deltoid'],stabilizers:['Core']}, cues:['Anchor the band overhead (door or bar)','Pull the band down toward the upper chest','Drive the elbows down and back — squeeze the lats','Control the return, keep tension'], commonErrors:['Using only the arms','Leaning back excessively','Losing band tension at the top'], youtubeId:'', exrxSlug:'WeightExercises/LatissimusDorsi/BandPulldown' },
+  band_squat:  { name:'Banded Squat',             muscle:'Quads / Glutes',              groups:['quads','glutes'],          equip:['home_basic'],                             diff:'beg', type:'compound', imgKey:null, requires:['resistance_bands'], musclesFull:{primary:['Quadriceps','Gluteus Maximus'],secondary:['Hamstrings','Core'],stabilizers:['Adductors']}, cues:['Stand on the band, hold the handles at the shoulders','Squat down keeping the chest tall','Drive up against the increasing band tension','Push the knees out throughout'], commonErrors:['Knees caving in','Heels lifting','Cutting the depth short'], youtubeId:'', exrxSlug:'WeightExercises/Quadriceps/BandSquat' },
+  band_lat_raise:{ name:'Band Lateral Raise',     muscle:'Side Delts',                  groups:['shoulders'],               equip:['home_basic'],                             diff:'beg', type:'isolation', imgKey:null, requires:['resistance_bands'], musclesFull:{primary:['Deltoid (Medial)'],secondary:['Upper Trapezius'],stabilizers:[]}, cues:['Stand on the band, handle in each hand','Raise the arms out to shoulder height, leading with the elbows','Slight forward lean, slight elbow bend','Control the descent against the band'], commonErrors:['Shrugging the traps','Raising above shoulder height','Using momentum'], youtubeId:'3VLTzIrnb5k', exrxSlug:'WeightExercises/DeltoidLateral/BandLateralRaise' },
 };
 
 export const CARDIO_STRUCTURES = {
@@ -189,17 +204,118 @@ export const PHASE_DESCS = [
   'Test maxes, develop power, sport-specific conditioning. Explosive movements.',
 ];
 
-export function getExercisesForGroup(groupId, equip, level) {
+// ═══════════════════════════════════════════
+//   EQUIPMENT ITEM MODEL (v3.0)
+//   Item-level requirements + subset matching,
+//   layered on top of the legacy `equip[]` presets.
+// ═══════════════════════════════════════════
+
+// The individual equipment items a user can own. `bodyweight` is implicit
+// (an exercise with requires:[] needs nothing) and never shown as a chip.
+export const EQUIP_ITEMS = [
+  { id:'dumbbells',       label:'Dumbbells',      icon:'🏋️' },
+  { id:'barbell',         label:'Barbell',        icon:'🏋️‍♂️' },
+  { id:'bench',           label:'Bench',          icon:'🛋️' },
+  { id:'kettlebell',      label:'Kettlebell',     icon:'🔔' },
+  { id:'resistance_bands',label:'Resistance Bands',icon:'🎗️' },
+  { id:'cable',           label:'Cable Machine',  icon:'🔌' },
+  { id:'pull_up_bar',     label:'Pull-Up Bar',    icon:'🚧' },
+  { id:'machine',         label:'Weight Machines',icon:'⚙️' },
+  { id:'rings_trx',       label:'Rings / TRX',    icon:'💍' },
+  { id:'ab_wheel',        label:'Ab Wheel',       icon:'🎡' },
+];
+const ALL_ITEMS = EQUIP_ITEMS.map(i => i.id);
+
+// One-tap location presets → owned-item sets (Fitbod-style).
+export const LOCATION_PRESETS = [
+  { id:'bodyweight', label:'Bodyweight',   icon:'🤸', items:[] },
+  { id:'home_basic', label:'Home Gym',     icon:'🏠', items:['dumbbells','resistance_bands','pull_up_bar','bench'] },
+  { id:'dumbbells',  label:'Dumbbells',    icon:'💪', items:['dumbbells','bench'] },
+  { id:'kettlebell', label:'Kettlebell',   icon:'🔔', items:['kettlebell'] },
+  { id:'bands',      label:'Bands Only',   icon:'🎗️', items:['resistance_bands'] },
+  { id:'full_gym',   label:'Full Gym',     icon:'🏟️', items:[...ALL_ITEMS] },
+];
+
+// Legacy preset string → owned-item set (keeps getExercisesForGroup callers working).
+const PRESET_ITEMS = {
+  bodyweight: [],
+  dumbbells:  ['dumbbells','bench'],
+  home_basic: ['dumbbells','resistance_bands','pull_up_bar','bench'],
+  full_gym:   [...ALL_ITEMS],
+};
+
+// Actual items each exercise needs. Empty array = bodyweight-anywhere.
+// New (v3.0) exercises declare `requires` inline; this backfills the rest.
+const REQUIRES = {
+  // legs
+  squat_bb:['barbell'], squat_front:['barbell'], squat_db:['dumbbells'], squat_bw:[],
+  rdl_bb:['barbell'], rdl_db:['dumbbells'], deadlift:['barbell'], trap_dl:['barbell'],
+  bss:[], lunge_db:['dumbbells'], lunge_bw:[], legpress:['machine'], legcurl:['machine'],
+  hipthrust_bb:['barbell','bench'], hipthrust_bw:[], calfr_bb:['barbell'], calfr_bw:[],
+  stepup:[], boxjump:[], hack_squat:['machine'], leg_ext:['machine'], good_morning:['barbell'],
+  glute_kickback:[], hip_abduction:['machine'], hip_adduction:['machine'], seated_calf:['machine'],
+  // push
+  bench_bb:['barbell','bench'], bench_db:['dumbbells','bench'], incline_bb:['barbell','bench'],
+  incline_db:['dumbbells','bench'], ohp_bb:['barbell'], ohp_db:['dumbbells'], pushup:[], dips:[],
+  cable_fly:['cable'], db_fly:['dumbbells','bench'], lat_raise:['dumbbells'], front_raise:['dumbbells'],
+  tri_push:['cable'], tri_oh:['dumbbells'], skull:['barbell','bench'], cgbench:['barbell','bench'],
+  pushpress:['barbell'], decline_bench:['barbell','bench'], machine_press:['machine'],
+  arnold_press:['dumbbells'], upright_row:['barbell'],
+  // pull
+  pullup:['pull_up_bar'], chinup:['pull_up_bar'], lat_pull:['cable'], row_bb:['barbell'],
+  row_db:['dumbbells'], row_cable:['cable'], row_chest:['dumbbells','bench'], row_tbar:['barbell'],
+  face_pull:['cable'], shrug_bb:['barbell'], shrug_db:['dumbbells'], str_pull:['cable'],
+  pullover:['dumbbells','bench'], rear_delt_fly:['dumbbells'], pendlay_row:['barbell'],
+  // arms
+  curl_bb:['barbell'], curl_db:['dumbbells'], curl_hammer:['dumbbells'], curl_incline:['dumbbells','bench'],
+  preacher_curl:['barbell','bench'], cable_curl:['cable'], concentration_curl:['dumbbells'],
+  reverse_curl:['barbell'], wrist_curl:['dumbbells'], rev_wrist_curl:['dumbbells'], farmer:['dumbbells'],
+  // core
+  plank:[], deadbug:[], pallof:['cable'], hollow:[], legraise:['pull_up_bar'], russian:[],
+  ab_wheel:['ab_wheel'], crunch:[], cable_crunch:['cable'], side_plank:[], v_up:[], wood_chop:['cable'],
+  // calisthenics
+  diamond_pu:[], pike_pu:[], hspu:[], muscle_up:['pull_up_bar'], l_sit:[], dragon_flag:[],
+  pistol_sq:[], burpee:[], mtn_climber:[], jump_sq:[], nordic_curl:[], ring_dip:['rings_trx'],
+  inverted_row:['pull_up_bar'],
+};
+
+// Assign `requires` to every exercise (inline value wins; else map; else []).
+for (const [id, ex] of Object.entries(EXERCISES)) {
+  if (!Array.isArray(ex.requires)) ex.requires = REQUIRES[id] || [];
+}
+
+// Normalize an equip argument that may be a legacy preset string, an array, or
+// a Set of item ids, into a Set of owned item ids.
+function toItemSet(equipOrItems) {
+  if (equipOrItems instanceof Set) return equipOrItems;
+  if (Array.isArray(equipOrItems)) return new Set(equipOrItems);
+  return new Set(PRESET_ITEMS[equipOrItems] || []);  // legacy preset string
+}
+
+// An exercise is available iff every item it requires is owned.
+export function exerciseAvailable(ex, ownedSet) {
+  return (ex.requires || []).every(i => ownedSet.has(i));
+}
+
+// Item-level version of getExercisesForGroup — pass an owned-item Set/array.
+export function getExercisesForItems(groupId, ownedItems, level) {
   const diffMap = { beginner:['beg'], intermediate:['beg','int'], advanced:['beg','int','adv'] };
   const allowed = diffMap[level] || ['beg','int'];
+  const owned = toItemSet(ownedItems);
   return Object.entries(EXERCISES)
     .filter(([,ex]) =>
-      !ex.caliOnly &&                        // exclude calisthenics-only exercises
+      !ex.caliOnly &&
       ex.groups?.includes(groupId) &&
-      ex.equip.includes(equip) &&
-      allowed.includes(ex.diff)
+      allowed.includes(ex.diff) &&
+      exerciseAvailable(ex, owned)
     )
     .map(([id,ex]) => ({ id, ...ex }));
+}
+
+// Backward-compatible: accepts a legacy preset string OR an item set/array.
+// Existing callers pass a preset string and keep working unchanged.
+export function getExercisesForGroup(groupId, equip, level) {
+  return getExercisesForItems(groupId, toItemSet(equip), level);
 }
 
 // Returns all exercises appropriate for the calisthenics page:

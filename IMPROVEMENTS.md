@@ -106,3 +106,72 @@ All colors use CSS vars; new styles appended to `src/style.css`.
 
 ### 4. Housekeeping
 - `sw.js`: precache the new module and bump the cache to `forge-v12`.
+
+---
+
+## v3.0 — UI/UX redesign + equipment-specific workouts
+
+Informed by competitor research (BetterMe, Home Workout, Fitbod, Hevy, Strong) and
+a codebase UI audit. All changes preserve the localStorage schema (migrated additively).
+
+### Design-system foundation
+- Defined previously-undefined tokens `--surface` and `--ff-display` (they were
+  referenced but missing → transparent surfaces / non–Fira-Code numerals) and added
+  a spacing scale `--s-1..--s-8` + matching utility classes.
+- New `src/components/ui.js` shared render helpers (card, statTile, sectionHead,
+  segGroup, hubTabs, primaryBtn, muscleChip, chipRow, emptyState); consolidated the
+  two duplicate muscleChip helpers.
+- New CSS components: segmented control, hero card, streak strip, equipment chips,
+  bottom tab bar, quiz, coach-marks.
+
+### Responsive navigation & IA
+- Consolidated 17 nav items into **5 hubs** (Today / Train / Log / Progress / Profile)
+  via `PAGE_META` + `HUBS` in `main.js`. Desktop keeps a grouped sidebar; mobile gets
+  a **bottom tab bar**; both render from one IA, with **hub sub-tabs** at the top of
+  multi-page hubs. `body.session-active` hides all nav chrome during a workout.
+- Fixed dead `navigate('log')` links (dashboard stat + session-summary toast).
+
+### Screen redesigns
+- **Onboarding**: name is now optional with a "Skip — continue as guest" affordance
+  (no accounts/sign-in). `displayName()` in `store.js` defaults to "Athlete" everywhere.
+- **Dashboard**: hero "Today's Workout" card + single CTA, a 7-day streak strip, and a
+  quick-actions card.
+- **Workout player**: ghosted "Last session" line per exercise (confirm-not-type) and
+  a haptic (`navigator.vibrate`) rest-timer completion in addition to the beep.
+
+### Equipment-specific workouts
+- Item-level `requires:[]` on every exercise + subset-match `getExercisesForItems`;
+  `getExercisesForGroup` now accepts a preset string OR an owned-item set (so the
+  generator and Freestyle keep working unchanged).
+- New kettlebell and resistance-band exercises.
+- New **Equipment** page: location presets + individual item chips → a full-body
+  session filtered to exactly what you own, with an honest coverage heatmap; **saved
+  gym profiles** (`store.js` gymProfiles) switchable Fitbod-style; also linked from Settings.
+
+### Housekeeping
+- Precache `ui.js` + `equipment.js`; bump SW cache to `forge-v13`.
+
+### Audio + haptic feedback (v3.0)
+Previously only the strength rest-timer beeped (and buzzed). Added a shared
+`src/components/feedback.js` `cue(type)` utility (WebAudio tones + `navigator.vibrate`)
+wired into every feedback surface:
+- **HIIT interval timer**: work→rest and rest→next cues, a 3-2-1 countdown tick, and
+  a finish fanfare (`hiit.js`).
+- **Strength rest timer**: soft ticks for the final 3 seconds + the existing finish cue.
+- **Set completion**: a short tick + light buzz on each logged set.
+- **PR**: a triumphant chime + buzz (supersedes the set cue).
+
+New **Sound** and **Haptics** toggles in Settings → Workout Settings (default ON,
+`settings.sound` / `settings.haptics`); `cue()` no-ops when muted or unsupported.
+Precache `feedback.js`; SW cache bumped to `forge-v14`.
+
+### Older-page theme polish (v3.2)
+Swept the remaining log/track pages so the whole app is consistent under the new
+expressive themes. The audit-flagged issue was hardcoded colors that ignored the
+theme: the sleep score heatmap, the activity minutes heatmap, and the HIIT
+work/rest badges + alert now use `color-mix(... var(--token) ...)` instead of fixed
+`rgba()`, so they adapt to heat/instrument/vivid/day. All older pages already used
+the themed heading classes (`.page-title`/`.display`/`.sec-head`), so Forge Heat's
+gradient titles and glow apply automatically. Verified all 10 pages render across
+heat/instrument/vivid with no console errors and full light-theme legibility.
+SW cache bumped to `forge-v15`.

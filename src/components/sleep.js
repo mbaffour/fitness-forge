@@ -84,9 +84,9 @@ function _renderHeatmap(sleepLog) {
     const entry = sleepLog.find(e => e.date === key);
     const score = entry?.score;
     const bg = !score ? 'var(--bg-3)'
-      : score >= 80 ? 'rgba(77,255,170,0.5)'
-      : score >= 60 ? 'rgba(255,179,71,0.5)'
-      : 'rgba(255,68,68,0.5)';
+      : score >= 80 ? 'color-mix(in srgb, var(--forge-green) 50%, transparent)'
+      : score >= 60 ? 'color-mix(in srgb, var(--ember) 50%, transparent)'
+      : 'color-mix(in srgb, var(--danger) 50%, transparent)';
     const dow = ['S','M','T','W','T','F','S'][d.getDay()];
     cells.push(`<div class="sleep-cell" style="background:${bg}" title="${key}${score ? ' · Score: ' + score : ' · No data'}"></div>`);
   }
@@ -98,9 +98,9 @@ function _renderHeatmap(sleepLog) {
   </div>
   <div class="sleep-heatmap">${cells.join('')}</div>
   <div style="display:flex;gap:12px;margin-top:8px;font-size:10px;font-family:var(--ff-mono)">
-    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:rgba(77,255,170,0.5);display:inline-block"></span>≥80</span>
-    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:rgba(255,179,71,0.5);display:inline-block"></span>60–79</span>
-    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:rgba(255,68,68,0.5);display:inline-block"></span>&lt;60</span>
+    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:color-mix(in srgb, var(--forge-green) 50%, transparent);display:inline-block"></span>≥80</span>
+    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:color-mix(in srgb, var(--ember) 50%, transparent);display:inline-block"></span>60–79</span>
+    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:color-mix(in srgb, var(--danger) 50%, transparent);display:inline-block"></span>&lt;60</span>
     <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:var(--bg-3);display:inline-block"></span>No data</span>
   </div>
 </div>`;
