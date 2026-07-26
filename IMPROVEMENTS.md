@@ -164,3 +164,14 @@ wired into every feedback surface:
 New **Sound** and **Haptics** toggles in Settings → Workout Settings (default ON,
 `settings.sound` / `settings.haptics`); `cue()` no-ops when muted or unsupported.
 Precache `feedback.js`; SW cache bumped to `forge-v14`.
+
+### Older-page theme polish (v3.2)
+Swept the remaining log/track pages so the whole app is consistent under the new
+expressive themes. The audit-flagged issue was hardcoded colors that ignored the
+theme: the sleep score heatmap, the activity minutes heatmap, and the HIIT
+work/rest badges + alert now use `color-mix(... var(--token) ...)` instead of fixed
+`rgba()`, so they adapt to heat/instrument/vivid/day. All older pages already used
+the themed heading classes (`.page-title`/`.display`/`.sec-head`), so Forge Heat's
+gradient titles and glow apply automatically. Verified all 10 pages render across
+heat/instrument/vivid with no console errors and full light-theme legibility.
+SW cache bumped to `forge-v15`.

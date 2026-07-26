@@ -73,9 +73,9 @@ function _renderHeatmap(activityLog) {
     const key = d.toISOString().slice(0, 10);
     const mins = dayMap[key] || 0;
     const bg = mins === 0 ? 'var(--bg-3)'
-      : mins <= 30 ? 'rgba(122,179,200,0.3)'
-      : mins <= 60 ? 'rgba(122,179,200,0.7)'
-      : 'rgba(255,107,26,0.7)';
+      : mins <= 30 ? 'color-mix(in srgb, var(--steel) 30%, transparent)'
+      : mins <= 60 ? 'color-mix(in srgb, var(--steel) 70%, transparent)'
+      : 'color-mix(in srgb, var(--fire) 70%, transparent)';
     cells.push(`<div class="sleep-cell" style="background:${bg}" title="${key}: ${mins} min"></div>`);
   }
 
@@ -87,9 +87,9 @@ function _renderHeatmap(activityLog) {
   </div>
   <div class="sleep-heatmap">${cells.join('')}</div>
   <div style="display:flex;gap:12px;margin-top:8px;font-size:10px;font-family:var(--ff-mono)">
-    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:rgba(255,107,26,0.7);display:inline-block"></span>60+ min</span>
-    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:rgba(122,179,200,0.7);display:inline-block"></span>31-60 min</span>
-    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:rgba(122,179,200,0.3);display:inline-block"></span>1-30 min</span>
+    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:color-mix(in srgb, var(--fire) 70%, transparent);display:inline-block"></span>60+ min</span>
+    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:color-mix(in srgb, var(--steel) 70%, transparent);display:inline-block"></span>31-60 min</span>
+    <span style="display:flex;align-items:center;gap:4px"><span style="width:10px;height:10px;border-radius:2px;background:color-mix(in srgb, var(--steel) 30%, transparent);display:inline-block"></span>1-30 min</span>
   </div>
 </div>`;
 }
