@@ -16,6 +16,7 @@ import { renderAnalytics, scheduleAnalyticsCharts } from './components/analytics
 import { renderHIIT, scheduleHIITCharts } from './components/hiit.js';
 import { renderOverloadMode } from './components/overload-mode.js';
 import { renderEquipment } from './components/equipment.js';
+import { renderLibrary } from './components/library.js';
 import {
   state, save, setPhase, setWeek, logWorkout, clearLog, resetAll,
   logSession, addCardioEntry, addBodyCheckIn, getTodayNutrition,
@@ -89,6 +90,7 @@ const PAGE_META = {
   freestyle:    { label: 'Freestyle',    icon: '🔀' },
   calisthenics: { label: 'Calisthenics', icon: '🤸' },
   hiit:         { label: 'HIIT',         icon: '🔥' },
+  library:      { label: 'Library',      icon: '📚' },
   schedule:     { label: 'Schedule',     icon: '⊞' },
   nutrition:    { label: 'Nutrition',    icon: '⊕' },
   fasting:      { label: 'Fasting',      icon: '⏱' },
@@ -106,7 +108,7 @@ const PAGE_META = {
 // sub-tabs at the top of the content, and the hubs drive the mobile tab bar.
 const HUBS = [
   { id: 'today',    label: 'Today',    icon: '◈', pages: ['dashboard'] },
-  { id: 'train',    label: 'Train',    icon: '⚡', pages: ['workout','overload','equipment','freestyle','calisthenics','hiit','schedule'] },
+  { id: 'train',    label: 'Train',    icon: '⚡', pages: ['workout','overload','equipment','freestyle','calisthenics','hiit','library','schedule'] },
   { id: 'log',      label: 'Log',      icon: '✎', pages: ['nutrition','fasting','sleep','activity','body','cardio'] },
   { id: 'progress', label: 'Progress', icon: '↑', pages: ['progress','analytics','achievements'] },
   { id: 'profile',  label: 'Profile',  icon: '⚙', pages: ['settings'] },
@@ -128,6 +130,7 @@ const PAGES = {
   freestyle:    { render: renderFreestyle    },
   calisthenics: { render: renderCalisthenics },
   hiit:         { render: renderHIIT         },
+  library:      { render: renderLibrary      },
   schedule:     { render: renderSchedule     },
   nutrition:    { render: renderNutrition    },
   fasting:      { render: renderFasting      },
@@ -179,11 +182,35 @@ window.openExDetail = (exId) => {
 let currentPage = 'dashboard';
 const navHistory = [];
 
+// ── URL HASH ROUTING ──
+// Keeps the address bar in sync so refresh restores the page, deep links work
+// (e.g. …/#library), and the browser back/forward buttons navigate the app.
+let _suppressHashEvent = false;
+
+function syncHash(pageId) {
+  if (location.hash === `#${pageId}`) return;
+  _suppressHashEvent = true;           // our own assignment — don't re-navigate
+  location.hash = pageId;
+}
+
+window.addEventListener('hashchange', () => {
+  if (_suppressHashEvent) { _suppressHashEvent = false; return; }
+  const p = location.hash.slice(1);
+  if (PAGES[p] && p !== currentPage) navigate(p, false);
+});
+
+// Initial page from the URL (only honored once onboarded, in boot()).
+function pageFromHash() {
+  const p = location.hash.slice(1);
+  return PAGES[p] ? p : 'dashboard';
+}
+
 const PAGE_LABELS = {
   dashboard:    'Dashboard',    workout:      'Workout',
   overload:     'Overload',     equipment:    'Equipment',
   freestyle:    'Freestyle',    calisthenics: 'Calisthenics',
   hiit:         'HIIT',
+  library:      'Exercise Library',
   schedule:     'Schedule',
   nutrition:    'Nutrition',    fasting:      'Fasting',
   sleep:        'Sleep',        activity:     'Activity',
@@ -332,6 +359,7 @@ function navigate(pageId, pushHistory = true) {
   }
 
   currentPage = pageId;
+  syncHash(pageId);
   closeSidebar();
   updateTopbar(pageId);
 
@@ -445,6 +473,8 @@ function boot() {
       setInterval(_updateStatsStrip, 30000);
     });
   } else {
+    currentPage = pageFromHash();      // deep link / refresh restores the page
+    syncHash(currentPage);
     buildShell();
     setInterval(_updateStatsStrip, 30000);
   }

@@ -1,7 +1,7 @@
 // FITNESS FORGE — Service Worker
 // Cache-first strategy for full offline support
 
-const CACHE = 'forge-v16';
+const CACHE = 'forge-v17';
 
 const PRECACHE = [
   './',
@@ -30,11 +30,14 @@ const PRECACHE = [
   './src/components/equipment.js',
   './src/components/ui.js',
   './src/components/feedback.js',
+  './src/components/library.js',
   './src/engine/generator.js',
   './src/engine/overload.js',
   './src/engine/bmr.js',
   './src/data/exercises.js',
   './manifest.json',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
 ];
 
 self.addEventListener('install', evt => {

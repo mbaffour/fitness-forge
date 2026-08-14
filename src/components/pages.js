@@ -414,6 +414,62 @@ export function renderSchedule() {
 }
 
 // ── PROGRESS ──
+// ── Training consistency heatmap (GitHub-style, last 16 weeks) ──
+// Counts any logged training day: workouts (incl. sessions), cardio, activity,
+// and HIIT logs. Uses the app's UTC-ISO date convention (toISOString).
+function _activeDayCounts() {
+  const counts = {};
+  const add = (d) => {
+    if (!d) return;
+    let key = String(d).slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) {
+      const t = new Date(d);
+      if (isNaN(t)) return;
+      key = t.toISOString().slice(0, 10);
+    }
+    counts[key] = (counts[key] || 0) + 1;
+  };
+  (state.workoutLog  || []).forEach(e => add(e.date));
+  (state.cardioLog   || []).forEach(e => add(e.date));
+  (state.activityLog || []).forEach(e => add(e.date));
+  (state.hiitState?.logs || []).forEach(e => add(e.date));
+  return counts;
+}
+
+function _heatmapHTML() {
+  const counts   = _activeDayCounts();
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const todayUTC = new Date(`${todayKey}T00:00:00Z`);
+  const dow      = todayUTC.getUTCDay();               // 0 = Sun
+  const weeks    = 16;
+  const start    = new Date(todayUTC.getTime() - (7 * (weeks - 1) + dow) * 86400000);
+
+  let cells = '';
+  let activeDays = 0;
+  for (let i = 0; i < weeks * 7; i++) {
+    const d   = new Date(start.getTime() + i * 86400000);
+    const key = d.toISOString().slice(0, 10);
+    const n   = counts[key] || 0;
+    const future = d > todayUTC;
+    if (n > 0 && !future) activeDays++;
+    const lvl = n >= 3 ? 'l3' : n === 2 ? 'l2' : n === 1 ? 'l1' : '';
+    cells += `<span class="hm-cell ${lvl}${future ? ' future' : ''}${key === todayKey ? ' today' : ''}" title="${key}${n ? ` · ${n} ${n === 1 ? 'entry' : 'entries'}` : ''}"></span>`;
+  }
+
+  return `
+<div class="sec-head" style="margin-bottom:12px">Training Consistency</div>
+<div class="card mb24" style="margin-bottom:24px">
+  <div class="dim fs12" style="margin-bottom:12px">${activeDays} active day${activeDays === 1 ? '' : 's'} in the last ${weeks} weeks</div>
+  <div class="hm-wrap">
+    <div class="hm-flex">
+      <div class="hm-dows"><span></span><span>M</span><span></span><span>W</span><span></span><span>F</span><span></span></div>
+      <div class="hm-grid">${cells}</div>
+    </div>
+  </div>
+  <div class="hm-legend">Less <span class="hm-cell"></span><span class="hm-cell l1"></span><span class="hm-cell l2"></span><span class="hm-cell l3"></span> More</div>
+</div>`;
+}
+
 export function renderProgress() {
   const { profile, program, sessions, prs } = state;
   if (!profile || !program) return '<p class="dim">No program found.</p>';
@@ -435,6 +491,8 @@ export function renderProgress() {
   <h1 class="display page-title">PROGRESS</h1>
   <div class="page-sub">Strength targets relative to bodyweight · ${levelLabel(profile.level)}</div>
 </div>
+
+${_heatmapHTML()}
 
 <div class="sec-head" style="margin-bottom:12px">Weekly Frequency</div>
 <div class="card mb24" style="margin-bottom:24px">

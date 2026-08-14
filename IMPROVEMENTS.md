@@ -175,3 +175,48 @@ the themed heading classes (`.page-title`/`.display`/`.sec-head`), so Forge Heat
 gradient titles and glow apply automatically. Verified all 10 pages render across
 heat/instrument/vivid with no console errors and full light-theme legibility.
 SW cache bumped to `forge-v15`.
+
+---
+
+## v3.3 — Library, plate math, wake lock, consistency heatmap
+
+### Fixes
+1. **Real PWA icons.** `icons/icon-192.png` and `icons/icon-512.png` were 70-byte
+   placeholder files, so installing the PWA produced a broken/blank icon. Replaced
+   with real PNGs (flat fire-orange dumbbell on the `--bg` dark panel, drawn to the
+   design tokens; content sits inside the maskable safe zone). Icons added to the
+   SW precache.
+2. **Plate-calc float display** — loadable weight rounded to 2 decimals (no more
+   `99.999999998 kg`).
+
+### New features
+1. **Exercise Library page** (`src/components/library.js`, Train hub). Live search
+   plus equipment, difficulty, and muscle-group filters over the full exercise DB;
+   cards show the animated preview and open the existing detail modal. Search
+   input re-renders only the results list so typing never loses focus.
+2. **Plate calculator + warm-up ramp** (in `active-workout.js`). A 🏋 button beside
+   every weight input opens a calculator showing the per-side plate breakdown for
+   the target weight (bar selectable: 45/35/15 lb or 20/15/10 kg; standard plate
+   sets per unit; honest "not loadable, closest is X" note) plus a warm-up ramp
+   (empty bar ×10 → 55%×5 → 70%×3 → 85%×1 → work), all rounded to loadable
+   increments. Fully display-unit aware — respects Settings → Weight Units.
+3. **Screen wake lock** (`feedback.js`: `acquireWakeLock`/`releaseWakeLock`).
+   The screen stays on during an active workout session and while the HIIT
+   interval timer runs; reacquired automatically when the tab becomes visible
+   again, released on session end/cancel and modal close. Silent no-op where
+   unsupported.
+4. **Training-consistency heatmap** (Progress page). GitHub-style 16-week grid
+   counting every logged training day (workouts/sessions, cardio, activity, HIIT),
+   tinted through `color-mix` on `--fire` so it adapts to every theme; today is
+   outlined in `--forge-green`.
+5. **URL hash routing** (`main.js`). The address bar tracks the current page
+   (`#library`), so refresh restores the page, deep links work, and the browser
+   back/forward buttons navigate the app. Guarded against event loops; onboarding
+   is unaffected.
+6. **Rest countdown in the tab title.** If you switch tabs mid-rest, the title
+   shows `⏱ 42s rest — Fitness Forge`; the original title is restored when rest
+   ends or the timer is skipped.
+
+### Housekeeping
+- SW precache: + `library.js`, + both icons; cache bumped `forge-v16` → `forge-v17`.
+- All new styles use CSS vars/`color-mix` only — no hardcoded colors.
