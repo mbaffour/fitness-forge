@@ -3,10 +3,10 @@
 //   Live set-by-set session overlay
 // ═══════════════════════════════════════════
 
-import { state, logSession, recordPR, updateStreak, checkFirstSession, formatWeight } from '../store.js';
+import { state, logSession, recordPR, updateStreak, checkFirstSession, formatWeight, weightUnitLabel } from '../store.js';
 import { suggestNextSet, detectPR, computeSessionVolume, estimateOneRepMax } from '../engine/overload.js';
 import { EXERCISES } from '../data/exercises.js';
-import { cue } from './feedback.js';
+import { cue, acquireWakeLock, releaseWakeLock } from './feedback.js';
 
 let sessionState = null;  // current in-progress session
 let timerInterval = null;
@@ -32,6 +32,7 @@ function tickRest() {
     clearInterval(restInterval);
     restInterval = null;
     cue('finish');
+    _restoreTitle();
     const bar = document.getElementById('rest-timer-bar');
     if (bar) {
       bar.innerHTML = `<span class="rest-done-flash">REST DONE — GO! 🔥</span>`;
@@ -41,6 +42,23 @@ function tickRest() {
   }
   if (restTimeLeft <= 3) cue('tick');  // soft countdown ticks for the last 3s
   updateRestBar();
+  updateTitleCountdown();
+}
+
+// ── Tab-title countdown ──
+// When the user switches tabs mid-rest, mirror the countdown in the tab title
+// so it stays visible; restore the original title when rest ends.
+const _origTitle = document.title;
+
+function updateTitleCountdown() {
+  if (!document.hidden) { _restoreTitle(); return; }
+  const m = Math.floor(restTimeLeft / 60);
+  const s = restTimeLeft % 60;
+  document.title = `⏱ ${m > 0 ? `${m}:${pad(s)}` : `${restTimeLeft}s`} rest — Fitness Forge`;
+}
+
+function _restoreTitle() {
+  if (document.title !== _origTitle) document.title = _origTitle;
 }
 
 function renderRestBar() {
@@ -79,6 +97,7 @@ function updateRestBar() {
 function stopRestTimer() {
   clearInterval(restInterval);
   restInterval = null;
+  _restoreTitle();
   document.getElementById('rest-timer-bar')?.remove();
 }
 
@@ -127,6 +146,7 @@ export function startActiveWorkout(workoutId, workoutLabel, exercises, workoutTy
 
   renderOverlay();
   startTimer();
+  acquireWakeLock();   // keep the screen on for the whole session
 }
 
 function startTimer() {
@@ -290,7 +310,7 @@ function renderExerciseBlock(ex, exIdx) {
   ${nextSetNum < ex.targetSets + 3 ? `
   <div class="set-input-row" id="next-set-${exIdx}">
     <span class="set-num">${nextSetNum + 1}</span>
-    ${isBodyweight ? '' : `<input type="number" class="set-input" id="wi-${exIdx}" placeholder="${suggestion.weight || ''}" min="0" step="2.5" value="${suggestion.weight || ''}">`}
+    ${isBodyweight ? '' : `<input type="number" class="set-input" id="wi-${exIdx}" placeholder="${suggestion.weight || ''}" min="0" step="2.5" value="${suggestion.weight || ''}"><button class="plate-calc-btn" title="Plate calculator" aria-label="Plate calculator" onclick="openPlateCalc(document.getElementById('wi-${exIdx}')?.value)">🏋</button>`}
     <input type="number" class="set-input" id="ri-${exIdx}" placeholder="${suggestion.reps || ex.targetReps.split('–')[0] || 8}" min="1" step="1" value="${suggestion.reps || ''}">
     <div class="rir-selector" id="rir-${exIdx}">
       ${[0,1,2,3,4,5].map(r => `<button class="rir-btn" data-rir="${r}" onclick="setRIR(${exIdx}, ${r})">${r}</button>`).join('')}
@@ -441,6 +461,7 @@ function updateVolumeDisplay() {
 function closeOverlay() {
   clearInterval(timerInterval);
   stopRestTimer();
+  releaseWakeLock();
   sessionState = null;
   startTime    = null;
 
@@ -482,6 +503,129 @@ function fireConfetti() {
   document.body.appendChild(layer);
   setTimeout(() => layer.remove(), 3600);
 }
+
+// ── PLATE CALCULATOR + WARM-UP RAMP ──
+// Per-side plate breakdown for barbell loading, in the user's display unit.
+// Opened from the 🏋 button beside any weight input (prefilled with that value).
+
+const _PLATES = { lbs: [45, 35, 25, 10, 5, 2.5], kg: [25, 20, 15, 10, 5, 2.5, 1.25] };
+const _BARS   = { lbs: [45, 35, 15],             kg: [20, 15, 10] };
+let _pcBar = null;   // selected bar weight (in display unit)
+
+const _isKg = () => weightUnitLabel() === 'kg';
+
+// Round to the smallest achievable total increment (2 × smallest plate).
+function _roundLoadable(w, unit, bar) {
+  const inc = _PLATES[unit][_PLATES[unit].length - 1] * 2;
+  return Math.max(bar, Math.round(w / inc) * inc);
+}
+
+function _plateBreakdown(total, bar, unit) {
+  const perSide = (total - bar) / 2;
+  if (perSide < -0.01) return null;
+  const counts = [];
+  let rem = perSide + 1e-9;
+  for (const p of _PLATES[unit]) {
+    const n = Math.floor(rem / p);
+    if (n > 0) { counts.push([p, n]); rem -= n * p; }
+  }
+  return { counts, leftover: rem > 0.01 ? rem : 0 };
+}
+
+function _pcOutHTML(target, bar, unit) {
+  const bd = _plateBreakdown(target, bar, unit);
+  if (bd === null) {
+    return `<div class="dim fs12" style="padding:12px 0">Target is below the bar weight (${bar} ${unit}) — no plates needed. Lighter? Use dumbbells.</div>`;
+  }
+  const plateRows = bd.counts.length ? bd.counts.map(([p, n]) => `
+    <div class="plate-row">
+      <span class="plate-count">${n}×</span>
+      <span class="plate-label">${p} ${unit} plate${n > 1 ? 's' : ''}</span>
+      <span class="plate-viz">${Array.from({ length: n }, () =>
+        `<i style="height:${Math.round(14 + (p / _PLATES[unit][0]) * 22)}px"></i>`).join('')}</span>
+    </div>`).join('')
+    : `<div class="dim fs12" style="padding:8px 0">Empty bar — no plates.</div>`;
+
+  const loadable = Math.round((target - bd.leftover * 2) * 100) / 100;
+  const warmups = [
+    { label: 'Empty bar', w: bar,            reps: 10 },
+    { label: '55%',       w: loadable * 0.55, reps: 5 },
+    { label: '70%',       w: loadable * 0.70, reps: 3 },
+    { label: '85%',       w: loadable * 0.85, reps: 1 },
+    { label: 'Work',      w: loadable,        reps: null },
+  ].map(s => ({ ...s, w: _roundLoadable(s.w, unit, bar) }));
+
+  return `
+  <div class="sec-head" style="margin-bottom:4px">Per Side</div>
+  <div class="plate-rows">${plateRows}</div>
+  ${bd.leftover ? `<div class="dim fs11" style="margin-bottom:12px">≈ ${bd.leftover.toFixed(1)} ${unit}/side not loadable with standard plates — closest is <strong style="color:var(--fire)">${loadable} ${unit}</strong>.</div>` : ''}
+  <div class="sec-head" style="margin:16px 0 4px">Warm-Up Ramp</div>
+  ${warmups.map(s => `
+    <div class="warmup-row">
+      <span class="warmup-pct">${s.label}</span>
+      <span class="warmup-w">${s.w} ${unit}</span>
+      <span class="warmup-scheme">${s.reps ? `× ${s.reps}` : 'your sets'}</span>
+    </div>`).join('')}`;
+}
+
+window.pcUpdate = () => {
+  const unit = _isKg() ? 'kg' : 'lbs';
+  const target = parseFloat(document.getElementById('pc-weight')?.value) || 0;
+  const out = document.getElementById('pc-out');
+  if (out) out.innerHTML = target > 0 ? _pcOutHTML(target, _pcBar, unit) : '<div class="dim fs12" style="padding:12px 0">Enter a target weight above.</div>';
+};
+
+window.pcSetBar = (b) => {
+  _pcBar = b;
+  document.querySelectorAll('#pc-bars .seg-btn').forEach(btn =>
+    btn.classList.toggle('active', parseFloat(btn.dataset.bar) === b));
+  window.pcUpdate();
+};
+
+window.closePlateCalc = () => {
+  document.getElementById('plate-calc-modal')?.remove();
+  document.body.style.overflow = '';
+};
+
+window.openPlateCalc = (weightLbs = null) => {
+  document.getElementById('plate-calc-modal')?.remove();
+  const unit = _isKg() ? 'kg' : 'lbs';
+  if (_pcBar == null || !_BARS[unit].includes(_pcBar)) _pcBar = _BARS[unit][0];
+
+  // Incoming value is in lbs (the stored unit); show it in the display unit.
+  let initial = parseFloat(weightLbs);
+  if (!isNaN(initial) && initial > 0 && _isKg()) initial = Math.round(initial * 0.453592 * 2) / 2;
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'plate-calc-modal';
+  overlay.innerHTML = `
+<div class="modal" style="max-width:420px" onclick="event.stopPropagation()">
+  <div class="modal-head">
+    <div>
+      <div class="label" style="margin-bottom:4px">Barbell Loading</div>
+      <div class="display" style="font-size:1.3rem">PLATE CALCULATOR</div>
+    </div>
+    <button class="modal-close" onclick="closePlateCalc()" aria-label="Close">✕</button>
+  </div>
+  <div class="modal-body">
+    <label class="label">Target Weight (${unit})</label>
+    <input type="number" class="set-input" id="pc-weight" style="width:100%;box-sizing:border-box;margin:8px 0 14px"
+           min="0" step="${unit === 'kg' ? 2.5 : 5}" value="${!isNaN(initial) && initial > 0 ? initial : ''}"
+           oninput="pcUpdate()" placeholder="e.g. ${unit === 'kg' ? 60 : 135}">
+    <label class="label">Bar</label>
+    <div class="seg" id="pc-bars" style="margin:8px 0 4px">
+      ${_BARS[unit].map(b => `<button class="seg-btn ${b === _pcBar ? 'active' : ''}" data-bar="${b}" onclick="pcSetBar(${b})">${b} ${unit}</button>`).join('')}
+    </div>
+    <div id="pc-out"></div>
+  </div>
+</div>`;
+  overlay.addEventListener('click', () => window.closePlateCalc());
+  document.body.appendChild(overlay);
+  document.body.style.overflow = 'hidden';
+  window.pcUpdate();
+  document.getElementById('pc-weight')?.focus();
+};
 
 function showSessionSummary(session) {
   const vol   = session.totalVolume || 0;

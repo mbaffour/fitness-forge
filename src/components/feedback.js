@@ -63,3 +63,34 @@ export function cue(type) {
   if (soundOn()  && SOUNDS[type])  { try { SOUNDS[type](); } catch {} }
   if (hapticOn() && HAPTICS[type]) buzz(HAPTICS[type]);
 }
+
+// ── SCREEN WAKE LOCK ──
+// Keeps the display on during an active workout or HIIT timer so the phone
+// doesn't sleep mid-set. No-ops where unsupported (falls back silently).
+let _wakeLock = null;
+let _wantWake = false;
+
+async function _requestWake() {
+  try {
+    _wakeLock = await navigator.wakeLock?.request('screen');
+    // The browser can release it on its own (e.g. tab hidden) — track that so
+    // the visibilitychange handler knows to reacquire.
+    _wakeLock?.addEventListener('release', () => { _wakeLock = null; });
+  } catch { _wakeLock = null; }
+}
+
+// The lock is auto-released when the tab is hidden; reacquire on return.
+document.addEventListener('visibilitychange', () => {
+  if (_wantWake && document.visibilityState === 'visible' && !_wakeLock) _requestWake();
+});
+
+export function acquireWakeLock() {
+  _wantWake = true;
+  if (!_wakeLock) _requestWake();
+}
+
+export function releaseWakeLock() {
+  _wantWake = false;
+  try { _wakeLock?.release(); } catch {}
+  _wakeLock = null;
+}

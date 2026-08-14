@@ -1,0 +1,117 @@
+// ═══════════════════════════════════════════
+//   FITNESS FORGE — Exercise Library
+//   Searchable, filterable browser over the
+//   full exercise database. Cards open the
+//   existing detail modal (openExDetail).
+// ═══════════════════════════════════════════
+
+import { EXERCISES, MUSCLE_GROUPS, EQUIPMENT_OPTIONS } from '../data/exercises.js';
+import { exPreviewHTML } from './modal.js';
+import { pageHeader, sectionHead } from './ui.js';
+
+// Filter state (module-level so it survives re-renders within a visit)
+let _q     = '';
+let _grp   = 'all';
+let _equip = 'all';
+let _diff  = 'all';
+
+const DIFF_OPTIONS = [
+  { id: 'all', label: 'All Levels' },
+  { id: 'beg', label: 'Beginner' },
+  { id: 'int', label: 'Intermediate' },
+  { id: 'adv', label: 'Advanced' },
+];
+
+function _matches(id, ex) {
+  if (_grp !== 'all' && !(ex.groups || []).includes(_grp)) return false;
+  if (_equip !== 'all' && !(ex.equip || []).includes(_equip)) return false;
+  if (_diff !== 'all' && ex.diff !== _diff) return false;
+  if (_q) {
+    const hay = `${ex.name} ${ex.muscle} ${id}`.toLowerCase();
+    if (!hay.includes(_q)) return false;
+  }
+  return true;
+}
+
+function _filtered() {
+  return Object.entries(EXERCISES).filter(([id, ex]) => _matches(id, ex));
+}
+
+function _cardHTML(id, ex) {
+  const diffLabel = ex.diff === 'beg' ? 'Beginner' : ex.diff === 'int' ? 'Intermediate' : 'Advanced';
+  return `
+<div class="lib-card" onclick="openExDetail('${id}')" role="button" tabindex="0"
+     onkeydown="if(event.key==='Enter')openExDetail('${id}')">
+  ${exPreviewHTML(ex, { variant: 'thumb' }) || `<div class="ex-gif-wrap ex-gif-thumb lib-noimg">🏋</div>`}
+  <div class="lib-card-body">
+    <div class="lib-card-name">${ex.name}</div>
+    <div class="lib-card-muscle">${ex.muscle}</div>
+    <div class="lib-card-tags">
+      <span class="tag ${ex.type === 'compound' ? 't-fire' : 't-steel'}">${ex.type}</span>
+      <span class="tag t-dim">${diffLabel}</span>
+    </div>
+  </div>
+</div>`;
+}
+
+function _resultsHTML() {
+  const list = _filtered();
+  if (!list.length) {
+    return `<div class="card tc p-6"><div style="font-size:40px;margin-bottom:12px">🔍</div>
+      <div class="dim fs13">No exercises match. Try clearing a filter.</div></div>`;
+  }
+  return `
+<div class="dim fs12" style="margin-bottom:12px">${list.length} exercise${list.length === 1 ? '' : 's'}</div>
+<div class="lib-grid">${list.map(([id, ex]) => _cardHTML(id, ex)).join('')}</div>`;
+}
+
+function _refreshResults() {
+  const el = document.getElementById('lib-results');
+  if (el) el.innerHTML = _resultsHTML();
+}
+
+function _refreshChips() {
+  document.querySelectorAll('#lib-grp-chips .lib-chip').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.grp === _grp);
+  });
+  document.querySelectorAll('#lib-equip-seg .seg-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.equip === _equip);
+  });
+  document.querySelectorAll('#lib-diff-seg .seg-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.diff === _diff);
+  });
+}
+
+window.libSetQ = (v) => { _q = (v || '').trim().toLowerCase(); _refreshResults(); };
+window.libSetGrp = (g) => { _grp = g; _refreshChips(); _refreshResults(); };
+window.libSetEquip = (e) => { _equip = e; _refreshChips(); _refreshResults(); };
+window.libSetDiff = (d) => { _diff = d; _refreshChips(); _refreshResults(); };
+
+export function renderLibrary() {
+  const total = Object.keys(EXERCISES).length;
+  return `
+${pageHeader('Exercise Library', { eyebrow: 'Reference', sub: `${total} exercises · cues, mistakes & demos — tap any card` })}
+
+<input type="search" class="lib-search" placeholder="Search exercises… (name or muscle)"
+       value="${_q}" oninput="libSetQ(this.value)" aria-label="Search exercises">
+
+<div class="lib-filters">
+  <div id="lib-equip-seg" class="seg" style="margin-bottom:10px">
+    <button class="seg-btn ${_equip === 'all' ? 'active' : ''}" data-equip="all" onclick="libSetEquip('all')">All Equipment</button>
+    ${EQUIPMENT_OPTIONS.map(o => `
+      <button class="seg-btn ${_equip === o.id ? 'active' : ''}" data-equip="${o.id}" onclick="libSetEquip('${o.id}')">${o.icon} ${o.label}</button>`).join('')}
+  </div>
+  <div id="lib-diff-seg" class="seg" style="margin-bottom:10px">
+    ${DIFF_OPTIONS.map(o => `
+      <button class="seg-btn ${_diff === o.id ? 'active' : ''}" data-diff="${o.id}" onclick="libSetDiff('${o.id}')">${o.label}</button>`).join('')}
+  </div>
+  <div id="lib-grp-chips" class="lib-chips">
+    <button class="lib-chip ${_grp === 'all' ? 'active' : ''}" data-grp="all" onclick="libSetGrp('all')">All</button>
+    ${MUSCLE_GROUPS.map(g => `
+      <button class="lib-chip ${_grp === g.id ? 'active' : ''}" data-grp="${g.id}" style="--chip:${g.color}" onclick="libSetGrp('${g.id}')">${g.icon} ${g.label}</button>`).join('')}
+  </div>
+</div>
+
+<div id="lib-results">${_resultsHTML()}</div>
+`;
+}

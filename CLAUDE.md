@@ -148,6 +148,7 @@ fitness-forge/
 │   │   ├── body-stats.js         # Body Stats page + weight check-in
 │   │   ├── achievements.js       # Achievements, streaks, PRs
 │   │   ├── charts.js             # Chart.js wrappers (all themed via CSS vars)
+│   │   ├── library.js            # Exercise Library page (search + muscle/equipment/difficulty filters)
 │   │   └── modal.js              # Exercise detail modal
 │   ├── engine/
 │   │   ├── generator.js          # 16-week program generation
@@ -200,3 +201,4 @@ fitness-forge/
 | `v2.4-stable` | Design polish (Fira Code everywhere, CSS var tokens), animated exercise GIF previews, 13 new calisthenics exercises, modal redesign |
 | `v2.9-stable` | Progressive-Overload mode (rotating 3-day full-body split covering all 12 muscle groups with auto-progressed targets), 24 new exercises, inline animated previews + muscle-group chips on cards, weekly muscle-coverage heatmap, progress rings, celebratory PR confetti |
 | `v3.0-stable` | UI/UX redesign: fixed design tokens (`--surface`, `--ff-display`, `--s-1..8` spacing scale), shared `ui.js` component helpers, responsive IA (17 nav items → 5 hubs: Today/Train/Log/Progress/Profile with desktop sidebar + mobile bottom tab bar + hub sub-tabs), focus-mode workout player (hides nav, ghosted last-session values, haptic rest timer), hero dashboard + 7-day streak strip, guest/free onboarding (optional name), and **equipment-specific workouts** (item-level `requires:[]` model, saved gym profiles, kettlebell + band exercises) |
+| `v3.3` | Real PWA icons (previous files were 70-byte placeholders), Exercise Library page (search + muscle/equipment/difficulty filters over the full DB), plate calculator + warm-up ramp (kg/lb aware, 🏋 button beside weight inputs), screen wake lock during active workouts & HIIT timers, GitHub-style training-consistency heatmap on Progress, URL hash routing (deep links + browser back/forward), rest countdown mirrored in the tab title when backgrounded |

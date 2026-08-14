@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════
 
 import { state, save } from '../store.js';
-import { cue } from './feedback.js';
+import { cue, acquireWakeLock, releaseWakeLock } from './feedback.js';
 
 // ── EXERCISE DATABASE ──────────────────────
 const _EXDB = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises';
@@ -784,6 +784,7 @@ function _finishWorkout() {
 
 function _closeModal() {
   _clearTimer();
+  releaseWakeLock();
   const box = document.getElementById('hiit-media-box');
   if (box) box.innerHTML = '';
   const mo = document.getElementById('hiit-modal-overlay');
@@ -961,6 +962,7 @@ window.hiitModalStart = () => {
   const btn = document.getElementById('hiit-mbtn-start');
   if (_timerInterval) { _clearTimer(); if (btn) btn.textContent='RESUME'; return; }
   if (btn) btn.textContent = 'PAUSE';
+  acquireWakeLock();   // keep the screen on while the interval timer runs
   _timerInterval = setInterval(() => {
     window._hiitTimerInterval = _timerInterval;
     _timerLeft--;
