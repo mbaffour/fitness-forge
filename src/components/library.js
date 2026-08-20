@@ -54,15 +54,20 @@ function _cardHTML(id, ex) {
 </div>`;
 }
 
+const _CAP = 60;  // cap rendered cards so the ~900-exercise DB stays fast on mobile
+
 function _resultsHTML() {
   const list = _filtered();
   if (!list.length) {
     return `<div class="card tc p-6"><div style="font-size:40px;margin-bottom:12px">🔍</div>
       <div class="dim fs13">No exercises match. Try clearing a filter.</div></div>`;
   }
+  const shown = list.slice(0, _CAP);
+  const more  = list.length - shown.length;
   return `
-<div class="dim fs12" style="margin-bottom:12px">${list.length} exercise${list.length === 1 ? '' : 's'}</div>
-<div class="lib-grid">${list.map(([id, ex]) => _cardHTML(id, ex)).join('')}</div>`;
+<div class="dim fs12" style="margin-bottom:12px">${list.length} exercise${list.length === 1 ? '' : 's'}${more > 0 ? ` · showing first ${_CAP}` : ''}</div>
+<div class="lib-grid">${shown.map(([id, ex]) => _cardHTML(id, ex)).join('')}</div>
+${more > 0 ? `<div class="dim fs12 tc" style="padding:16px">${more} more — search or filter to narrow the list.</div>` : ''}`;
 }
 
 function _refreshResults() {
@@ -113,5 +118,9 @@ ${pageHeader('Exercise Library', { eyebrow: 'Reference', sub: `${total} exercise
 </div>
 
 <div id="lib-results">${_resultsHTML()}</div>
+
+<div class="dim fs11 tc" style="margin-top:28px;padding-top:14px;border-top:1px solid var(--border)">
+  Exercise data &amp; images: <a href="https://github.com/yuhonas/free-exercise-db" target="_blank" rel="noopener" style="color:var(--text-2)">free-exercise-db</a> (public domain). Tutorials link to YouTube.
+</div>
 `;
 }

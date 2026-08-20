@@ -220,3 +220,38 @@ SW cache bumped to `forge-v15`.
 ### Housekeeping
 - SW precache: + `library.js`, + both icons; cache bumped `forge-v16` → `forge-v17`.
 - All new styles use CSS vars/`color-mix` only — no hardcoded colors.
+
+---
+
+## v3.4 — Big exercise library (licensed) + tutorials + installable-PWA polish
+
+### Exercise library: 141 → 900 (public-domain import)
+- `tools/import-free-exercise-db.mjs` (committed generator, not shipped) transforms the
+  **free-exercise-db** dataset (github.com/yuhonas/free-exercise-db, Unlicense/public
+  domain) into our exercise shape — mapping muscles→our 12 groups, equipment→`requires[]`
+  items + legacy `equip[]`, level→`diff`, mechanic→`type`, instructions→`cues`, id→`imgKey`.
+- Output `src/data/exercises-library.js` (`LIBRARY_EXERCISES`, 791 entries) is merged in
+  `exercises.js` **without** overriding the 141 curated entries (dedup by imgKey/name;
+  curated win). Generated programs still draw only from the curated backbone; the imports
+  are discoverable via the Library / Freestyle / Equipment browse.
+- **Lyfta and other proprietary apps were NOT scraped** — only reuse-licensed sources.
+  In-app attribution added to the Library footer.
+
+### Library performance
+The Library now renders at most **60 cards** (with a "N more — refine" note) so the
+900-exercise DB stays fast on mobile (render dropped from ~910KB/multi-second to ~59KB/~240ms).
+
+### Tutorials for every exercise
+Imported exercises have no embedded video, so the detail modal shows a **"Find video
+tutorials on YouTube"** link (a YouTube *search* for "<name> proper form technique") —
+real tutorials by linking, not rehosting. Curated exercises keep their click-to-load embed.
+
+### Installable-PWA polish
+The app was already an installable PWA; made it obvious and clean on phones:
+- iOS meta (`apple-mobile-web-app-capable`, status-bar style, title) so "Add to Home
+  Screen" opens full-screen on iPhone.
+- In-app **Install App** button in Settings (Android `beforeinstallprompt`), with iOS
+  "Add to Home Screen" instructions as the fallback; hidden once running standalone.
+- `theme-color` (meta + manifest) aligned to the default Heat theme and updated live in
+  `applyTheme()` so the phone status bar matches the active theme.
+- Precache `exercises-library.js`; SW cache → `forge-v18`.

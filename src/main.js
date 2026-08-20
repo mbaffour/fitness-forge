@@ -40,6 +40,9 @@ function applyTheme(name) {
   } else {
     document.documentElement.dataset.theme = t;
   }
+  // Keep the phone status bar / address bar color matched to the active theme.
+  const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+  if (bg) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', bg);
 }
 
 // Apply immediately on load to avoid flash
@@ -77,6 +80,29 @@ window.setWeightUnit = (unit) => {
     el.innerHTML = PAGES[currentPage]?.render() || '';
     if (CHART_PAGES[currentPage]) CHART_PAGES[currentPage]();
   }
+};
+
+// ── INSTALL (Add to Home Screen) ──
+// Capture the Android/Chromium install prompt so we can surface an in-app button;
+// iOS has no such event, so Settings shows manual instructions there instead.
+let _deferredInstall = null;
+window.isStandalone = () =>
+  window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+window.canInstallApp = () => !!_deferredInstall;
+window.isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+
+function refreshInstallUI() {
+  const el = document.getElementById('page-settings');
+  if (el && el.innerHTML.trim()) el.innerHTML = PAGES.settings.render();
+}
+window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); _deferredInstall = e; refreshInstallUI(); });
+window.addEventListener('appinstalled', () => { _deferredInstall = null; refreshInstallUI(); });
+window.installApp = async () => {
+  if (!_deferredInstall) return;
+  _deferredInstall.prompt();
+  try { await _deferredInstall.userChoice; } catch {}
+  _deferredInstall = null;
+  refreshInstallUI();
 };
 
 // ── PAGES ──
