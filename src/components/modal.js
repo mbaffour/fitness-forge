@@ -132,7 +132,17 @@ export function showExerciseModal(ex) {
         <div style="position:relative;z-index:1;font-family:var(--ff-mono);font-size:11px;color:var(--text);background:rgba(0,0,0,0.75);padding:4px 10px;border-radius:3px;letter-spacing:0.06em">CLICK TO LOAD VIDEO</div>
       </div>
     </div>
-    ` : ''}
+    ` : `
+    <!-- No embedded demo → link to a YouTube search for real tutorials -->
+    <div class="sec-head" style="margin-bottom:12px">Form Demo</div>
+    <div style="margin-bottom:20px">
+      <a href="https://www.youtube.com/results?search_query=${encodeURIComponent((ex.name || 'exercise') + ' proper form technique')}"
+         target="_blank" rel="noopener"
+         style="display:inline-flex;align-items:center;gap:8px;font-family:var(--ff-mono);font-size:0.72rem;color:var(--fire);text-decoration:none;border:1px solid var(--fire-glow);padding:8px 14px;border-radius:var(--r-md);background:var(--fire-dim);letter-spacing:0.06em">
+        🔍 FIND VIDEO TUTORIALS ON YOUTUBE ↗
+      </a>
+    </div>
+    `}
 
     <!-- ── EXRX REFERENCE ─────────────── -->
     ${ex.exrxSlug ? `

@@ -5,6 +5,9 @@
 //   free-exercise-db image keys (public domain)
 // ═══════════════════════════════════════════
 
+// Bulk-imported public-domain library (free-exercise-db), merged below.
+import { LIBRARY_EXERCISES } from './exercises-library.js';
+
 export const EQUIPMENT_OPTIONS = [
   { id: 'full_gym',   label: 'Full Gym',      desc: 'Barbells, machines, cables', icon: '🏋️' },
   { id: 'dumbbells',  label: 'Dumbbells Only', desc: 'DB + bench or floor',        icon: '💪' },
@@ -278,6 +281,12 @@ const REQUIRES = {
   pistol_sq:[], burpee:[], mtn_climber:[], jump_sq:[], nordic_curl:[], ring_dip:['rings_trx'],
   inverted_row:['pull_up_bar'],
 };
+
+// Merge the imported public-domain library WITHOUT overriding curated entries —
+// the hand-authored exercises have richer cues/PRs, so they win on any key clash.
+for (const [k, v] of Object.entries(LIBRARY_EXERCISES)) {
+  if (!(k in EXERCISES)) EXERCISES[k] = v;
+}
 
 // Assign `requires` to every exercise (inline value wins; else map; else []).
 for (const [id, ex] of Object.entries(EXERCISES)) {
