@@ -667,6 +667,26 @@ ${showBackupReminder ? `
 </div>
 ` : ''}
 
+${(() => {
+  // Install-to-phone card. Hidden once running as an installed app.
+  if (typeof window !== 'undefined' && window.isStandalone && window.isStandalone()) return '';
+  const canPrompt = typeof window !== 'undefined' && window.canInstallApp && window.canInstallApp();
+  const ios = typeof window !== 'undefined' && window.isIOS && window.isIOS();
+  const body = canPrompt
+    ? `<button class="btn btn-fire" onclick="installApp()">📲 Install App</button>
+       <div class="muted fs12 mt-2">Adds Forge to your home screen — full-screen, works offline.</div>`
+    : ios
+      ? `<div class="fs13">Tap the <strong>Share</strong> icon in Safari, then <strong>“Add to Home Screen.”</strong></div>
+         <div class="muted fs12 mt-2">Forge opens full-screen from your home screen and works offline.</div>`
+      : `<div class="fs13">In your browser menu, choose <strong>“Install app”</strong> or <strong>“Add to Home Screen.”</strong></div>
+         <div class="muted fs12 mt-2">Forge opens full-screen from your home screen and works offline.</div>`;
+  return `
+<div class="card mb24" style="margin-bottom:24px">
+  <div class="sec-head" style="margin-bottom:16px">Install on your phone</div>
+  ${body}
+</div>`;
+})()}
+
 <div class="g2 mb24" style="margin-bottom:24px">
   <div class="card">
     <div class="sec-head" style="margin-bottom:16px">Your Profile</div>
