@@ -17,6 +17,7 @@ import { renderHIIT, scheduleHIITCharts } from './components/hiit.js';
 import { renderOverloadMode } from './components/overload-mode.js';
 import { renderEquipment } from './components/equipment.js';
 import { renderLibrary } from './components/library.js';
+import './components/import-workouts.js';   // registers window.openImportDialog (Settings → Import)
 import {
   state, save, setPhase, setWeek, logWorkout, clearLog, resetAll,
   logSession, addCardioEntry, addBodyCheckIn, getTodayNutrition,

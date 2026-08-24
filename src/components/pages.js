@@ -743,7 +743,8 @@ ${(() => {
     </button>
   </div>
   <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
-  <div class="muted fs11" id="last-export-label">
+  <button class="btn btn-ghost w100" style="margin-top:12px" onclick="openImportDialog()">📲 Import from Strong / Hevy / FitNotes</button>
+  <div class="muted fs11" id="last-export-label" style="margin-top:12px">
     ${(() => {
       const ts = localStorage.getItem('forge_last_export');
       return ts
