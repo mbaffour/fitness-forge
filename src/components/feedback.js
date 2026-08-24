@@ -94,3 +94,27 @@ export function releaseWakeLock() {
   try { _wakeLock?.release(); } catch {}
   _wakeLock = null;
 }
+
+// ── LOCAL NOTIFICATIONS ──
+// Fully offline: uses the Notification API (+ the service worker where present).
+// Handy for a rest-timer alert when the app is backgrounded. No server involved.
+export async function requestNotifyPermission() {
+  if (!('Notification' in window)) return 'unsupported';
+  if (Notification.permission === 'granted') return 'granted';
+  try { return await Notification.requestPermission(); } catch { return 'denied'; }
+}
+
+export function notify(title, body) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const opts = { body, icon: './icons/icon-192.png', badge: './icons/icon-192.png', tag: 'forge-rest', silent: false };
+  try {
+    if (navigator.serviceWorker?.getRegistration) {
+      navigator.serviceWorker.getRegistration().then(reg => {
+        if (reg?.showNotification) reg.showNotification(title, opts);
+        else new Notification(title, opts);
+      }).catch(() => { try { new Notification(title, opts); } catch {} });
+    } else {
+      new Notification(title, opts);
+    }
+  } catch {}
+}

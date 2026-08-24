@@ -22,7 +22,7 @@ const defaultState = {
   achievements: [],     // unlocked achievements
   prs:          {},     // { exId: { weight, reps, date, e1rm } }
   streak:       { current: 0, longest: 0, lastSessionDate: null },
-  settings:     { weightUnit: 'lbs', distanceUnit: 'miles', restSeconds: 90, theme: 'heat', sound: true, haptics: true },
+  settings:     { weightUnit: 'lbs', distanceUnit: 'miles', restSeconds: 90, theme: 'heat', sound: true, haptics: true, restNotify: false, tourDone: false },
   // ── v2.7 additions ──
   fastingLog:  [],      // [{ id, date, protocol, plannedHours, startTime, endTime, actualHours, completed }]
   activeFast:  null,    // { startTime: ISO, protocol: '16:8', plannedHours: 16 } | null

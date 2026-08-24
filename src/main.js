@@ -105,6 +105,54 @@ window.installApp = async () => {
   refreshInstallUI();
 };
 
+// ── FIRST-RUN COACH TOUR ──
+// A short product tour shown once after onboarding, using the coach-mark styles.
+// Persisted via settings.tourDone; replayable from Settings.
+const TOUR_STEPS = [
+  { icon: '🔥', title: 'Welcome to the Forge', body: 'Your training, nutrition, and recovery — all offline, all yours. No account, nothing leaves this device.' },
+  { icon: '⚡', title: 'Train', body: 'Start today\'s workout, run Progressive Overload, build a Freestyle session, or do HIIT. The live logger tracks every set, superset, and rest.' },
+  { icon: '📚', title: 'Exercise Library', body: '900+ exercises with form cues and demos — search, filter, or create your own. Tap any to see how it\'s done.' },
+  { icon: '📈', title: 'Progress & Analytics', body: 'Volume trends, estimated-1RM progression, PR history, a muscle map, and a consistency heatmap show the work paying off.' },
+];
+let _tourIdx = 0;
+
+function renderTourStep() {
+  const s = TOUR_STEPS[_tourIdx];
+  const last = _tourIdx === TOUR_STEPS.length - 1;
+  let ov = document.getElementById('coach-tour');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'coach-tour';
+    ov.className = 'coach-overlay';
+    document.body.appendChild(ov);
+  }
+  ov.innerHTML = `
+    <div class="coach-card">
+      <div style="font-size:40px;margin-bottom:8px">${s.icon}</div>
+      <h3>${s.title}</h3>
+      <p>${s.body}</p>
+      <div style="display:flex;gap:8px;justify-content:center;align-items:center;margin-bottom:12px">
+        ${TOUR_STEPS.map((_, i) => `<span style="width:7px;height:7px;border-radius:50%;background:${i === _tourIdx ? 'var(--fire)' : 'var(--border-hi)'}"></span>`).join('')}
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" style="flex:1" onclick="endTour()">${last ? 'Close' : 'Skip'}</button>
+        <button class="btn btn-fire btn-sm" style="flex:1" onclick="${last ? 'endTour()' : 'tourNext()'}">${last ? 'Start Training' : 'Next →'}</button>
+      </div>
+    </div>`;
+}
+
+window.tourNext = () => { _tourIdx = Math.min(_tourIdx + 1, TOUR_STEPS.length - 1); renderTourStep(); };
+window.endTour = () => {
+  document.getElementById('coach-tour')?.remove();
+  state.settings.tourDone = true;
+  save();
+};
+window.replayTour = () => { _tourIdx = 0; renderTourStep(); };
+
+function maybeShowTour() {
+  if (!state.settings?.tourDone) { _tourIdx = 0; setTimeout(renderTourStep, 400); }
+}
+
 // ── PAGES ──
 // Per-page display metadata (label + icon), used by the sidebar, sub-tabs,
 // and mobile tab bar.
@@ -497,12 +545,14 @@ function boot() {
       currentPage = 'dashboard';
       buildShell();
       setInterval(_updateStatsStrip, 30000);
+      maybeShowTour();               // first-run product tour after onboarding
     });
   } else {
     currentPage = pageFromHash();      // deep link / refresh restores the page
     syncHash(currentPage);
     buildShell();
     setInterval(_updateStatsStrip, 30000);
+    maybeShowTour();
   }
 }
 

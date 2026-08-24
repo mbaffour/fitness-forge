@@ -6,7 +6,7 @@
 import { state, logSession, recordPR, updateStreak, checkFirstSession, formatWeight, weightUnitLabel, toStoredWeight, toDisplayWeight, weightInputStep } from '../store.js';
 import { suggestNextSet, detectPR, computeSessionVolume, estimateOneRepMax } from '../engine/overload.js';
 import { EXERCISES } from '../data/exercises.js';
-import { cue, acquireWakeLock, releaseWakeLock } from './feedback.js';
+import { cue, acquireWakeLock, releaseWakeLock, notify } from './feedback.js';
 
 let sessionState = null;  // current in-progress session
 let timerInterval = null;
@@ -49,6 +49,10 @@ function tickRest() {
     clearInterval(restInterval);
     restInterval = null;
     cue('finish');
+    // Local notification when the app is backgrounded (opt-in). Offline-safe.
+    if (document.hidden && state.settings?.restNotify) {
+      notify('Rest complete 🔥', restNextUp ? `Next: ${restNextUp}` : 'Time for your next set.');
+    }
     _restoreTitle();
     const bar = document.getElementById('rest-timer-bar');
     if (bar) {
