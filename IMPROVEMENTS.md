@@ -255,3 +255,50 @@ The app was already an installable PWA; made it obvious and clean on phones:
 - `theme-color` (meta + manifest) aligned to the default Heat theme and updated live in
   `applyTheme()` so the phone status bar matches the active theme.
 - Precache `exercises-library.js`; SW cache → `forge-v18`.
+
+---
+
+## v3.5 — Correctness, logging depth, analytics & cross-app import
+
+Feature-inspired by the open-source **openGym** project (AGPL). Fitness Forge is a
+clean-room reimplementation in vanilla JS — **no openGym code was copied** and the
+project stays MIT-licensed. Exercise data remains free-exercise-db (public domain).
+
+### Correctness (highest priority)
+Weight **display** was unit-aware but weight **inputs** were not — a kg-mode user
+typing "60" stored 60 lbs, silently corrupting volume, PRs and estimated-1RM. Added
+`toStoredWeight` / `toDisplayWeight` / `weightInputStep` in `store.js` and routed the
+set-weight box, body-stats check-in, and onboarding + manual-builder bodyweight through
+them. Inputs now label and convert to the display unit; storage stays canonical lbs.
+
+### Workout logger overhaul (`active-workout.js`, `engine/overload.js`)
+- **Editable / deletable** logged sets (inline edit, delete + renumber).
+- **Warm-up sets** — per-set toggle, excluded from volume, PRs, progression and set counts.
+- **Supersets** — link adjacent exercises; alternate with no rest between paired sets.
+- **Mid-session add / remove** exercise (searchable picker over the 900-exercise library).
+- **Time-based logging** for holds/carries (seconds + inline count-up timer).
+- **Per-side logging** for unilateral moves (volume counts both limbs).
+- Rest bar shows the **next-up** exercise/set; fixed the `addSetRow` no-op.
+
+### Custom exercises (`store.js`, `data/exercises.js`, `library.js`)
+Create your own exercises (name / type / level / equipment / muscle groups), persisted
+locally and merged into the shared `EXERCISES` map at boot so they work everywhere.
+
+### Strength analytics (`analytics.js`, `charts.js`)
+Weekly training-volume trend, estimated-1RM progression for your most-trained lift, a
+PR timeline, and a muscle map with Balance / Fatigue / Strength views.
+
+### Onboarding tour + local rest alerts (`main.js`, `feedback.js`)
+A first-run coach tour (finally using the orphaned coach-mark CSS), replayable from
+Settings; and opt-in local rest-timer notifications (Notification API + service worker,
+fully offline) that fire only when the app is backgrounded.
+
+### Import from other apps (`import-workouts.js`)
+Import workout history from **Strong, Hevy or FitNotes** CSV exports — robust parser,
+format auto-detection, fuzzy exercise-name matching to the library, unit normalization,
+warm-up preservation, and PR detection, wired into Settings → Backup & Restore.
+
+### Polish
+Shared `toast()` helper (replaces hiit.js's ad-hoc toast); empty-state CTAs on the
+dashboard, body-stats and HIIT dead-ends; hardcoded-color token hygiene. SW precache
+adds `import-workouts.js`; cache bumped to `forge-v19`.

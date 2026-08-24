@@ -4,13 +4,18 @@ A personalized fitness web app for everyone — from beginners to advanced athle
 
 ## Features
 
-- **Onboarding Quiz** → Answer 7 questions, get a fully generated 12–16 week program
+- **Onboarding Quiz** → Answer 7 questions, get a fully generated 12–16 week program (or one-tap Skip setup)
 - **Manual Builder** → Design your own weekly split and get exercises generated to match
-- **Workout Page** → Full exercise table for today's session — sets, reps, rest, notes
-- **Schedule** → Full 7-day overview per phase
-- **Progress** → Strength benchmarks relative to bodyweight, cardio targets
-- **Workout Log** → Mark sessions complete, persisted to localStorage
-- **Settings** → Reset, redo quiz, or switch to manual builder
+- **Live Workout Logger** → Set-by-set logging with edit/delete, warm-up sets, **supersets**, per-side & time-based logging, a plate calculator, a rest timer, and mid-session add/remove exercises. Screen stays awake; optional local rest-timer notifications
+- **Exercise Library** → 900+ exercises (public-domain data) with cues, mistakes and demos — searchable/filterable, plus **create your own** custom exercises
+- **Progressive Overload, Equipment, Freestyle, Calisthenics & HIIT** modes
+- **Strength Analytics** → Weekly training-volume trend, estimated-1RM progression, PR timeline, and a muscle map (Balance / Fatigue / Strength)
+- **Progress** → Strength benchmarks, a GitHub-style training-consistency heatmap, and per-lift charts
+- **Recovery & nutrition** → Nutrition, fasting, sleep, activity & body-stats tracking with a weekly report card
+- **Import** → Bring your history in from **Strong, Hevy or FitNotes** (CSV)
+- **Units** → Full kg / lbs support (inputs convert correctly; data stored canonically)
+- **Installable PWA** → Add to home screen, fully offline, 8 themes
+- **Settings** → Backup/restore JSON, per-log CSV export, reset, redo quiz, replay tour
 
 ## What gets personalized
 
@@ -39,10 +44,11 @@ Every program adapts to:
 
 ## Tech stack
 
-- Vanilla JS (ES modules) — **zero build step, zero dependencies**
-- CSS custom properties
-- Google Fonts (Barlow Condensed, Lora, Fira Code)
-- localStorage for all persistence
+- Vanilla JS (ES modules) — **zero build step, zero dependencies**, no server, no accounts
+- CSS custom properties (design tokens + 8 themes)
+- Fira Code (Google Fonts)
+- Chart.js (vendored locally for offline use)
+- localStorage for all persistence; service worker for offline
 
 ## File structure
 
@@ -66,3 +72,8 @@ fitness-forge/
 ## Privacy
 
 All data is stored in your browser's localStorage. Nothing is ever sent to a server.
+
+## Credits
+
+- **Exercise data & images** — [free-exercise-db](https://github.com/yuhonas/free-exercise-db) (Unlicense / public domain).
+- **Feature inspiration** — several workout-logging features (supersets, warm-up sets, time-based logging, muscle map, cross-app import) were inspired by the open-source [openGym](https://gitlab.com/DuarteSantos8/opengym) project. Fitness Forge is an independent, clean-room implementation in vanilla JS and shares **no code** with openGym; it remains MIT-licensed.
