@@ -2,8 +2,145 @@
 //   FITNESS FORGE — Analytics Dashboard
 // ═══════════════════════════════════════════
 
-import { state } from '../store.js';
-import { initAnalyticsTrendChart, initWeightTrendChart, toggleChartSeries } from './charts.js';
+import { state, toDisplayWeight, weightUnitLabel, formatWeight } from '../store.js';
+import { MUSCLE_GROUPS, EXERCISES } from '../data/exercises.js';
+import { initAnalyticsTrendChart, initWeightTrendChart, toggleChartSeries, initVolumeBarChart, initE1rmChart } from './charts.js';
+
+// ── STRENGTH ANALYTICS (v3.4) ──
+const _WEEK_MS = 604800000;
+let _mmMode = 'balance';   // muscle-map view: balance | fatigue | strength
+
+function _sessionVolumeLbs(s) {
+  let t = 0;
+  for (const ex of s.exercises || []) for (const st of ex.sets || [])
+    if (st.completed && !st.warmup && st.weight && st.reps) t += st.weight * st.reps * (st.perSide ? 2 : 1);
+  return t;
+}
+
+function _weeklyVolume(weeks = 8) {
+  const now = Date.now();
+  const buckets = Array.from({ length: weeks }, () => 0);
+  for (const s of state.sessions || []) {
+    const idx = weeks - 1 - Math.floor((now - new Date(s.date).getTime()) / _WEEK_MS);
+    if (idx >= 0 && idx < weeks) buckets[idx] += _sessionVolumeLbs(s);
+  }
+  return {
+    labels: Array.from({ length: weeks }, (_, i) => i === weeks - 1 ? 'This wk' : `-${weeks - 1 - i}w`),
+    data: buckets.map(v => Math.round(toDisplayWeight(v) || 0)),
+    hasData: buckets.some(v => v > 0),
+  };
+}
+
+function _topLift() {
+  const freq = {};
+  for (const s of state.sessions || []) for (const ex of s.exercises || [])
+    if ((ex.sets || []).some(st => st.completed && !st.warmup && st.weight > 0))
+      freq[ex.exId] = (freq[ex.exId] || 0) + 1;
+  const top = Object.entries(freq).sort((a, b) => b[1] - a[1])[0];
+  return top ? top[0] : null;
+}
+
+function _e1rmSeries(exId) {
+  const pts = [];
+  const sorted = [...(state.sessions || [])].sort((a, b) => new Date(a.date) - new Date(b.date));
+  for (const s of sorted) {
+    const ex = s.exercises?.find(e => e.exId === exId);
+    if (!ex) continue;
+    let best = 0;
+    for (const st of ex.sets || []) if (st.completed && !st.warmup && st.weight > 0 && st.reps > 0)
+      best = Math.max(best, st.weight * (1 + st.reps / 30));
+    if (best > 0) pts.push({ date: s.date, e1rm: Math.round(toDisplayWeight(best) || 0) });
+  }
+  return pts;
+}
+
+function _prTimeline() {
+  return Object.entries(state.prs || {})
+    .map(([id, pr]) => ({ id, ...pr }))
+    .filter(p => p.date)
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, 12);
+}
+
+function _muscleMap(mode) {
+  const vals = {}; MUSCLE_GROUPS.forEach(g => vals[g.id] = 0);
+  const now = Date.now();
+  for (const s of state.sessions || []) {
+    if (mode === 'fatigue' && (now - new Date(s.date).getTime()) > 4 * 86400000) continue;
+    for (const ex of s.exercises || []) {
+      const groups = EXERCISES[ex.exId]?.groups || [];
+      if (!groups.length) continue;
+      let m = 0;
+      for (const st of ex.sets || []) if (st.completed && !st.warmup && st.weight > 0) {
+        if (mode === 'strength') m = Math.max(m, st.weight * (1 + (st.reps || 0) / 30));
+        else m += st.weight * (st.reps || 0) * (st.perSide ? 2 : 1);
+      }
+      groups.forEach(g => { if (vals[g] != null) vals[g] = mode === 'strength' ? Math.max(vals[g], m) : vals[g] + m; });
+    }
+  }
+  const max = Math.max(1, ...Object.values(vals));
+  return MUSCLE_GROUPS.map(g => ({ ...g, val: vals[g.id], pct: vals[g.id] / max }));
+}
+
+function _muscleMapHTML() {
+  const cells = _muscleMap(_mmMode).map(g => `
+    <div class="mm-cell" title="${g.label}" style="--chip:${g.color};--fill:${g.pct.toFixed(3)}">
+      <span class="mm-ic">${g.icon}</span>
+      <span class="mm-name">${g.label}</span>
+      <span class="mm-bar"><i style="width:${Math.round(g.pct * 100)}%"></i></span>
+    </div>`).join('');
+  const modes = [['balance', 'Balance'], ['fatigue', 'Fatigue'], ['strength', 'Strength']];
+  return `
+  <div class="seg" style="margin-bottom:12px">
+    ${modes.map(([id, lbl]) => `<button class="seg-btn ${_mmMode === id ? 'active' : ''}" onclick="setMuscleMapMode('${id}')">${lbl}</button>`).join('')}
+  </div>
+  <div class="mm-grid">${cells}</div>
+  <div class="dim fs11" style="margin-top:10px">${_mmMode === 'balance' ? 'Total training volume per muscle group.' : _mmMode === 'fatigue' ? 'Volume in the last 4 days — high = recently hammered.' : 'Best estimated 1RM reached per group.'}</div>`;
+}
+
+function _strengthSectionHTML() {
+  const hasSessions = (state.sessions || []).length > 0;
+  if (!hasSessions) {
+    return `
+<div class="sec-head" style="margin-bottom:12px">Strength</div>
+<div class="card tc p-6"><div style="font-size:40px;margin-bottom:12px">🏋</div>
+  <div class="dim fs13">Log a workout to unlock volume trends, 1RM progression, PR history and your muscle map.</div>
+  <div class="mt-4"><button class="btn btn-fire" onclick="navigate('workout')">Start a Workout →</button></div></div>`;
+  }
+  const unit = weightUnitLabel();
+  const vol = _weeklyVolume();
+  const topLift = _topLift();
+  const topName = topLift ? (EXERCISES[topLift]?.name || topLift) : '';
+  const prs = _prTimeline();
+  return `
+<div class="sec-head" style="margin-bottom:12px">Weekly Training Volume (${unit})</div>
+<div class="card mb24" style="margin-bottom:24px">
+  <div class="chart-wrap" style="height:180px"><canvas id="strength-volume-chart"></canvas></div>
+</div>
+
+${topLift ? `
+<div class="sec-head" style="margin-bottom:12px">Estimated 1RM — ${topName}</div>
+<div class="card mb24" style="margin-bottom:24px">
+  <div class="chart-wrap" style="height:180px"><canvas id="strength-e1rm-chart"></canvas></div>
+</div>` : ''}
+
+<div class="sec-head" style="margin-bottom:12px">Muscle Map</div>
+<div class="card mb24" style="margin-bottom:24px" id="muscle-map-card">${_muscleMapHTML()}</div>
+
+<div class="sec-head" style="margin-bottom:12px">Personal Record Timeline</div>
+${prs.length ? `<div class="card mb24" style="margin-bottom:24px"><div class="pr-timeline">
+  ${prs.map(p => `
+    <div class="pr-tl-row">
+      <span class="pr-tl-dot"></span>
+      <div class="pr-tl-body">
+        <div class="pr-tl-name">${(EXERCISES[p.id]?.name || p.id.replace(/_/g,' '))}</div>
+        <div class="pr-tl-meta">${formatWeight(p.weight)} × ${p.reps} · est. 1RM ${formatWeight(p.e1rm)}</div>
+      </div>
+      <div class="pr-tl-date">${new Date(p.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>
+    </div>`).join('')}
+</div></div>` : `<div class="card"><div class="dim fs12">No PRs yet — they'll appear here as you hit them.</div></div>`}
+`;
+}
 
 function _startOfWeek() {
   const now = new Date();
@@ -256,6 +393,9 @@ ${state.bodyLog.length >= 2 ? `
 </div>
 ` : ''}
 
+<!-- STRENGTH ANALYTICS -->
+${_strengthSectionHTML()}
+
 <!-- CORRELATION INSIGHTS -->
 <div class="sec-head" style="margin-bottom:12px">Insights</div>
 <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:24px">
@@ -278,6 +418,14 @@ export function scheduleAnalyticsCharts() {
     if (state.bodyLog.length >= 2) {
       initWeightTrendChart('analytics-weight-chart', state.bodyLog);
     }
+    // Strength charts
+    if ((state.sessions || []).length) {
+      const unit = weightUnitLabel();
+      const vol = _weeklyVolume();
+      initVolumeBarChart('strength-volume-chart', vol.labels, vol.data, unit);
+      const topLift = _topLift();
+      if (topLift) initE1rmChart('strength-e1rm-chart', _e1rmSeries(topLift), unit);
+    }
   }, 0);
 }
 
@@ -285,4 +433,10 @@ export function scheduleAnalyticsCharts() {
 
 window.toggleAnalyticsSeries = (datasetIndex) => {
   toggleChartSeries('analytics-trend-chart', datasetIndex);
+};
+
+window.setMuscleMapMode = (mode) => {
+  _mmMode = mode;
+  const card = document.getElementById('muscle-map-card');
+  if (card) card.innerHTML = _muscleMapHTML();
 };

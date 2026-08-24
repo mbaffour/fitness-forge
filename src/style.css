@@ -2397,3 +2397,26 @@ body.session-active .sidebar { display: none !important; }
   font-size: 12px; line-height: 1; padding: 4px 6px; cursor: pointer;
 }
 .lib-del-custom:hover { border-color: var(--danger); color: var(--danger); }
+
+/* ── Strength analytics: muscle map + PR timeline (v3.4) ── */
+.mm-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+@media (min-width: 620px) { .mm-grid { grid-template-columns: repeat(3, 1fr); } }
+.mm-cell {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px; background: var(--bg-2);
+  border: 1px solid var(--border); border-radius: var(--r-md);
+  border-left: 3px solid color-mix(in srgb, var(--chip) calc(var(--fill) * 90% + 10%), transparent);
+}
+.mm-ic { font-size: 15px; }
+.mm-name { font-size: 11px; font-weight: 600; flex: 1; }
+.mm-bar { display: block; width: 46px; height: 6px; background: var(--bg-3); border-radius: 99px; overflow: hidden; flex-shrink: 0; }
+.mm-bar i { display: block; height: 100%; background: var(--chip); border-radius: 99px; }
+
+.pr-timeline { display: flex; flex-direction: column; }
+.pr-tl-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.pr-tl-row:last-child { border-bottom: none; }
+.pr-tl-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--forge-green); flex-shrink: 0; }
+.pr-tl-body { flex: 1; min-width: 0; }
+.pr-tl-name { font-weight: 600; font-size: 13px; text-transform: capitalize; }
+.pr-tl-meta { font-family: var(--ff-mono); font-size: 11px; color: var(--text-2); margin-top: 2px; }
+.pr-tl-date { font-family: var(--ff-mono); font-size: 10px; color: var(--text-3); white-space: nowrap; }
