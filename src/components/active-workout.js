@@ -3,7 +3,7 @@
 //   Live set-by-set session overlay
 // ═══════════════════════════════════════════
 
-import { state, logSession, recordPR, updateStreak, checkFirstSession, formatWeight, weightUnitLabel } from '../store.js';
+import { state, logSession, recordPR, updateStreak, checkFirstSession, formatWeight, weightUnitLabel, toStoredWeight, toDisplayWeight, weightInputStep } from '../store.js';
 import { suggestNextSet, detectPR, computeSessionVolume, estimateOneRepMax } from '../engine/overload.js';
 import { EXERCISES } from '../data/exercises.js';
 import { cue, acquireWakeLock, releaseWakeLock } from './feedback.js';
@@ -295,7 +295,7 @@ function renderExerciseBlock(ex, exIdx) {
 
   <div class="set-rows-header">
     <span class="label" style="width:32px">#</span>
-    ${isBodyweight ? '' : '<span class="label" style="flex:1">Weight (lbs)</span>'}
+    ${isBodyweight ? '' : `<span class="label" style="flex:1">Weight (${weightUnitLabel()})</span>`}
     <span class="label" style="flex:1">Reps</span>
     <span class="label" style="width:90px">RIR</span>
     <span style="width:36px"></span>
@@ -310,7 +310,7 @@ function renderExerciseBlock(ex, exIdx) {
   ${nextSetNum < ex.targetSets + 3 ? `
   <div class="set-input-row" id="next-set-${exIdx}">
     <span class="set-num">${nextSetNum + 1}</span>
-    ${isBodyweight ? '' : `<input type="number" class="set-input" id="wi-${exIdx}" placeholder="${suggestion.weight || ''}" min="0" step="2.5" value="${suggestion.weight || ''}"><button class="plate-calc-btn" title="Plate calculator" aria-label="Plate calculator" onclick="openPlateCalc(document.getElementById('wi-${exIdx}')?.value)">🏋</button>`}
+    ${isBodyweight ? '' : `<input type="number" class="set-input" id="wi-${exIdx}" placeholder="${toDisplayWeight(suggestion.weight) || ''}" min="0" step="${weightInputStep()}" value="${toDisplayWeight(suggestion.weight) || ''}"><button class="plate-calc-btn" title="Plate calculator" aria-label="Plate calculator" onclick="openPlateCalc(document.getElementById('wi-${exIdx}')?.value)">🏋</button>`}
     <input type="number" class="set-input" id="ri-${exIdx}" placeholder="${suggestion.reps || ex.targetReps.split('–')[0] || 8}" min="1" step="1" value="${suggestion.reps || ''}">
     <div class="rir-selector" id="rir-${exIdx}">
       ${[0,1,2,3,4,5].map(r => `<button class="rir-btn" data-rir="${r}" onclick="setRIR(${exIdx}, ${r})">${r}</button>`).join('')}
@@ -363,7 +363,8 @@ window.logSet = (exIdx) => {
   const repsEl   = document.getElementById(`ri-${exIdx}`);
   const block    = document.getElementById(`ex-block-${exIdx}`);
 
-  const weight = isBodyweight ? 0 : parseFloat(weightEl?.value || 0);
+  // Inputs are in the user's display unit; convert back to canonical lbs to store.
+  const weight = isBodyweight ? 0 : (toStoredWeight(weightEl?.value) || 0);
   const reps   = parseInt(repsEl?.value || 0);
 
   if (!reps || reps < 1) {
@@ -587,14 +588,13 @@ window.closePlateCalc = () => {
   document.body.style.overflow = '';
 };
 
-window.openPlateCalc = (weightLbs = null) => {
+window.openPlateCalc = (weightDisp = null) => {
   document.getElementById('plate-calc-modal')?.remove();
   const unit = _isKg() ? 'kg' : 'lbs';
   if (_pcBar == null || !_BARS[unit].includes(_pcBar)) _pcBar = _BARS[unit][0];
 
-  // Incoming value is in lbs (the stored unit); show it in the display unit.
-  let initial = parseFloat(weightLbs);
-  if (!isNaN(initial) && initial > 0 && _isKg()) initial = Math.round(initial * 0.453592 * 2) / 2;
+  // The set-weight input is already in the user's display unit — use as-is.
+  const initial = parseFloat(weightDisp);
 
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';

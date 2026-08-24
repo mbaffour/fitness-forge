@@ -2,7 +2,7 @@
 //   FITNESS FORGE — Body Stats Tracker
 // ═══════════════════════════════════════════
 
-import { state, addBodyCheckIn, formatWeight, weightUnitLabel } from '../store.js';
+import { state, addBodyCheckIn, formatWeight, weightUnitLabel, toStoredWeight, toDisplayWeight } from '../store.js';
 import { initWeightTrendChart } from './charts.js';
 
 export function renderBodyStats() {
@@ -47,8 +47,8 @@ export function renderBodyStats() {
     <div class="label mb16" style="margin-bottom:8px">Add Check-In</div>
     <div style="display:flex;flex-direction:column;gap:10px">
       <div>
-        <label class="label">Weight (lbs)</label>
-        <input type="number" id="checkin-weight" class="form-input" placeholder="${latest?.weight || profile?.weight || '175'}" min="50" max="500" step="0.1" style="width:100%;box-sizing:border-box;margin-top:4px">
+        <label class="label">Weight (${weightUnitLabel()})</label>
+        <input type="number" id="checkin-weight" class="form-input" placeholder="${toDisplayWeight(latest?.weight || profile?.weight) || (weightUnitLabel() === 'kg' ? '80' : '175')}" min="${weightUnitLabel() === 'kg' ? 20 : 50}" max="${weightUnitLabel() === 'kg' ? 250 : 500}" step="0.1" style="width:100%;box-sizing:border-box;margin-top:4px">
       </div>
       <div>
         <label class="label">Body Fat % (optional)</label>
@@ -139,8 +139,9 @@ ${bodyLog.length > 0 ? `
 // ── GLOBAL HANDLERS ──
 
 window.saveBodyCheckIn = () => {
-  const weight = parseFloat(document.getElementById('checkin-weight')?.value);
-  if (!weight || weight < 50) {
+  // Input is in the display unit; store canonical lbs.
+  const weight = toStoredWeight(document.getElementById('checkin-weight')?.value);
+  if (!weight || weight < 50) {   // 50 lbs floor (≈23 kg) — catches empty/typos
     document.getElementById('checkin-weight')?.focus();
     return;
   }

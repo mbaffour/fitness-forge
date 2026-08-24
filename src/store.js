@@ -91,6 +91,31 @@ export function formatWeight(lbs, withLabel = true) {
   return withLabel ? `${num} ${kg ? 'kg' : 'lbs'}` : num;
 }
 
+// Inverse of the display conversion: take a number the user TYPED in the current
+// display unit and return the canonical lbs value to store. In lbs mode this is
+// the identity; in kg mode it multiplies back up. Without this, a kg-mode user
+// typing "60" would silently store 60 lbs and corrupt volume, PRs, and e1RM.
+export function toStoredWeight(displayVal) {
+  const n = parseFloat(displayVal);
+  if (isNaN(n)) return NaN;
+  return state.settings?.weightUnit === 'kg' ? n * LBS_PER_KG : n;
+}
+
+// Convert a stored lbs value into a number to PREFILL a display-unit input with
+// (rounded to the nearest loadable step, no unit label). Complements formatWeight.
+export function toDisplayWeight(lbs) {
+  if (lbs == null || lbs === '' || isNaN(lbs)) return '';
+  const kg = state.settings?.weightUnit === 'kg';
+  const val = kg ? lbs / LBS_PER_KG : lbs;
+  const step = kg ? 0.5 : 1;
+  return Math.round(val / step) * step;
+}
+
+// Sensible increment for a weight input in the current unit (kg plates are finer).
+export function weightInputStep() {
+  return state.settings?.weightUnit === 'kg' ? 2.5 : 5;
+}
+
 // ── EXISTING FUNCTIONS ──
 
 export function setProfile(profile) {

@@ -1,6 +1,6 @@
 import { GOAL_OPTIONS, LEVEL_OPTIONS, EQUIPMENT_OPTIONS, DAYS_OPTIONS, CARDIO_OPTIONS } from '../data/exercises.js';
 import { generateProgram } from '../engine/generator.js';
-import { setProfile, setProgram } from '../store.js';
+import { setProfile, setProgram, weightUnitLabel, toStoredWeight } from '../store.js';
 
 const STEPS = [
   {
@@ -123,7 +123,7 @@ export function renderOnboarding(onComplete) {
                  value="${answers[step.id] || ''}"
                  style="font-size:18px;padding:14px 16px;max-width:180px"
                  onkeydown="if(event.key==='Enter') quizNext()"/>
-          <span class="label">${step.unit || ''}</span>
+          <span class="label">${step.id === 'weight' ? weightUnitLabel() : (step.unit || '')}</span>
         </div>
       ` : ''}
 
@@ -218,7 +218,7 @@ export function renderOnboarding(onComplete) {
         equipment:    answers.equipment,
         daysPerWeek:  answers.daysPerWeek,
         cardioLevel:  answers.cardioLevel,
-        weight:       answers.weight || null,
+        weight:       answers.weight ? Math.round(toStoredWeight(answers.weight)) : null,  // store canonical lbs
         weeks:        16,
       };
       setProfile(profile);
@@ -328,8 +328,8 @@ export function renderBuilder(onSave) {
           </select>
         </div>
         <div class="field">
-          <div class="field-label">Bodyweight (lbs, optional)</div>
-          <input class="input" id="builder-weight" type="number" placeholder="e.g. 180"/>
+          <div class="field-label">Bodyweight (${weightUnitLabel()}, optional)</div>
+          <input class="input" id="builder-weight" type="number" placeholder="${weightUnitLabel() === 'kg' ? 'e.g. 80' : 'e.g. 180'}"/>
         </div>
       </div>
     </div>
@@ -352,7 +352,8 @@ export function renderBuilder(onSave) {
     const level  = document.getElementById('builder-level')?.value  || 'intermediate';
     const equip  = document.getElementById('builder-equip')?.value  || 'full_gym';
     const goal   = document.getElementById('builder-goal')?.value   || 'build_muscle';
-    const weight = parseFloat(document.getElementById('builder-weight')?.value) || null;
+    const _wRaw = parseFloat(document.getElementById('builder-weight')?.value);
+    const weight = _wRaw ? Math.round(toStoredWeight(_wRaw)) : null;  // store canonical lbs
 
     // Convert sessions into a split structure
     const typeToCategory = {
