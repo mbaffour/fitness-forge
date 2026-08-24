@@ -2341,3 +2341,49 @@ body.session-active .sidebar { display: none !important; }
   font-family: var(--ff-mono); font-size: 9px; color: var(--text-3);
 }
 .hm-legend .hm-cell { display: inline-block; }
+
+/* ── Active-workout overhaul (v3.4) ── */
+.ex-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.ex-act-btn {
+  background: var(--bg-2); border: 1px solid var(--border);
+  border-radius: var(--r-sm); color: var(--text-2);
+  font-size: 13px; line-height: 1; padding: 6px 8px; cursor: pointer;
+  transition: border-color .15s, color .15s, background-color .15s;
+}
+.ex-act-btn:hover { border-color: var(--border-hi); color: var(--text); }
+.ex-act-btn.active { border-color: var(--fire); color: var(--fire); background: var(--fire-dim); }
+
+/* Superset grouping */
+.session-ex-block.in-superset { border-left: 3px solid var(--steel); }
+.superset-label {
+  font-family: var(--ff-mono); font-size: 10px; letter-spacing: 0.12em;
+  color: var(--steel); text-transform: uppercase; margin-bottom: 8px;
+}
+
+/* Warm-up toggle + rows */
+.warmup-toggle {
+  width: 30px; height: 30px; flex-shrink: 0;
+  background: var(--bg-2); border: 1px solid var(--border);
+  border-radius: var(--r-sm); color: var(--text-3);
+  font-family: var(--ff-mono); font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.warmup-toggle.active { border-color: var(--ember); color: var(--ember); background: color-mix(in srgb, var(--ember) 14%, transparent); }
+.set-row-warmup { opacity: 0.62; }
+.set-row-warmup .set-num { color: var(--ember); }
+.set-row-acts { display: inline-flex; gap: 4px; width: 60px; justify-content: flex-end; }
+.set-row-acts .ex-act-btn { padding: 3px 6px; font-size: 11px; }
+.set-row-edit { display: flex; align-items: center; gap: 8px; }
+.rest-next { color: var(--text); font-weight: 500; }
+
+/* Mid-session exercise picker */
+.picker-results { margin-top: 12px; max-height: 52vh; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.picker-row {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  width: 100%; text-align: left; padding: 10px 12px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-md); color: var(--text); cursor: pointer;
+  transition: border-color .12s;
+}
+.picker-row:hover { border-color: var(--fire); }
+.picker-name { font-weight: 600; font-size: 13px; }
+.picker-muscle { font-family: var(--ff-mono); font-size: 10.5px; color: var(--text-2); }

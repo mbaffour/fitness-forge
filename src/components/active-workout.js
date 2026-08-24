@@ -11,16 +11,33 @@ import { cue, acquireWakeLock, releaseWakeLock } from './feedback.js';
 let sessionState = null;  // current in-progress session
 let timerInterval = null;
 let startTime     = null;
+let editingSet    = null; // {exIdx,setIdx} currently being edited inline
+
+// Detect exercises that are logged by TIME (holds/carries) rather than reps,
+// and single-limb (unilateral) movements logged per-side. Honors an explicit
+// data flag when present, else falls back to a name/muscle heuristic.
+const _TIMED_RE = /plank|hollow|hang|carry|farmer|wall ?sit|l-?sit|dead ?hang|superman hold|isometric/i;
+const _UNILAT_RE = /single-?arm|single-?leg|one-?arm|one-?leg|bulgarian|split squat|pistol|unilateral|\bstep-?up|lunge|concentration curl/i;
+function isTimed(exId, exData) {
+  if (exData?.timed != null) return !!exData.timed;
+  return _TIMED_RE.test(exData?.name || exId || '');
+}
+function isUnilateral(exId, exData) {
+  if (exData?.unilateral != null) return !!exData.unilateral;
+  return _UNILAT_RE.test(exData?.name || exId || '');
+}
 
 // ── REST TIMER ──
 let restInterval  = null;
 let restTimeLeft  = 0;
 let restPaused    = false;
+let restNextUp    = '';   // "next up" label shown in the rest bar
 
-function startRestTimer(seconds) {
+function startRestTimer(seconds, nextUp = '') {
   clearInterval(restInterval);
   restTimeLeft = seconds;
   restPaused   = false;
+  restNextUp   = nextUp;
   renderRestBar();
   restInterval = setInterval(tickRest, 1000);
 }
@@ -82,7 +99,7 @@ function updateRestBar() {
   const display = m > 0 ? `${m}:${pad(s)}` : `${restTimeLeft}`;
   bar.innerHTML = `
     <div>
-      <div class="rest-label">Rest Timer</div>
+      <div class="rest-label">Rest Timer${restNextUp ? ` · <span class="rest-next">Next: ${restNextUp}</span>` : ''}</div>
       <div class="rest-countdown" id="rest-cd">${display}</div>
     </div>
     <div class="rest-controls">
@@ -134,13 +151,19 @@ export function startActiveWorkout(workoutId, workoutLabel, exercises, workoutTy
     workoutLabel,
     workoutType: workoutType || 'strength',
     date: new Date().toISOString(),
-    exercises: exercises.map(ex => ({
-      exId:   ex.id,
-      exName: ex.name || EXERCISES[ex.id]?.name || ex.id,
-      targetSets: parseInt(ex.sets) || 3,
-      targetReps: ex.reps || '8–10',
-      sets: [],
-    })),
+    exercises: exercises.map(ex => {
+      const exData = EXERCISES[ex.id] || {};
+      return {
+        exId:   ex.id,
+        exName: ex.name || exData.name || ex.id,
+        targetSets: parseInt(ex.sets) || 3,
+        targetReps: ex.reps || '8–10',
+        timed:      isTimed(ex.id, exData),
+        unilateral: isUnilateral(ex.id, exData),
+        groupId:    null,   // superset group (shared id links adjacent exercises)
+        sets: [],
+      };
+    }),
     notes: '',
   };
 
@@ -212,6 +235,8 @@ function buildOverlayHTML() {
   ${s.exercises.map((ex, exIdx) => renderExerciseBlock(ex, exIdx)).join('')}
 </div>
 
+<button class="btn btn-ghost w100" style="margin-top:8px" onclick="addExerciseToSession()">+ Add Exercise</button>
+
 <div class="session-notes-wrap">
   <label class="label">Session Notes (optional)</label>
   <textarea id="session-notes" placeholder="How did it feel? Any PRs, pain points, notes..."
@@ -250,7 +275,7 @@ function renderExerciseBlock(ex, exIdx) {
 
   // Next set input row
   const nextSetNum = ex.sets.length;
-  const setsLeft = ex.targetSets - ex.sets.filter(s => s.completed).length;
+  const setsLeft = ex.targetSets - ex.sets.filter(s => s.completed && !s.warmup).length;
 
   // Muscle tags
   const primaryMuscles  = exData?.musclesFull?.primary  || [];
@@ -268,13 +293,21 @@ function renderExerciseBlock(ex, exIdx) {
       <ul>${exData.cues.map(c => `<li>${c}</li>`).join('')}</ul>
     </details>` : '';
 
+  // Superset context: is this block grouped with the one above/below?
+  const groupedAbove = exIdx > 0 && ex.groupId && sessionState.exercises[exIdx-1]?.groupId === ex.groupId;
+  const groupedBelow = ex.groupId && sessionState.exercises[exIdx+1]?.groupId === ex.groupId;
+  const inSuperset = !!(groupedAbove || groupedBelow);
+
   return `
-<div class="session-ex-block" id="ex-block-${exIdx}">
+<div class="session-ex-block${inSuperset ? ' in-superset' : ''}" id="ex-block-${exIdx}" data-group="${ex.groupId || ''}">
+  ${inSuperset && !groupedAbove ? `<div class="superset-label">⛓ Superset</div>` : ''}
   <div class="session-ex-header">
     <div style="flex:1">
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <div class="session-ex-name">${ex.exName}</div>
-        <span class="tag t-dim" style="font-size:9px">${ex.targetSets}×${ex.targetReps}</span>
+        <span class="tag t-dim" style="font-size:9px">${ex.targetSets}×${ex.timed ? 'time' : ex.targetReps}</span>
+        ${ex.timed ? `<span class="tag t-steel" style="font-size:9px">⏱ timed</span>` : ''}
+        ${ex.unilateral ? `<span class="tag t-steel" style="font-size:9px">↔ per side</span>` : ''}
         ${pr ? `<span class="tag t-green" style="font-size:9px" title="1RM ~${formatWeight(pr.e1rm)}">PR: ${formatWeight(pr.weight, false)}×${pr.reps}</span>` : ''}
       </div>
       ${muscleTagsHTML}
@@ -290,15 +323,19 @@ function renderExerciseBlock(ex, exIdx) {
       ` : ''}
       ${cuesHTML}
     </div>
-    <button class="btn btn-ghost btn-sm" onclick="addSetRow(${exIdx})" ${setsLeft <= 0 ? '' : ''}>+ Set</button>
+    <div class="ex-actions">
+      ${exIdx > 0 ? `<button class="ex-act-btn" title="${groupedAbove ? 'Un-superset' : 'Superset with exercise above'}" onclick="toggleSuperset(${exIdx})">${groupedAbove ? '⛓✕' : '⛓'}</button>` : ''}
+      <button class="ex-act-btn" title="Remove exercise" onclick="removeExerciseFromSession(${exIdx})">🗑</button>
+      <button class="btn btn-ghost btn-sm" onclick="addSetRow(${exIdx})">+ Set</button>
+    </div>
   </div>
 
   <div class="set-rows-header">
     <span class="label" style="width:32px">#</span>
     ${isBodyweight ? '' : `<span class="label" style="flex:1">Weight (${weightUnitLabel()})</span>`}
-    <span class="label" style="flex:1">Reps</span>
+    <span class="label" style="flex:1">${ex.timed ? 'Time (s)' : ex.unilateral ? 'Reps/side' : 'Reps'}</span>
     <span class="label" style="width:90px">RIR</span>
-    <span style="width:36px"></span>
+    <span style="width:60px"></span>
   </div>
 
   <div id="set-rows-${exIdx}">
@@ -311,10 +348,12 @@ function renderExerciseBlock(ex, exIdx) {
   <div class="set-input-row" id="next-set-${exIdx}">
     <span class="set-num">${nextSetNum + 1}</span>
     ${isBodyweight ? '' : `<input type="number" class="set-input" id="wi-${exIdx}" placeholder="${toDisplayWeight(suggestion.weight) || ''}" min="0" step="${weightInputStep()}" value="${toDisplayWeight(suggestion.weight) || ''}"><button class="plate-calc-btn" title="Plate calculator" aria-label="Plate calculator" onclick="openPlateCalc(document.getElementById('wi-${exIdx}')?.value)">🏋</button>`}
-    <input type="number" class="set-input" id="ri-${exIdx}" placeholder="${suggestion.reps || ex.targetReps.split('–')[0] || 8}" min="1" step="1" value="${suggestion.reps || ''}">
+    <input type="number" class="set-input" id="ri-${exIdx}" placeholder="${ex.timed ? '30' : (suggestion.reps || ex.targetReps.split('–')[0] || 8)}" min="1" step="1" value="${ex.timed ? '' : (suggestion.reps || '')}">
+    ${ex.timed ? `<button class="ex-act-btn" id="tmr-${exIdx}" title="Hold timer" onclick="toggleSetTimer(${exIdx})">⏱</button>` : ''}
     <div class="rir-selector" id="rir-${exIdx}">
       ${[0,1,2,3,4,5].map(r => `<button class="rir-btn" data-rir="${r}" onclick="setRIR(${exIdx}, ${r})">${r}</button>`).join('')}
     </div>
+    <button class="warmup-toggle" id="wu-${exIdx}" title="Mark as warm-up set (excluded from volume & PRs)" onclick="toggleWarmup(${exIdx})">W</button>
     <button class="btn-log-set" onclick="logSet(${exIdx})">✓</button>
   </div>
   ` : `<div class="muted fs12" style="padding:8px 0">All target sets logged — use + Set for more.</div>`}
@@ -323,15 +362,30 @@ function renderExerciseBlock(ex, exIdx) {
 }
 
 function renderSetRow(exIdx, setIdx, set, isBodyweight) {
+  // Inline edit mode for this row?
+  if (editingSet && editingSet.exIdx === exIdx && editingSet.setIdx === setIdx) {
+    return `
+<div class="set-row set-row-edit" id="set-row-${exIdx}-${setIdx}">
+  <span class="set-num">${setIdx + 1}</span>
+  ${isBodyweight ? '' : `<input type="number" class="set-input" id="edit-w-${exIdx}-${setIdx}" value="${toDisplayWeight(set.weight) || ''}" min="0" step="${weightInputStep()}">`}
+  <input type="number" class="set-input" id="edit-r-${exIdx}-${setIdx}" value="${set.timed ? (set.seconds ?? '') : (set.reps ?? '')}" min="1" step="1">
+  <button class="btn-log-set" title="Save" onclick="saveEditSet(${exIdx},${setIdx})">✓</button>
+  <button class="ex-act-btn" title="Cancel" onclick="cancelEditSet(${exIdx})">✕</button>
+</div>`;
+  }
   const cls = set.completed ? 'set-row set-row-done' : 'set-row';
   const rirLabel = set.rir != null ? set.rir : '–';
+  const valDisplay = set.timed ? `${set.seconds ?? '–'}s` : `${set.reps || '–'}${set.perSide ? '/side' : ''}`;
   return `
-<div class="${cls}" id="set-row-${exIdx}-${setIdx}">
-  <span class="set-num">${setIdx + 1}</span>
+<div class="${cls}${set.warmup ? ' set-row-warmup' : ''}" id="set-row-${exIdx}-${setIdx}">
+  <span class="set-num">${set.warmup ? 'W' : setIdx + 1}</span>
   ${isBodyweight ? '' : `<span class="set-val">${set.weight ? formatWeight(set.weight) : '–'}</span>`}
-  <span class="set-val">${set.reps || '–'}</span>
+  <span class="set-val">${valDisplay}</span>
   <span class="set-rir">${rirLabel !== '–' ? 'RIR ' + rirLabel : '–'}</span>
-  ${set.completed ? '<span class="set-done-badge">✓</span>' : '<span></span>'}
+  <span class="set-row-acts">
+    <button class="ex-act-btn" title="Edit set" onclick="startEditSet(${exIdx},${setIdx})">✎</button>
+    <button class="ex-act-btn" title="Delete set" onclick="deleteSet(${exIdx},${setIdx})">🗑</button>
+  </span>
 </div>
 `;
 }
@@ -340,8 +394,7 @@ function renderSetRow(exIdx, setIdx, set, isBodyweight) {
 
 window.addSetRow = (exIdx) => {
   if (!sessionState) return;
-  const ex = sessionState.exercises[exIdx];
-  ex.targetSets = Math.min(ex.targetSets + 1, ex.targetSets + 1);
+  sessionState.exercises[exIdx].targetSets += 1;   // was a no-op Math.min self-max
   refreshExerciseBlock(exIdx);
 };
 
@@ -354,6 +407,54 @@ window.setRIR = (exIdx, rir) => {
   if (block) block.dataset.pendingRir = rir;
 };
 
+// Warm-up toggle for the pending set (excluded from volume + PRs).
+window.toggleWarmup = (exIdx) => {
+  const block = document.getElementById(`ex-block-${exIdx}`);
+  if (!block) return;
+  const on = block.dataset.pendingWarmup === '1';
+  block.dataset.pendingWarmup = on ? '' : '1';
+  document.getElementById(`wu-${exIdx}`)?.classList.toggle('active', !on);
+};
+
+// Inline count-up timer that fills the seconds field for timed holds/carries.
+let _setTimer = null;
+window.toggleSetTimer = (exIdx) => {
+  const input = document.getElementById(`ri-${exIdx}`);
+  const btn   = document.getElementById(`tmr-${exIdx}`);
+  if (!input) return;
+  if (_setTimer && _setTimer.exIdx === exIdx) { _stopSetTimer(); btn?.classList.remove('active'); return; }
+  _stopSetTimer();
+  let sec = parseInt(input.value) || 0;
+  btn?.classList.add('active');
+  _setTimer = { exIdx, iv: setInterval(() => { sec++; input.value = sec; }, 1000) };
+};
+function _stopSetTimer() { if (_setTimer) { clearInterval(_setTimer.iv); _setTimer = null; } }
+
+// The next exercise in the same superset group that still owes sets, else null.
+function _nextInSuperset(exIdx) {
+  const ex = sessionState.exercises[exIdx];
+  if (!ex?.groupId) return null;
+  for (let j = exIdx + 1; j < sessionState.exercises.length; j++) {
+    const e = sessionState.exercises[j];
+    if (e.groupId !== ex.groupId) break;
+    if (e.sets.filter(s => s.completed && !s.warmup).length < e.targetSets) return j;
+  }
+  // wrap to the first group member if this was the last member
+  for (let j = 0; j < exIdx; j++) {
+    const e = sessionState.exercises[j];
+    if (e.groupId === ex.groupId && e.sets.filter(s => s.completed && !s.warmup).length < e.targetSets) return j;
+  }
+  return null;
+}
+
+function _nextUpLabel(exIdx) {
+  const ex = sessionState.exercises[exIdx];
+  const done = ex.sets.filter(s => s.completed && !s.warmup).length;
+  if (done < ex.targetSets) return `${ex.exName} · set ${done + 1}`;
+  const nx = sessionState.exercises[exIdx + 1];
+  return nx ? `${nx.exName} · set 1` : 'Last exercise — finish strong';
+}
+
 window.logSet = (exIdx) => {
   if (!sessionState) return;
   const ex = sessionState.exercises[exIdx];
@@ -362,49 +463,131 @@ window.logSet = (exIdx) => {
   const weightEl = document.getElementById(`wi-${exIdx}`);
   const repsEl   = document.getElementById(`ri-${exIdx}`);
   const block    = document.getElementById(`ex-block-${exIdx}`);
+  _stopSetTimer();
 
   // Inputs are in the user's display unit; convert back to canonical lbs to store.
   const weight = isBodyweight ? 0 : (toStoredWeight(weightEl?.value) || 0);
-  const reps   = parseInt(repsEl?.value || 0);
+  const count  = parseInt(repsEl?.value || 0);   // reps, or seconds for timed exercises
 
-  if (!reps || reps < 1) {
+  if (!count || count < 1) {
     repsEl?.classList.add('input-error');
     setTimeout(() => repsEl?.classList.remove('input-error'), 800);
     return;
   }
 
+  const warmup     = block?.dataset.pendingWarmup === '1';
   const pendingRir = block?.dataset.pendingRir != null ? parseInt(block.dataset.pendingRir) : null;
 
   const setData = {
     setNum:    ex.sets.length + 1,
     weight:    isBodyweight ? 0 : weight,
-    reps,
-    rir:       pendingRir,
+    reps:      ex.timed ? null : count,
+    seconds:   ex.timed ? count : null,
+    timed:     !!ex.timed,
+    perSide:   !!ex.unilateral,
+    warmup,
+    rir:       warmup ? null : pendingRir,
     completed: true,
     timestamp: Date.now(),
   };
 
   ex.sets.push(setData);
 
-  // Check PR — a PR cue supersedes the ordinary set-complete cue.
+  // PR only for real working sets: non-warmup, weighted, rep-based.
   let wasPR = false;
-  if (!isBodyweight && weight > 0) {
-    const { isPR } = detectPR(ex.exId, weight, reps, state.prs);
+  if (!warmup && !ex.timed && !isBodyweight && weight > 0) {
+    const { isPR } = detectPR(ex.exId, weight, count, state.prs);
     if (isPR) {
       wasPR = true;
-      recordPR(ex.exId, weight, reps);
-      showPRToast(ex.exName, weight, reps, estimateOneRepMax(weight, reps));
+      recordPR(ex.exId, weight, count);
+      showPRToast(ex.exName, weight, count, estimateOneRepMax(weight, count));
       cue('pr');
     }
   }
-  if (!wasPR) cue('setDone');  // rewarding set-completion feedback
+  if (!wasPR) cue('setDone');
 
+  if (block) block.dataset.pendingWarmup = '';   // warm-up is per-set, reset after logging
   updateVolumeDisplay();
   refreshExerciseBlock(exIdx);
 
-  // Auto-start rest timer
-  const restSecs = state.settings?.restSeconds ?? 90;
-  startRestTimer(restSecs);
+  // Rest handling. Warm-ups don't trigger a rest. In a superset, alternate to the
+  // paired exercise with no rest; otherwise start the rest timer with a "next up".
+  if (warmup) return;
+  const ss = _nextInSuperset(exIdx);
+  if (ss != null) {
+    cue('go');
+    scrollToExercise(ss);
+  } else {
+    const restSecs = state.settings?.restSeconds ?? 90;
+    startRestTimer(restSecs, _nextUpLabel(exIdx));
+  }
+};
+
+// ── EDIT / DELETE LOGGED SETS ──
+window.startEditSet = (exIdx, setIdx) => { editingSet = { exIdx, setIdx }; refreshExerciseBlock(exIdx); };
+window.cancelEditSet = (exIdx) => { editingSet = null; refreshExerciseBlock(exIdx); };
+window.saveEditSet = (exIdx, setIdx) => {
+  const ex = sessionState?.exercises[exIdx];
+  const set = ex?.sets[setIdx];
+  if (!set) return;
+  const wEl = document.getElementById(`edit-w-${exIdx}-${setIdx}`);
+  const rEl = document.getElementById(`edit-r-${exIdx}-${setIdx}`);
+  const count = parseInt(rEl?.value || 0);
+  if (!count || count < 1) { rEl?.classList.add('input-error'); setTimeout(() => rEl?.classList.remove('input-error'), 800); return; }
+  if (wEl) set.weight = toStoredWeight(wEl.value) || 0;
+  if (set.timed) set.seconds = count; else set.reps = count;
+  editingSet = null;
+  updateVolumeDisplay();
+  refreshExerciseBlock(exIdx);
+  // Note: editing does not retro-adjust an already-awarded PR (best-ever semantics).
+};
+window.deleteSet = (exIdx, setIdx) => {
+  const ex = sessionState?.exercises[exIdx];
+  if (!ex) return;
+  ex.sets.splice(setIdx, 1);
+  ex.sets.forEach((s, i) => s.setNum = i + 1);
+  if (editingSet && editingSet.exIdx === exIdx) editingSet = null;
+  updateVolumeDisplay();
+  refreshExerciseBlock(exIdx);
+};
+
+// ── SUPERSETS ──
+window.toggleSuperset = (exIdx) => {
+  if (!sessionState || exIdx < 1) return;
+  const ex = sessionState.exercises[exIdx];
+  const prev = sessionState.exercises[exIdx - 1];
+  if (ex.groupId && ex.groupId === prev.groupId) {
+    ex.groupId = null;   // unlink from the group above
+  } else {
+    ex.groupId = prev.groupId || (prev.groupId = Date.now() + '_' + exIdx);
+  }
+  refreshAllExercises();
+};
+
+// ── ADD / REMOVE EXERCISE MID-SESSION ──
+window.removeExerciseFromSession = (exIdx) => {
+  if (!sessionState) return;
+  const ex = sessionState.exercises[exIdx];
+  const hasLogged = ex.sets.some(s => s.completed);
+  if (hasLogged && !confirm(`Remove ${ex.exName}? Its logged sets will be discarded.`)) return;
+  sessionState.exercises.splice(exIdx, 1);
+  refreshAllExercises();
+  updateVolumeDisplay();
+};
+
+window.addExerciseToSession = (exId) => {
+  if (!exId) { openExercisePicker(); return; }
+  const exData = EXERCISES[exId];
+  if (!exData) return;
+  sessionState.exercises.push({
+    exId, exName: exData.name || exId,
+    targetSets: 3, targetReps: '8–10',
+    timed: isTimed(exId, exData), unilateral: isUnilateral(exId, exData),
+    groupId: null, sets: [],
+  });
+  closeExercisePicker();
+  refreshAllExercises();
+  scrollToExercise(sessionState.exercises.length - 1);
 };
 
 window.cancelActiveWorkout = () => {
@@ -415,8 +598,8 @@ window.cancelActiveWorkout = () => {
 
 window.finishActiveWorkout = () => {
   if (!sessionState) return;
-  const totalSets = sessionState.exercises.reduce((s, ex) => s + ex.sets.filter(s => s.completed).length, 0);
-  if (totalSets === 0 && !confirm('No sets logged. Save anyway?')) return;
+  const totalSets = sessionState.exercises.reduce((s, ex) => s + ex.sets.filter(x => x.completed && !x.warmup).length, 0);
+  if (totalSets === 0 && !confirm('No working sets logged. Save anyway?')) return;
 
   clearInterval(timerInterval);
   const durationMs = Date.now() - startTime;
@@ -443,16 +626,82 @@ function refreshExerciseBlock(exIdx) {
   const ex = sessionState.exercises[exIdx];
   const block = document.getElementById(`ex-block-${exIdx}`);
   if (!block) return;
-  const suggestion = suggestNextSet(ex.exId, ex.targetReps, state.sessions, state.profile);
-  const isBodyweight = suggestion.isBodyweight;
   block.outerHTML = renderExerciseBlock(ex, exIdx);
   updateVolumeDisplay();
 }
 
+// Rebuild the whole exercise list (after add/remove/superset changes so every
+// block's index and grouping context is correct).
+function refreshAllExercises() {
+  const host = document.getElementById('session-exercises');
+  if (!host || !sessionState) return;
+  host.innerHTML = sessionState.exercises.map((ex, i) => renderExerciseBlock(ex, i)).join('');
+}
+
+function scrollToExercise(exIdx) {
+  document.getElementById(`ex-block-${exIdx}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// ── EXERCISE PICKER (add mid-session) ──
+let _pickerQ = '';
+window.pickerSearch = (v) => { _pickerQ = (v || '').trim().toLowerCase(); _renderPickerResults(); };
+
+function _pickerList() {
+  const inSession = new Set(sessionState.exercises.map(e => e.exId));
+  return Object.entries(EXERCISES)
+    .filter(([id, ex]) => {
+      if (inSession.has(id)) return false;
+      if (!_pickerQ) return true;
+      return `${ex.name} ${ex.muscle} ${id}`.toLowerCase().includes(_pickerQ);
+    })
+    .slice(0, 60);
+}
+
+function _renderPickerResults() {
+  const el = document.getElementById('picker-results');
+  if (!el) return;
+  const list = _pickerList();
+  el.innerHTML = list.length
+    ? list.map(([id, ex]) => `
+        <button class="picker-row" onclick="addExerciseToSession('${id}')">
+          <span class="picker-name">${ex.name}</span>
+          <span class="picker-muscle">${ex.muscle || ''}</span>
+        </button>`).join('')
+    : `<div class="dim fs12" style="padding:16px">No matches.</div>`;
+}
+
+function openExercisePicker() {
+  document.getElementById('exercise-picker')?.remove();
+  _pickerQ = '';
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'exercise-picker';
+  overlay.innerHTML = `
+<div class="modal" style="max-width:460px" onclick="event.stopPropagation()">
+  <div class="modal-head">
+    <div><div class="label" style="margin-bottom:4px">Mid-session</div><div class="display" style="font-size:1.3rem">ADD EXERCISE</div></div>
+    <button class="modal-close" onclick="closeExercisePicker()" aria-label="Close">✕</button>
+  </div>
+  <div class="modal-body">
+    <input type="search" class="lib-search" placeholder="Search exercises…" oninput="pickerSearch(this.value)" autofocus>
+    <div id="picker-results" class="picker-results"></div>
+  </div>
+</div>`;
+  overlay.addEventListener('click', () => closeExercisePicker());
+  document.body.appendChild(overlay);
+  document.body.style.overflow = 'hidden';
+  _renderPickerResults();
+}
+function closeExercisePicker() {
+  document.getElementById('exercise-picker')?.remove();
+  document.body.style.overflow = '';
+}
+window.closeExercisePicker = closeExercisePicker;
+
 function updateVolumeDisplay() {
   if (!sessionState) return;
   const vol  = computeSessionVolume(sessionState);
-  const sets = sessionState.exercises.reduce((s, ex) => s + ex.sets.filter(s => s.completed).length, 0);
+  const sets = sessionState.exercises.reduce((s, ex) => s + ex.sets.filter(x => x.completed && !x.warmup).length, 0);
   const volEl  = document.getElementById('session-volume');
   const setsEl = document.getElementById('session-sets-done');
   if (volEl)  volEl.textContent  = vol > 0 ? formatWeight(vol) : formatWeight(0);
@@ -463,6 +712,9 @@ function closeOverlay() {
   clearInterval(timerInterval);
   stopRestTimer();
   releaseWakeLock();
+  _stopSetTimer();
+  closeExercisePicker();
+  editingSet   = null;
   sessionState = null;
   startTime    = null;
 
@@ -629,7 +881,7 @@ window.openPlateCalc = (weightDisp = null) => {
 
 function showSessionSummary(session) {
   const vol   = session.totalVolume || 0;
-  const sets  = session.exercises.reduce((s, ex) => s + ex.sets.filter(s => s.completed).length, 0);
+  const sets  = session.exercises.reduce((s, ex) => s + ex.sets.filter(x => x.completed && !x.warmup).length, 0);
   const dur   = session.durationMinutes;
   const prs   = session.exercises.filter(ex => {
     const topSet = ex.sets.filter(s => s.completed && s.weight > 0).sort((a,b) => b.weight-a.weight)[0];

@@ -216,8 +216,10 @@ export function computeSessionVolume(session) {
   let total = 0;
   for (const ex of session.exercises || []) {
     for (const set of ex.sets || []) {
-      if (set.completed && set.weight && set.reps) {
-        total += set.weight * set.reps;
+      // Warm-up sets are excluded from tonnage; unilateral sets logged per-side
+      // count both limbs.
+      if (set.completed && !set.warmup && set.weight && set.reps) {
+        total += set.weight * set.reps * (set.perSide ? 2 : 1);
       }
     }
   }
