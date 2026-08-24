@@ -539,6 +539,18 @@ window.startActiveWorkout = (workoutId, workoutLabel, exercises, workoutType) =>
   startActiveWorkout(workoutId, workoutLabel, exercises, workoutType);
 };
 
+// ── KEYBOARD SHORTCUT: "/" jumps to the Exercise Library search ──
+document.addEventListener('keydown', (e) => {
+  if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+  if (document.body.classList.contains('session-active')) return;   // not during a workout
+  if (!state.onboarded) return;
+  e.preventDefault();
+  if (currentPage !== 'library') navigate('library');
+  setTimeout(() => document.querySelector('.lib-search')?.focus(), 50);
+});
+
 // ── BOOT ──
 function boot() {
   if (!state.onboarded || !state.program) {

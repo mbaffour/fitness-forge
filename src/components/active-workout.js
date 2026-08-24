@@ -330,6 +330,7 @@ function renderExerciseBlock(ex, exIdx) {
     <div class="ex-actions">
       ${exIdx > 0 ? `<button class="ex-act-btn" title="${groupedAbove ? 'Un-superset' : 'Superset with exercise above'}" onclick="toggleSuperset(${exIdx})">${groupedAbove ? '⛓✕' : '⛓'}</button>` : ''}
       <button class="ex-act-btn" title="Remove exercise" onclick="removeExerciseFromSession(${exIdx})">🗑</button>
+      ${!ex.timed ? `<button class="ex-act-btn" title="Log all remaining sets with the shown weight × reps" onclick="logRemainingSets(${exIdx})">✓✓</button>` : ''}
       <button class="btn btn-ghost btn-sm" onclick="addSetRow(${exIdx})">+ Set</button>
     </div>
   </div>
@@ -351,8 +352,8 @@ function renderExerciseBlock(ex, exIdx) {
   ${nextSetNum < ex.targetSets + 3 ? `
   <div class="set-input-row" id="next-set-${exIdx}">
     <span class="set-num">${nextSetNum + 1}</span>
-    ${isBodyweight ? '' : `<input type="number" class="set-input" id="wi-${exIdx}" placeholder="${toDisplayWeight(suggestion.weight) || ''}" min="0" step="${weightInputStep()}" value="${toDisplayWeight(suggestion.weight) || ''}"><button class="plate-calc-btn" title="Plate calculator" aria-label="Plate calculator" onclick="openPlateCalc(document.getElementById('wi-${exIdx}')?.value)">🏋</button>`}
-    <input type="number" class="set-input" id="ri-${exIdx}" placeholder="${ex.timed ? '30' : (suggestion.reps || ex.targetReps.split('–')[0] || 8)}" min="1" step="1" value="${ex.timed ? '' : (suggestion.reps || '')}">
+    ${isBodyweight ? '' : `<input type="number" class="set-input" id="wi-${exIdx}" placeholder="${toDisplayWeight(suggestion.weight) || ''}" min="0" step="${weightInputStep()}" value="${toDisplayWeight(suggestion.weight) || ''}" onkeydown="if(event.key==='Enter')logSet(${exIdx})"><button class="plate-calc-btn" title="Plate calculator" aria-label="Plate calculator" onclick="openPlateCalc(document.getElementById('wi-${exIdx}')?.value)">🏋</button>`}
+    <input type="number" class="set-input" id="ri-${exIdx}" placeholder="${ex.timed ? '30' : (suggestion.reps || ex.targetReps.split('–')[0] || 8)}" min="1" step="1" value="${ex.timed ? '' : (suggestion.reps || '')}" onkeydown="if(event.key==='Enter')logSet(${exIdx})">
     ${ex.timed ? `<button class="ex-act-btn" id="tmr-${exIdx}" title="Hold timer" onclick="toggleSetTimer(${exIdx})">⏱</button>` : ''}
     <div class="rir-selector" id="rir-${exIdx}">
       ${[0,1,2,3,4,5].map(r => `<button class="rir-btn" data-rir="${r}" onclick="setRIR(${exIdx}, ${r})">${r}</button>`).join('')}
@@ -508,15 +509,16 @@ window.logSet = (exIdx) => {
       cue('pr');
     }
   }
-  if (!wasPR) cue('setDone');
+  if (!wasPR && !_quickLog) cue('setDone');
 
   if (block) block.dataset.pendingWarmup = '';   // warm-up is per-set, reset after logging
   updateVolumeDisplay();
   refreshExerciseBlock(exIdx);
 
-  // Rest handling. Warm-ups don't trigger a rest. In a superset, alternate to the
-  // paired exercise with no rest; otherwise start the rest timer with a "next up".
-  if (warmup) return;
+  // Rest handling. Warm-ups don't trigger a rest; quick-log batches rest once at
+  // the end. In a superset, alternate to the paired exercise with no rest;
+  // otherwise start the rest timer with a "next up".
+  if (warmup || _quickLog) return;
   const ss = _nextInSuperset(exIdx);
   if (ss != null) {
     cue('go');
@@ -525,6 +527,29 @@ window.logSet = (exIdx) => {
     const restSecs = state.settings?.restSeconds ?? 90;
     startRestTimer(restSecs, _nextUpLabel(exIdx));
   }
+};
+
+// ── QUICK-LOG: one tap logs every remaining target set with the shown values ──
+// (confirm-not-type: the inputs re-render with the suggested weight × reps after
+// each log, so each pass logs the suggestion unless the user typed otherwise.)
+let _quickLog = false;
+window.logRemainingSets = (exIdx) => {
+  if (!sessionState) return;
+  const ex = sessionState.exercises[exIdx];
+  if (!ex || ex.timed) return;
+  const remaining = () => ex.targetSets - ex.sets.filter(s => s.completed && !s.warmup).length;
+  if (remaining() <= 0) return;
+  _quickLog = true;
+  let guard = 12;                       // hard stop if validation ever fails
+  let before;
+  do {
+    before = ex.sets.length;
+    window.logSet(exIdx);
+  } while (remaining() > 0 && ex.sets.length > before && guard-- > 0);
+  _quickLog = false;
+  cue('setDone');
+  const restSecs = state.settings?.restSeconds ?? 90;
+  startRestTimer(restSecs, _nextUpLabel(exIdx));
 };
 
 // ── EDIT / DELETE LOGGED SETS ──

@@ -318,3 +318,13 @@ adds `import-workouts.js`; cache bumped to `forge-v19`.
   for all staple lifts + equipment-aware fuzzy matching with variant-word
   penalties (a wrong animation is worse than none; unmatched lifts keep the
   static preview). SW bumped to `forge-v20`.
+
+### Ease-of-use pass (v3.5 follow-up 2)
+- **Enter logs the set** — pressing Enter in the weight or reps box logs it (no
+  reaching for the ✓ button).
+- **✓✓ quick-log** — one tap on an exercise header logs every remaining target
+  set with the shown weight × reps (confirm-not-type), then starts one rest
+  period. Hidden for timed exercises.
+- **"/" search shortcut** — from any page (outside a workout), "/" jumps to the
+  Exercise Library with the search box focused; ignored while typing in a field.
+  SW bumped to forge-v21.

@@ -186,7 +186,7 @@ export function renderLibrary() {
 ${pageHeader('Exercise Library', { eyebrow: 'Reference', sub: `${total} exercises · cues, mistakes & demos — tap any card` })}
 
 <div style="display:flex;gap:8px;align-items:center;margin-bottom:var(--s-4)">
-  <input type="search" class="lib-search" style="margin:0;flex:1" placeholder="Search exercises… (name or muscle)"
+  <input type="search" class="lib-search" style="margin:0;flex:1" placeholder="Search exercises… (press / anywhere)"
          value="${_q}" oninput="libSetQ(this.value)" aria-label="Search exercises">
   <button class="btn btn-fire" style="white-space:nowrap" onclick="libOpenCreate()">＋ Create</button>
 </div>
