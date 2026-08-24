@@ -76,4 +76,5 @@ All data is stored in your browser's localStorage. Nothing is ever sent to a ser
 ## Credits
 
 - **Exercise data & images** — [free-exercise-db](https://github.com/yuhonas/free-exercise-db) (Unlicense / public domain).
+- **Exercise animations** — © [Gym visual](https://gymvisual.com/), referenced at runtime from [hasaneyldrm/exercises-dataset](https://github.com/hasaneyldrm/exercises-dataset) (where they are redistributed with the rights holder's written permission; metadata MIT). **No animation media is stored in this repository** — the app links to them and shows the required attribution.
 - **Feature inspiration** — several workout-logging features (supersets, warm-up sets, time-based logging, muscle map, cross-app import) were inspired by the open-source [openGym](https://gitlab.com/DuarteSantos8/opengym) project. Fitness Forge is an independent, clean-room implementation in vanilla JS and shares **no code** with openGym; it remains MIT-licensed.
