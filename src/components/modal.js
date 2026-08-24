@@ -4,15 +4,13 @@
 //          cues → errors → video → ref
 // ════════════════════════════════════
 
+import { GIF_BASE, EXERCISE_GIFS, GIF_ATTRIBUTION } from '../data/exercise-gifs.js';
+
 const GIF_CDN = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises';
 
-// Reusable exercise preview. Uses the crossfaded free-exercise-db frames when the
-// exercise has an `imgKey`; otherwise falls back to its YouTube demo thumbnail so
-// every exercise with any media shows a real visual. Returns '' only when the
-// exercise has neither. `variant:'thumb'` renders the compact card size.
-export function exPreviewHTML(ex, { variant = 'full' } = {}) {
-  const cls = variant === 'thumb' ? 'ex-gif-wrap ex-gif-thumb' : 'ex-gif-wrap';
-  const name = ex?.name || 'exercise';
+// Static preview: crossfaded free-exercise-db frames (public domain) when the
+// exercise has an `imgKey`; else its YouTube demo thumbnail. '' when neither.
+function _staticPreview(ex, cls, name) {
   if (ex?.imgKey) {
     return `
     <div class="${cls}">
@@ -33,6 +31,27 @@ export function exPreviewHTML(ex, { variant = 'full' } = {}) {
     </div>`;
   }
   return '';
+}
+
+// Reusable exercise preview. In the full (modal) variant, exercises matched to
+// the Gym visual animation set show the real animated GIF — hotlinked at
+// runtime from the licensed source repo (never redistributed here) with the
+// static crossfade as an offline/error fallback. `variant:'thumb'` keeps the
+// lightweight static preview so the 900-card library stays fast.
+export function exPreviewHTML(ex, { variant = 'full' } = {}) {
+  const cls = variant === 'thumb' ? 'ex-gif-wrap ex-gif-thumb' : 'ex-gif-wrap';
+  const name = ex?.name || 'exercise';
+  const gif = variant === 'full' && ex?.id ? EXERCISE_GIFS[ex.id] : null;
+  if (gif) {
+    const fallback = _staticPreview(ex, cls, name);
+    return `
+    <div class="${cls} ex-anim">
+      <img src="${GIF_BASE}${gif}" alt="${name} — animated demo" loading="lazy"
+           onerror="const w=this.closest('.ex-gif-wrap');const f=w.nextElementSibling;if(f&&f.classList.contains('ex-gif-fallback'))f.style.display='';w.remove()">
+    </div>
+    ${fallback ? `<div class="ex-gif-fallback" style="display:none">${fallback}</div>` : ''}`;
+  }
+  return _staticPreview(ex, cls, name);
 }
 
 export function showExerciseModal(ex) {
@@ -69,9 +88,9 @@ export function showExerciseModal(ex) {
   <div class="modal-body">
 
     <!-- ── ANIMATED EXERCISE PREVIEW ─────── -->
-    ${ex.imgKey ? `
+    ${(ex.id && EXERCISE_GIFS[ex.id]) || ex.imgKey ? `
     ${exPreviewHTML(ex)}
-    <div class="ex-gif-source">Images: free-exercise-db · public domain</div>
+    <div class="ex-gif-source">${ex.id && EXERCISE_GIFS[ex.id] ? `Animation ${GIF_ATTRIBUTION}` : 'Images: free-exercise-db · public domain'}</div>
     ` : ''}
 
     <!-- ── MUSCLES TRAINED ─────────────── -->

@@ -4,6 +4,7 @@ import { calcBMR, calcTDEE, calcMacros, ACTIVITY_MULTIPLIERS } from '../engine/b
 import { renderCardioLog, scheduleCardioCharts } from './cardio-log.js';
 import { initStrengthChart, initVolumeChart, initWeeklyFrequencyChart, initMuscleFrequencyChart } from './charts.js';
 import { exPreviewHTML } from './modal.js';
+import { requestNotifyPermission } from './feedback.js';
 
 // Muscle-group color chip used across workout cards.
 function muscleChipHTML(groupId) {
@@ -171,7 +172,8 @@ ${recentLogs.length > 0 ? `
 ` : `
   <div class="card tc" style="padding:40px">
     <div style="font-size:36px;margin-bottom:12px">📋</div>
-    <div class="dim">No sessions logged yet. Complete your first workout!</div>
+    <div class="dim" style="margin-bottom:16px">No sessions logged yet. Complete your first workout!</div>
+    <button class="btn btn-fire" onclick="navigate('workout')">⚡ Start Today's Workout</button>
   </div>
 `}
 `;
@@ -742,7 +744,8 @@ ${(() => {
     </button>
   </div>
   <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
-  <div class="muted fs11" id="last-export-label">
+  <button class="btn btn-ghost w100" style="margin-top:12px" onclick="openImportDialog()">📲 Import from Strong / Hevy / FitNotes</button>
+  <div class="muted fs11" id="last-export-label" style="margin-top:12px">
     ${(() => {
       const ts = localStorage.getItem('forge_last_export');
       return ts
@@ -819,6 +822,20 @@ ${(() => {
       <div class="muted fs11" style="margin-top:2px">Vibration on timers, sets & PRs (supported devices)</div>
     </div>
     <button class="seg-btn ${state.settings?.haptics !== false ? 'active' : ''}" onclick="toggleHaptics()">${state.settings?.haptics !== false ? 'On' : 'Off'}</button>
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0">
+    <div>
+      <div style="font-size:13px;font-weight:500">Rest Alerts</div>
+      <div class="muted fs11" style="margin-top:2px">Notify me when a rest timer ends while the app is in the background</div>
+    </div>
+    <button class="seg-btn ${state.settings?.restNotify ? 'active' : ''}" onclick="toggleRestNotify()">${state.settings?.restNotify ? 'On' : 'Off'}</button>
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0">
+    <div>
+      <div style="font-size:13px;font-weight:500">App Tour</div>
+      <div class="muted fs11" style="margin-top:2px">Replay the quick first-run walkthrough</div>
+    </div>
+    <button class="seg-btn" onclick="replayTour()">Replay</button>
   </div>
 </div>
 
@@ -902,6 +919,23 @@ window.toggleHaptics = () => {
   if (el) el.innerHTML = renderSettings();
 };
 
+window.toggleRestNotify = async () => {
+  const turningOn = !state.settings.restNotify;
+  if (turningOn) {
+    const perm = await requestNotifyPermission();
+    if (perm !== 'granted') {
+      alert(perm === 'unsupported'
+        ? 'This browser does not support notifications.'
+        : 'Notifications are blocked. Enable them for this site in your browser settings, then try again.');
+      return;
+    }
+  }
+  state.settings.restNotify = turningOn;
+  save();
+  const el = document.getElementById('page-settings');
+  if (el) el.innerHTML = renderSettings();
+};
+
 window.saveBMR = () => {
   const ft       = parseInt(document.getElementById('pf-ft')?.value)       || 0;
   const inches   = parseInt(document.getElementById('pf-in')?.value)       || 0;
@@ -927,7 +961,7 @@ window.saveBMR = () => {
   if (btn) {
     btn.textContent = `✓ Saved! BMR: ${bmr} · TDEE: ${tdee}`;
     btn.style.background = 'var(--forge-green)';
-    btn.style.color = '#0d0d0b';
+    btn.style.color = 'var(--bg)';
     setTimeout(() => {
       btn.textContent = 'Calculate & Save BMR/TDEE';
       btn.style.background = '';

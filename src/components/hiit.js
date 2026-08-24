@@ -4,6 +4,7 @@
 
 import { state, save } from '../store.js';
 import { cue, acquireWakeLock, releaseWakeLock } from './feedback.js';
+import { toast } from './ui.js';
 
 // ── EXERCISE DATABASE ──────────────────────
 const _EXDB = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises';
@@ -553,7 +554,7 @@ function _buildHeatmap() {
 
 function _buildLogList() {
   const h = H();
-  if (!h.logs.length) return `<div style="text-align:center;padding:24px;color:var(--text-2);font-size:13px">No sessions logged yet. Complete a workout! 🔥</div>`;
+  if (!h.logs.length) return `<div style="text-align:center;padding:24px;color:var(--text-2);font-size:13px">No sessions logged yet. Complete a workout! 🔥<div style="margin-top:14px"><button class="btn btn-fire btn-sm" onclick="hiitSwitchView('program')">Browse HIIT Workouts →</button></div></div>`;
   return h.logs.slice(0,30).map(l=>{
     const d = new Date(l.date+'T12:00:00');
     const stars = '★'.repeat(l.effort||0)+'☆'.repeat(5-(l.effort||0));
@@ -860,12 +861,7 @@ function _confetti() {
   }
 }
 
-function _showToast(msg) {
-  let t=document.getElementById('hiit-toast');
-  if(!t){t=document.createElement('div');t.id='hiit-toast';t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--fire);color:#0d0d0b;padding:9px 22px;border-radius:var(--r-md);font-weight:600;font-size:12px;opacity:0;transition:all .3s;z-index:9998;pointer-events:none;font-family:var(--ff-mono);letter-spacing:0.06em';document.body.appendChild(t);}
-  t.textContent=msg;t.style.opacity='1';t.style.transform='translateX(-50%) translateY(0)';
-  setTimeout(()=>{t.style.opacity='0';t.style.transform='translateX(-50%) translateY(16px)';},3200);
-}
+function _showToast(msg) { toast(msg); }   // delegate to the shared toast helper
 
 // ── WINDOW HANDLERS ───────────────────────
 

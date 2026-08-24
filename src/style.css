@@ -1766,8 +1766,8 @@ details[open] summary span:last-child { transform: rotate(180deg); display: inli
   border-radius: var(--r-sm);
   border: none;
   cursor: pointer;
-  background: rgba(255, 0, 0, 0.15);
-  color: #ff6b6b;
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  color: var(--danger);
   flex-shrink: 0;
   transition: opacity 0.2s;
 }
@@ -2341,3 +2341,118 @@ body.session-active .sidebar { display: none !important; }
   font-family: var(--ff-mono); font-size: 9px; color: var(--text-3);
 }
 .hm-legend .hm-cell { display: inline-block; }
+
+/* ── Active-workout overhaul (v3.4) ── */
+.ex-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.ex-act-btn {
+  background: var(--bg-2); border: 1px solid var(--border);
+  border-radius: var(--r-sm); color: var(--text-2);
+  font-size: 13px; line-height: 1; padding: 6px 8px; cursor: pointer;
+  transition: border-color .15s, color .15s, background-color .15s;
+}
+.ex-act-btn:hover { border-color: var(--border-hi); color: var(--text); }
+.ex-act-btn.active { border-color: var(--fire); color: var(--fire); background: var(--fire-dim); }
+
+/* Superset grouping */
+.session-ex-block.in-superset { border-left: 3px solid var(--steel); }
+.superset-label {
+  font-family: var(--ff-mono); font-size: 10px; letter-spacing: 0.12em;
+  color: var(--steel); text-transform: uppercase; margin-bottom: 8px;
+}
+
+/* Warm-up toggle + rows */
+.warmup-toggle {
+  width: 30px; height: 30px; flex-shrink: 0;
+  background: var(--bg-2); border: 1px solid var(--border);
+  border-radius: var(--r-sm); color: var(--text-3);
+  font-family: var(--ff-mono); font-size: 12px; font-weight: 600; cursor: pointer;
+}
+.warmup-toggle.active { border-color: var(--ember); color: var(--ember); background: color-mix(in srgb, var(--ember) 14%, transparent); }
+.set-row-warmup { opacity: 0.62; }
+.set-row-warmup .set-num { color: var(--ember); }
+.set-row-acts { display: inline-flex; gap: 4px; width: 60px; justify-content: flex-end; }
+.set-row-acts .ex-act-btn { padding: 3px 6px; font-size: 11px; }
+.set-row-edit { display: flex; align-items: center; gap: 8px; }
+.rest-next { color: var(--text); font-weight: 500; }
+
+/* Mid-session exercise picker */
+.picker-results { margin-top: 12px; max-height: 52vh; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.picker-row {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  width: 100%; text-align: left; padding: 10px 12px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-md); color: var(--text); cursor: pointer;
+  transition: border-color .12s;
+}
+.picker-row:hover { border-color: var(--fire); }
+.picker-name { font-weight: 600; font-size: 13px; }
+.picker-muscle { font-family: var(--ff-mono); font-size: 10.5px; color: var(--text-2); }
+
+/* ── Custom exercise card delete (v3.4) ── */
+.lib-card { position: relative; }
+.lib-del-custom {
+  position: absolute; top: 6px; right: 6px;
+  background: rgba(0,0,0,0.5); border: 1px solid var(--border);
+  border-radius: var(--r-sm); color: var(--text-2);
+  font-size: 12px; line-height: 1; padding: 4px 6px; cursor: pointer;
+}
+.lib-del-custom:hover { border-color: var(--danger); color: var(--danger); }
+
+/* ── Strength analytics: muscle map + PR timeline (v3.4) ── */
+.mm-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+@media (min-width: 620px) { .mm-grid { grid-template-columns: repeat(3, 1fr); } }
+.mm-cell {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px; background: var(--bg-2);
+  border: 1px solid var(--border); border-radius: var(--r-md);
+  border-left: 3px solid color-mix(in srgb, var(--chip) calc(var(--fill) * 90% + 10%), transparent);
+}
+.mm-ic { font-size: 15px; }
+.mm-name { font-size: 11px; font-weight: 600; flex: 1; }
+.mm-bar { display: block; width: 46px; height: 6px; background: var(--bg-3); border-radius: 99px; overflow: hidden; flex-shrink: 0; }
+.mm-bar i { display: block; height: 100%; background: var(--chip); border-radius: 99px; }
+
+.pr-timeline { display: flex; flex-direction: column; }
+.pr-tl-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.pr-tl-row:last-child { border-bottom: none; }
+.pr-tl-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--forge-green); flex-shrink: 0; }
+.pr-tl-body { flex: 1; min-width: 0; }
+.pr-tl-name { font-weight: 600; font-size: 13px; text-transform: capitalize; }
+.pr-tl-meta { font-family: var(--ff-mono); font-size: 11px; color: var(--text-2); margin-top: 2px; }
+.pr-tl-date { font-family: var(--ff-mono); font-size: 10px; color: var(--text-3); white-space: nowrap; }
+
+/* ── Shared toast (v3.4) ── */
+.forge-toast {
+  position: fixed; bottom: 24px; left: 50%;
+  transform: translateX(-50%) translateY(16px);
+  background: var(--fire); color: var(--bg);
+  padding: 9px 22px; border-radius: var(--r-md);
+  font-family: var(--ff-mono); font-weight: 600; font-size: 12px; letter-spacing: 0.06em;
+  opacity: 0; transition: opacity .25s, transform .25s;
+  z-index: 9998; pointer-events: none; max-width: 90vw; text-align: center;
+}
+.forge-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.forge-toast[data-type="green"]  { background: var(--forge-green); }
+.forge-toast[data-type="danger"] { background: var(--danger); color: var(--text); }
+@media (max-width: 768px) { .forge-toast { bottom: 78px; } }
+
+/* ── Anatomical muscle map (v3.5) ── */
+.mm-body-wrap { display: flex; gap: 32px; justify-content: center; flex-wrap: wrap; padding: 8px 0 4px; }
+.mm-body-col { display: flex; flex-direction: column; align-items: center; }
+.mm-body { width: 150px; height: 300px; }
+.mm-body path:hover, .mm-body ellipse:hover, .mm-body rect:hover { stroke: var(--fire); cursor: help; }
+@media (max-width: 480px) { .mm-body { width: 120px; height: 240px; } .mm-body-wrap { gap: 16px; } }
+
+/* ── Animated GIF demos (v3.5, © Gym visual, runtime-hotlinked) ── */
+.ex-gif-wrap.ex-anim {
+  display: flex; justify-content: center; align-items: center;
+  aspect-ratio: auto; padding: 14px 0; overflow: visible;
+}
+/* base .ex-gif-wrap img is absolutely positioned for the crossfade — undo that here */
+.ex-gif-wrap.ex-anim img {
+  position: static; inset: auto;
+  width: min(280px, 90%); height: auto; aspect-ratio: 1; object-fit: contain;
+  background: #fff; border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  animation: none;
+}

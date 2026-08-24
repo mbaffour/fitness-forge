@@ -2,8 +2,231 @@
 //   FITNESS FORGE — Analytics Dashboard
 // ═══════════════════════════════════════════
 
-import { state } from '../store.js';
-import { initAnalyticsTrendChart, initWeightTrendChart, toggleChartSeries } from './charts.js';
+import { state, toDisplayWeight, weightUnitLabel, formatWeight } from '../store.js';
+import { MUSCLE_GROUPS, EXERCISES } from '../data/exercises.js';
+import { initAnalyticsTrendChart, initWeightTrendChart, toggleChartSeries, initVolumeBarChart, initE1rmChart } from './charts.js';
+
+// ── STRENGTH ANALYTICS (v3.4) ──
+const _WEEK_MS = 604800000;
+let _mmMode = 'balance';   // muscle-map view: balance | fatigue | strength
+
+function _sessionVolumeLbs(s) {
+  let t = 0;
+  for (const ex of s.exercises || []) for (const st of ex.sets || [])
+    if (st.completed && !st.warmup && st.weight && st.reps) t += st.weight * st.reps * (st.perSide ? 2 : 1);
+  return t;
+}
+
+function _weeklyVolume(weeks = 8) {
+  const now = Date.now();
+  const buckets = Array.from({ length: weeks }, () => 0);
+  for (const s of state.sessions || []) {
+    const idx = weeks - 1 - Math.floor((now - new Date(s.date).getTime()) / _WEEK_MS);
+    if (idx >= 0 && idx < weeks) buckets[idx] += _sessionVolumeLbs(s);
+  }
+  return {
+    labels: Array.from({ length: weeks }, (_, i) => i === weeks - 1 ? 'This wk' : `-${weeks - 1 - i}w`),
+    data: buckets.map(v => Math.round(toDisplayWeight(v) || 0)),
+    hasData: buckets.some(v => v > 0),
+  };
+}
+
+function _topLift() {
+  const freq = {};
+  for (const s of state.sessions || []) for (const ex of s.exercises || [])
+    if ((ex.sets || []).some(st => st.completed && !st.warmup && st.weight > 0))
+      freq[ex.exId] = (freq[ex.exId] || 0) + 1;
+  const top = Object.entries(freq).sort((a, b) => b[1] - a[1])[0];
+  return top ? top[0] : null;
+}
+
+function _e1rmSeries(exId) {
+  const pts = [];
+  const sorted = [...(state.sessions || [])].sort((a, b) => new Date(a.date) - new Date(b.date));
+  for (const s of sorted) {
+    const ex = s.exercises?.find(e => e.exId === exId);
+    if (!ex) continue;
+    let best = 0;
+    for (const st of ex.sets || []) if (st.completed && !st.warmup && st.weight > 0 && st.reps > 0)
+      best = Math.max(best, st.weight * (1 + st.reps / 30));
+    if (best > 0) pts.push({ date: s.date, e1rm: Math.round(toDisplayWeight(best) || 0) });
+  }
+  return pts;
+}
+
+function _prTimeline() {
+  return Object.entries(state.prs || {})
+    .map(([id, pr]) => ({ id, ...pr }))
+    .filter(p => p.date)
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, 12);
+}
+
+function _muscleMap(mode) {
+  const vals = {}; MUSCLE_GROUPS.forEach(g => vals[g.id] = 0);
+  const now = Date.now();
+  for (const s of state.sessions || []) {
+    if (mode === 'fatigue' && (now - new Date(s.date).getTime()) > 4 * 86400000) continue;
+    for (const ex of s.exercises || []) {
+      const groups = EXERCISES[ex.exId]?.groups || [];
+      if (!groups.length) continue;
+      let m = 0;
+      for (const st of ex.sets || []) if (st.completed && !st.warmup && st.weight > 0) {
+        if (mode === 'strength') m = Math.max(m, st.weight * (1 + (st.reps || 0) / 30));
+        else m += st.weight * (st.reps || 0) * (st.perSide ? 2 : 1);
+      }
+      groups.forEach(g => { if (vals[g] != null) vals[g] = mode === 'strength' ? Math.max(vals[g], m) : vals[g] + m; });
+    }
+  }
+  const max = Math.max(1, ...Object.values(vals));
+  return MUSCLE_GROUPS.map(g => ({ ...g, val: vals[g.id], pct: vals[g.id] / max }));
+}
+
+// ── ANATOMICAL MUSCLE MAP (SVG front/back silhouettes) ──
+// Each muscle region is tinted by its normalized training value (same data as
+// the chip grid). Stylized figure drawn in-house — flat, on-token, no images.
+function _bodySVGs(groups) {
+  const g = {};
+  groups.forEach(x => { g[x.id] = x; });
+  // Region fill for a muscle group id: fire intensity over bg-2.
+  const F = (id) => {
+    const pct = g[id]?.pct || 0;
+    return `fill="color-mix(in srgb, var(--fire) ${Math.round(8 + pct * 84)}%, var(--bg-2))" stroke="var(--border-hi)" stroke-width="1" stroke-linejoin="round"`;
+  };
+  const N = `fill="var(--bg-2)" stroke="var(--border)" stroke-width="1" stroke-linejoin="round"`;   // neutral (head, hands…)
+  const T = (id) => `<title>${g[id]?.label || id} — ${Math.round((g[id]?.pct || 0) * 100)}%</title>`;
+
+  // Body-silhouette underlay: torso + limbs drawn first so the muscle regions
+  // sit on one connected figure instead of floating parts.
+  const UNDERLAY = `
+  <path d="M42,52 L108,52 L96,162 L54,162 Z" ${N}/>
+  <path d="M28,60 L42,62 L38,144 L28,144 Z" ${N}/>
+  <path d="M122,60 L108,62 L112,144 L122,144 Z" ${N}/>
+  <path d="M55,158 L74,158 L70,284 L58,284 Z" ${N}/>
+  <path d="M95,158 L76,158 L80,284 L92,284 Z" ${N}/>`;
+
+  const front = `
+<svg viewBox="0 0 150 300" class="mm-body" role="img" aria-label="Front muscle map">
+  ${UNDERLAY}
+  <ellipse cx="75" cy="24" rx="13" ry="15" ${N}/>
+  <rect x="68" y="37" width="14" height="12" rx="3" ${N}/>
+  <path d="M68,48 L46,56 L68,58 Z" ${F('traps')}>${T('traps')}</path>
+  <path d="M82,48 L104,56 L82,58 Z" ${F('traps')}>${T('traps')}</path>
+  <ellipse cx="40" cy="62" rx="11" ry="10" ${F('shoulders')}>${T('shoulders')}</ellipse>
+  <ellipse cx="110" cy="62" rx="11" ry="10" ${F('shoulders')}>${T('shoulders')}</ellipse>
+  <path d="M51,58 L73,58 L73,86 Q61,92 51,80 Z" ${F('chest')}>${T('chest')}</path>
+  <path d="M99,58 L77,58 L77,86 Q89,92 99,80 Z" ${F('chest')}>${T('chest')}</path>
+  <rect x="27" y="72" width="15" height="32" rx="7" ${F('biceps')}>${T('biceps')}</rect>
+  <rect x="108" y="72" width="15" height="32" rx="7" ${F('biceps')}>${T('biceps')}</rect>
+  <path d="M27,106 L41,106 L38,140 L29,140 Z" ${F('forearms')}>${T('forearms')}</path>
+  <path d="M123,106 L109,106 L112,140 L121,140 Z" ${F('forearms')}>${T('forearms')}</path>
+  <circle cx="33" cy="147" r="5" ${N}/>
+  <circle cx="117" cy="147" r="5" ${N}/>
+  <rect x="55" y="89" width="40" height="48" rx="8" ${F('core')}>${T('core')}</rect>
+  <path d="M56,139 L94,139 L88,158 L62,158 Z" ${N}/>
+  <path d="M57,158 L73,158 L72,224 Q65,231 59,224 Z" ${F('quads')}>${T('quads')}</path>
+  <path d="M93,158 L77,158 L78,224 Q85,231 91,224 Z" ${F('quads')}>${T('quads')}</path>
+  <path d="M59,234 L71,234 L68,280 L61,280 Z" ${F('calves')}>${T('calves')}</path>
+  <path d="M91,234 L79,234 L82,280 L89,280 Z" ${F('calves')}>${T('calves')}</path>
+  <rect x="58" y="282" width="13" height="7" rx="3" ${N}/>
+  <rect x="79" y="282" width="13" height="7" rx="3" ${N}/>
+</svg>`;
+
+  const back = `
+<svg viewBox="0 0 150 300" class="mm-body" role="img" aria-label="Back muscle map">
+  ${UNDERLAY}
+  <ellipse cx="75" cy="24" rx="13" ry="15" ${N}/>
+  <rect x="68" y="37" width="14" height="12" rx="3" ${N}/>
+  <path d="M46,64 L73,72 L73,132 L55,126 Z" ${F('back')}>${T('back')}</path>
+  <path d="M104,64 L77,72 L77,132 L95,126 Z" ${F('back')}>${T('back')}</path>
+  <path d="M75,46 L52,58 L75,90 L98,58 Z" ${F('traps')}>${T('traps')}</path>
+  <ellipse cx="40" cy="62" rx="11" ry="10" ${F('shoulders')}>${T('shoulders')}</ellipse>
+  <ellipse cx="110" cy="62" rx="11" ry="10" ${F('shoulders')}>${T('shoulders')}</ellipse>
+  <rect x="27" y="72" width="15" height="32" rx="7" ${F('triceps')}>${T('triceps')}</rect>
+  <rect x="108" y="72" width="15" height="32" rx="7" ${F('triceps')}>${T('triceps')}</rect>
+  <path d="M27,106 L41,106 L38,140 L29,140 Z" ${F('forearms')}>${T('forearms')}</path>
+  <path d="M123,106 L109,106 L112,140 L121,140 Z" ${F('forearms')}>${T('forearms')}</path>
+  <circle cx="33" cy="147" r="5" ${N}/>
+  <circle cx="117" cy="147" r="5" ${N}/>
+  <rect x="60" y="118" width="30" height="20" rx="5" ${N}/>
+  <ellipse cx="64" cy="152" rx="12" ry="13" ${F('glutes')}>${T('glutes')}</ellipse>
+  <ellipse cx="86" cy="152" rx="12" ry="13" ${F('glutes')}>${T('glutes')}</ellipse>
+  <path d="M56,168 L72,168 L71,226 Q64,233 58,226 Z" ${F('hamstrings')}>${T('hamstrings')}</path>
+  <path d="M94,168 L78,168 L79,226 Q86,233 92,226 Z" ${F('hamstrings')}>${T('hamstrings')}</path>
+  <ellipse cx="64" cy="254" rx="8" ry="22" ${F('calves')}>${T('calves')}</ellipse>
+  <ellipse cx="86" cy="254" rx="8" ry="22" ${F('calves')}>${T('calves')}</ellipse>
+  <rect x="58" y="282" width="13" height="7" rx="3" ${N}/>
+  <rect x="79" y="282" width="13" height="7" rx="3" ${N}/>
+</svg>`;
+
+  return `
+<div class="mm-body-wrap">
+  <div class="mm-body-col">${front}<div class="label tc mt-2">Front</div></div>
+  <div class="mm-body-col">${back}<div class="label tc mt-2">Back</div></div>
+</div>`;
+}
+
+function _muscleMapHTML() {
+  const data = _muscleMap(_mmMode);
+  const cells = data.map(g => `
+    <div class="mm-cell" title="${g.label}" style="--chip:${g.color};--fill:${g.pct.toFixed(3)}">
+      <span class="mm-ic">${g.icon}</span>
+      <span class="mm-name">${g.label}</span>
+      <span class="mm-bar"><i style="width:${Math.round(g.pct * 100)}%"></i></span>
+    </div>`).join('');
+  const modes = [['balance', 'Balance'], ['fatigue', 'Fatigue'], ['strength', 'Strength']];
+  return `
+  <div class="seg" style="margin-bottom:12px">
+    ${modes.map(([id, lbl]) => `<button class="seg-btn ${_mmMode === id ? 'active' : ''}" onclick="setMuscleMapMode('${id}')">${lbl}</button>`).join('')}
+  </div>
+  ${_bodySVGs(data)}
+  <div class="mm-grid" style="margin-top:16px">${cells}</div>
+  <div class="dim fs11" style="margin-top:10px">${_mmMode === 'balance' ? 'Total training volume per muscle group.' : _mmMode === 'fatigue' ? 'Volume in the last 4 days — high = recently hammered.' : 'Best estimated 1RM reached per group.'}</div>`;
+}
+
+function _strengthSectionHTML() {
+  const hasSessions = (state.sessions || []).length > 0;
+  if (!hasSessions) {
+    return `
+<div class="sec-head" style="margin-bottom:12px">Strength</div>
+<div class="card tc p-6"><div style="font-size:40px;margin-bottom:12px">🏋</div>
+  <div class="dim fs13">Log a workout to unlock volume trends, 1RM progression, PR history and your muscle map.</div>
+  <div class="mt-4"><button class="btn btn-fire" onclick="navigate('workout')">Start a Workout →</button></div></div>`;
+  }
+  const unit = weightUnitLabel();
+  const vol = _weeklyVolume();
+  const topLift = _topLift();
+  const topName = topLift ? (EXERCISES[topLift]?.name || topLift) : '';
+  const prs = _prTimeline();
+  return `
+<div class="sec-head" style="margin-bottom:12px">Weekly Training Volume (${unit})</div>
+<div class="card mb24" style="margin-bottom:24px">
+  <div class="chart-wrap" style="height:180px"><canvas id="strength-volume-chart"></canvas></div>
+</div>
+
+${topLift ? `
+<div class="sec-head" style="margin-bottom:12px">Estimated 1RM — ${topName}</div>
+<div class="card mb24" style="margin-bottom:24px">
+  <div class="chart-wrap" style="height:180px"><canvas id="strength-e1rm-chart"></canvas></div>
+</div>` : ''}
+
+<div class="sec-head" style="margin-bottom:12px">Muscle Map</div>
+<div class="card mb24" style="margin-bottom:24px" id="muscle-map-card">${_muscleMapHTML()}</div>
+
+<div class="sec-head" style="margin-bottom:12px">Personal Record Timeline</div>
+${prs.length ? `<div class="card mb24" style="margin-bottom:24px"><div class="pr-timeline">
+  ${prs.map(p => `
+    <div class="pr-tl-row">
+      <span class="pr-tl-dot"></span>
+      <div class="pr-tl-body">
+        <div class="pr-tl-name">${(EXERCISES[p.id]?.name || p.id.replace(/_/g,' '))}</div>
+        <div class="pr-tl-meta">${formatWeight(p.weight)} × ${p.reps} · est. 1RM ${formatWeight(p.e1rm)}</div>
+      </div>
+      <div class="pr-tl-date">${new Date(p.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>
+    </div>`).join('')}
+</div></div>` : `<div class="card"><div class="dim fs12">No PRs yet — they'll appear here as you hit them.</div></div>`}
+`;
+}
 
 function _startOfWeek() {
   const now = new Date();
@@ -256,6 +479,9 @@ ${state.bodyLog.length >= 2 ? `
 </div>
 ` : ''}
 
+<!-- STRENGTH ANALYTICS -->
+${_strengthSectionHTML()}
+
 <!-- CORRELATION INSIGHTS -->
 <div class="sec-head" style="margin-bottom:12px">Insights</div>
 <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:24px">
@@ -278,6 +504,14 @@ export function scheduleAnalyticsCharts() {
     if (state.bodyLog.length >= 2) {
       initWeightTrendChart('analytics-weight-chart', state.bodyLog);
     }
+    // Strength charts
+    if ((state.sessions || []).length) {
+      const unit = weightUnitLabel();
+      const vol = _weeklyVolume();
+      initVolumeBarChart('strength-volume-chart', vol.labels, vol.data, unit);
+      const topLift = _topLift();
+      if (topLift) initE1rmChart('strength-e1rm-chart', _e1rmSeries(topLift), unit);
+    }
   }, 0);
 }
 
@@ -285,4 +519,10 @@ export function scheduleAnalyticsCharts() {
 
 window.toggleAnalyticsSeries = (datasetIndex) => {
   toggleChartSeries('analytics-trend-chart', datasetIndex);
+};
+
+window.setMuscleMapMode = (mode) => {
+  _mmMode = mode;
+  const card = document.getElementById('muscle-map-card');
+  if (card) card.innerHTML = _muscleMapHTML();
 };

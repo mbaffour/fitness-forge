@@ -79,3 +79,18 @@ export function chipRow(groupIds = []) {
 export function emptyState(icon, msg, cta = '') {
   return `<div class="card tc p-6"><div style="font-size:40px;margin-bottom:12px">${icon}</div><div class="dim fs13">${msg}</div>${cta ? `<div class="mt-4">${cta}</div>` : ''}</div>`;
 }
+
+// ── SHARED TOAST ──
+// One transient bottom toast for lightweight confirmations. Rich celebration
+// cards (PR / session summary) stay bespoke; this replaces the ad-hoc inline
+// toasts. type: 'fire' (default) | 'green' | 'danger'.
+export function toast(msg, { type = 'fire', ms = 3000 } = {}) {
+  let t = document.getElementById('forge-toast');
+  if (!t) { t = document.createElement('div'); t.id = 'forge-toast'; t.className = 'forge-toast'; document.body.appendChild(t); }
+  t.dataset.type = type;
+  t.textContent = msg;
+  requestAnimationFrame(() => t.classList.add('show'));
+  clearTimeout(t._hideTimer);
+  t._hideTimer = setTimeout(() => t.classList.remove('show'), ms);
+}
+if (typeof window !== 'undefined') window.forgeToast = toast;

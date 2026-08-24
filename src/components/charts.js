@@ -98,6 +98,59 @@ export function initWeightTrendChart(canvasId, bodyLog) {
   chartInstances.set(canvasId, chart);
 }
 
+// ── WEEKLY TRAINING-VOLUME BAR CHART (v3.4) ──
+// labels/data prepared by analytics.js in the user's display unit.
+export function initVolumeBarChart(canvasId, labels, data, unitLabel = 'lbs') {
+  ensureDefaults();
+  if (!window.Chart) return;
+  destroyIfExists(canvasId);
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const fire = cssVar('--fire') || COLORS.fire;
+  const chart = new Chart(canvas, {
+    type: 'bar',
+    data: { labels, datasets: [{ data, backgroundColor: fire, borderRadius: 3, maxBarThickness: 42 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { tooltip: { callbacks: { label: c => `${c.parsed.y.toLocaleString()} ${unitLabel}` } } },
+      scales: {
+        x: { grid: { display: false } },
+        y: { grid: { color: cssVar('--border') || COLORS.border }, ticks: { callback: v => v >= 1000 ? (v/1000) + 'k' : v } },
+      },
+    },
+  });
+  chartInstances.set(canvasId, chart);
+}
+
+// ── ESTIMATED-1RM PROGRESSION LINE CHART (v3.4) ──
+// points: [{date, e1rm}] in the user's display unit.
+export function initE1rmChart(canvasId, points, unitLabel = 'lbs') {
+  ensureDefaults();
+  if (!window.Chart) return;
+  destroyIfExists(canvasId);
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const green = cssVar('--forge-green') || COLORS.green;
+  const labels = points.map(p => { const d = new Date(p.date); return `${d.getMonth()+1}/${d.getDate()}`; });
+  const chart = new Chart(canvas, {
+    type: 'line',
+    data: { labels, datasets: [{
+      data: points.map(p => p.e1rm),
+      borderColor: green, backgroundColor: 'rgba(77,255,170,0.08)',
+      pointBackgroundColor: green, pointRadius: 3, pointHoverRadius: 5, tension: 0.3, fill: true,
+    }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { tooltip: { callbacks: { label: c => `est. 1RM ${c.parsed.y} ${unitLabel}` } } },
+      scales: {
+        x: { grid: { color: cssVar('--border') || COLORS.border }, ticks: { maxRotation: 45, maxTicksLimit: 10 } },
+        y: { grid: { color: cssVar('--border') || COLORS.border }, ticks: { callback: v => v + ' ' + unitLabel } },
+      },
+    },
+  });
+  chartInstances.set(canvasId, chart);
+}
+
 // ── MACRO DONUT CHART ──
 export function initMacroDonut(canvasId, { protein, carbs, fat }) {
   ensureDefaults();

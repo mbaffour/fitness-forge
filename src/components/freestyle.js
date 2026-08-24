@@ -275,7 +275,7 @@ window.logFreestyleSession = () => {
   if (btn) {
     btn.textContent = '✓ Logged!';
     btn.style.background = 'var(--forge-green)';
-    btn.style.color = '#0d0d0b';
+    btn.style.color = 'var(--bg)';
     setTimeout(() => { btn.textContent = '✓ Log This Session'; btn.style.background=''; btn.style.color=''; }, 2000);
   }
 };
