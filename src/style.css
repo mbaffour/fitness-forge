@@ -2387,3 +2387,13 @@ body.session-active .sidebar { display: none !important; }
 .picker-row:hover { border-color: var(--fire); }
 .picker-name { font-weight: 600; font-size: 13px; }
 .picker-muscle { font-family: var(--ff-mono); font-size: 10.5px; color: var(--text-2); }
+
+/* ── Custom exercise card delete (v3.4) ── */
+.lib-card { position: relative; }
+.lib-del-custom {
+  position: absolute; top: 6px; right: 6px;
+  background: rgba(0,0,0,0.5); border: 1px solid var(--border);
+  border-radius: var(--r-sm); color: var(--text-2);
+  font-size: 12px; line-height: 1; padding: 4px 6px; cursor: pointer;
+}
+.lib-del-custom:hover { border-color: var(--danger); color: var(--danger); }

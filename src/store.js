@@ -4,6 +4,8 @@
 //   or manual builder. Zero hardcoded values.
 // ═══════════════════════════════════════════
 
+import { upsertExercise, removeExercise } from './data/exercises.js';
+
 const KEY = 'fitness_forge_v1';
 
 const defaultState = {
@@ -42,6 +44,8 @@ const defaultState = {
   // ── v3.0 additions ──
   gymProfiles:  [],     // [{ id, name, items:[itemId,...] }] — saved equipment setups
   activeGymId:  null,   // id of the active gym profile (Fitbod-style)
+  // ── v3.4 additions ──
+  customExercises: {},  // { id: {name, muscle, groups[], equip[], type, diff, requires[]} } — user-created
 };
 
 export const state = (() => {
@@ -60,6 +64,7 @@ export const state = (() => {
         overloadState: { ...defaultState.overloadState, ...(parsed.overloadState || {}) },
         gymProfiles: parsed.gymProfiles || [],
         activeGymId: parsed.activeGymId ?? null,
+        customExercises: parsed.customExercises || {},
       };
     }
     return { ...defaultState };
@@ -70,6 +75,37 @@ export const state = (() => {
 
 export function save() {
   try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {}
+}
+
+// ── CUSTOM EXERCISES ──
+// Merge any persisted custom exercises into the shared EXERCISES map at boot so
+// they show up everywhere (library, generator, active workout) like built-ins.
+for (const [id, ex] of Object.entries(state.customExercises || {})) upsertExercise(id, ex);
+
+export function addCustomExercise(ex) {
+  const base = (ex.name || 'custom').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 24) || 'exercise';
+  let id = `custom_${base}`, n = 2;
+  while (state.customExercises[id]) id = `custom_${base}_${n++}`;
+  const record = {
+    name:   ex.name || 'Custom Exercise',
+    muscle: ex.muscle || '',
+    groups: ex.groups || [],
+    equip:  ex.equip  || ['full_gym'],
+    requires: ex.requires || [],
+    type:   ex.type   || 'compound',
+    diff:   ex.diff   || 'int',
+    cues:   ex.cues   || [],
+  };
+  state.customExercises[id] = record;
+  upsertExercise(id, record);
+  save();
+  return id;
+}
+
+export function deleteCustomExercise(id) {
+  delete state.customExercises[id];
+  removeExercise(id);
+  save();
 }
 
 // ── WEIGHT UNIT (display only) ──

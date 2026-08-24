@@ -8,6 +8,7 @@
 import { EXERCISES, MUSCLE_GROUPS, EQUIPMENT_OPTIONS } from '../data/exercises.js';
 import { exPreviewHTML } from './modal.js';
 import { pageHeader, sectionHead } from './ui.js';
+import { addCustomExercise, deleteCustomExercise } from '../store.js';
 
 // Filter state (module-level so it survives re-renders within a visit)
 let _q     = '';
@@ -45,12 +46,14 @@ function _cardHTML(id, ex) {
   ${exPreviewHTML(ex, { variant: 'thumb' }) || `<div class="ex-gif-wrap ex-gif-thumb lib-noimg">🏋</div>`}
   <div class="lib-card-body">
     <div class="lib-card-name">${ex.name}</div>
-    <div class="lib-card-muscle">${ex.muscle}</div>
+    <div class="lib-card-muscle">${ex.muscle || ''}</div>
     <div class="lib-card-tags">
       <span class="tag ${ex.type === 'compound' ? 't-fire' : 't-steel'}">${ex.type}</span>
       <span class="tag t-dim">${diffLabel}</span>
+      ${ex.custom ? `<span class="tag t-green">Custom</span>` : ''}
     </div>
   </div>
+  ${ex.custom ? `<button class="lib-del-custom" title="Delete custom exercise" onclick="event.stopPropagation();libDeleteCustom('${id}')">🗑</button>` : ''}
 </div>`;
 }
 
@@ -92,13 +95,101 @@ window.libSetGrp = (g) => { _grp = g; _refreshChips(); _refreshResults(); };
 window.libSetEquip = (e) => { _equip = e; _refreshChips(); _refreshResults(); };
 window.libSetDiff = (d) => { _diff = d; _refreshChips(); _refreshResults(); };
 
+// ── CREATE / DELETE CUSTOM EXERCISE ──
+const _createGroups = new Set();
+
+window.libDeleteCustom = (id) => {
+  if (!confirm('Delete this custom exercise?')) return;
+  deleteCustomExercise(id);
+  _refreshResults();
+};
+
+window.libToggleCreateGrp = (gid) => {
+  _createGroups.has(gid) ? _createGroups.delete(gid) : _createGroups.add(gid);
+  document.querySelector(`#create-grps .lib-chip[data-grp="${gid}"]`)?.classList.toggle('active');
+};
+
+window.libSaveCreate = () => {
+  const name = document.getElementById('create-name')?.value.trim();
+  if (!name) { document.getElementById('create-name')?.focus(); return; }
+  const type  = document.getElementById('create-type')?.value || 'compound';
+  const diff  = document.getElementById('create-diff')?.value || 'int';
+  const equip = document.getElementById('create-equip')?.value || 'full_gym';
+  const groups = [..._createGroups];
+  const muscle = groups.map(g => MUSCLE_GROUPS.find(m => m.id === g)?.label).filter(Boolean).join(' / ') || 'General';
+  const id = addCustomExercise({ name, type, diff, equip: [equip], groups, muscle });
+  _createGroups.clear();
+  window.libCloseCreate();
+  // surface the new exercise: clear filters and search for it
+  _q = name.toLowerCase(); _grp = 'all'; _equip = 'all'; _diff = 'all';
+  const page = document.getElementById('page-library');
+  if (page) page.innerHTML = renderLibrary();
+};
+
+window.libCloseCreate = () => {
+  document.getElementById('create-ex-modal')?.remove();
+  document.body.style.overflow = '';
+};
+
+window.libOpenCreate = () => {
+  document.getElementById('create-ex-modal')?.remove();
+  _createGroups.clear();
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'create-ex-modal';
+  overlay.innerHTML = `
+<div class="modal" style="max-width:440px" onclick="event.stopPropagation()">
+  <div class="modal-head">
+    <div><div class="label" style="margin-bottom:4px">Your Library</div><div class="display" style="font-size:1.3rem">CREATE EXERCISE</div></div>
+    <button class="modal-close" onclick="libCloseCreate()" aria-label="Close">✕</button>
+  </div>
+  <div class="modal-body">
+    <label class="label">Name</label>
+    <input id="create-name" class="lib-search" style="margin:6px 0 14px" placeholder="e.g. Landmine Press" autofocus>
+    <div class="g2" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div>
+        <label class="label">Type</label>
+        <select id="create-type" class="form-input" style="width:100%;margin-top:6px">
+          <option value="compound">Compound</option>
+          <option value="isolation">Isolation</option>
+        </select>
+      </div>
+      <div>
+        <label class="label">Level</label>
+        <select id="create-diff" class="form-input" style="width:100%;margin-top:6px">
+          <option value="beg">Beginner</option>
+          <option value="int" selected>Intermediate</option>
+          <option value="adv">Advanced</option>
+        </select>
+      </div>
+    </div>
+    <label class="label">Equipment</label>
+    <select id="create-equip" class="form-input" style="width:100%;margin:6px 0 14px">
+      ${EQUIPMENT_OPTIONS.map(o => `<option value="${o.id}">${o.label}</option>`).join('')}
+    </select>
+    <label class="label">Muscle groups</label>
+    <div id="create-grps" class="lib-chips" style="margin-top:6px">
+      ${MUSCLE_GROUPS.map(g => `<button class="lib-chip" data-grp="${g.id}" style="--chip:${g.color}" onclick="libToggleCreateGrp('${g.id}')">${g.icon} ${g.label}</button>`).join('')}
+    </div>
+    <button class="btn btn-fire btn-lg w100" style="margin-top:18px" onclick="libSaveCreate()">Save Exercise</button>
+  </div>
+</div>`;
+  overlay.addEventListener('click', () => window.libCloseCreate());
+  document.body.appendChild(overlay);
+  document.body.style.overflow = 'hidden';
+  document.getElementById('create-name')?.focus();
+};
+
 export function renderLibrary() {
   const total = Object.keys(EXERCISES).length;
   return `
 ${pageHeader('Exercise Library', { eyebrow: 'Reference', sub: `${total} exercises · cues, mistakes & demos — tap any card` })}
 
-<input type="search" class="lib-search" placeholder="Search exercises… (name or muscle)"
-       value="${_q}" oninput="libSetQ(this.value)" aria-label="Search exercises">
+<div style="display:flex;gap:8px;align-items:center;margin-bottom:var(--s-4)">
+  <input type="search" class="lib-search" style="margin:0;flex:1" placeholder="Search exercises… (name or muscle)"
+         value="${_q}" oninput="libSetQ(this.value)" aria-label="Search exercises">
+  <button class="btn btn-fire" style="white-space:nowrap" onclick="libOpenCreate()">＋ Create</button>
+</div>
 
 <div class="lib-filters">
   <div id="lib-equip-seg" class="seg" style="margin-bottom:10px">

@@ -293,6 +293,19 @@ for (const [id, ex] of Object.entries(EXERCISES)) {
   if (!Array.isArray(ex.requires)) ex.requires = REQUIRES[id] || [];
 }
 
+// ── CUSTOM (user-created) EXERCISES ──
+// Merged into EXERCISES at boot from persisted state (store.js). Kept here so
+// every lookup (`EXERCISES[id]`, `Object.entries(EXERCISES)`) sees them for free.
+export function upsertExercise(id, ex) {
+  const e = { ...ex, custom: true };
+  if (!Array.isArray(e.requires)) e.requires = ex.requires || [];
+  if (!Array.isArray(e.groups))   e.groups = [];
+  if (!Array.isArray(e.equip))    e.equip = ['full_gym'];
+  EXERCISES[id] = e;
+  return id;
+}
+export function removeExercise(id) { delete EXERCISES[id]; }
+
 // Normalize an equip argument that may be a legacy preset string, an array, or
 // a Set of item ids, into a Set of owned item ids.
 function toItemSet(equipOrItems) {
