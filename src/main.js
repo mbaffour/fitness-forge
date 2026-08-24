@@ -514,7 +514,7 @@ window.logToday = (label, type) => {
   if (btn) {
     btn.textContent = '✓ Logged!';
     btn.style.background = 'var(--forge-green)';
-    btn.style.color = '#0d0d0b';
+    btn.style.color = 'var(--bg)';
     setTimeout(() => {
       btn.textContent = '✓ Mark Complete';
       btn.style.background = '';

@@ -130,7 +130,8 @@ ${bodyLog.length > 0 ? `
 <div class="card tc" style="padding:48px">
   <div style="font-size:40px;margin-bottom:12px">📏</div>
   <div class="display" style="font-size:24px;margin-bottom:8px">NO DATA YET</div>
-  <div class="dim fs13">Add your first check-in to start tracking body composition.</div>
+  <div class="dim fs13" style="margin-bottom:16px">Add your first check-in to start tracking body composition.</div>
+  <button class="btn btn-fire" onclick="document.getElementById('checkin-weight')?.scrollIntoView({behavior:'smooth',block:'center'});document.getElementById('checkin-weight')?.focus()">+ Add Check-In</button>
 </div>
 `}
 `;

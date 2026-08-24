@@ -172,7 +172,8 @@ ${recentLogs.length > 0 ? `
 ` : `
   <div class="card tc" style="padding:40px">
     <div style="font-size:36px;margin-bottom:12px">📋</div>
-    <div class="dim">No sessions logged yet. Complete your first workout!</div>
+    <div class="dim" style="margin-bottom:16px">No sessions logged yet. Complete your first workout!</div>
+    <button class="btn btn-fire" onclick="navigate('workout')">⚡ Start Today's Workout</button>
   </div>
 `}
 `;
@@ -960,7 +961,7 @@ window.saveBMR = () => {
   if (btn) {
     btn.textContent = `✓ Saved! BMR: ${bmr} · TDEE: ${tdee}`;
     btn.style.background = 'var(--forge-green)';
-    btn.style.color = '#0d0d0b';
+    btn.style.color = 'var(--bg)';
     setTimeout(() => {
       btn.textContent = 'Calculate & Save BMR/TDEE';
       btn.style.background = '';

@@ -1766,8 +1766,8 @@ details[open] summary span:last-child { transform: rotate(180deg); display: inli
   border-radius: var(--r-sm);
   border: none;
   cursor: pointer;
-  background: rgba(255, 0, 0, 0.15);
-  color: #ff6b6b;
+  background: color-mix(in srgb, var(--danger) 15%, transparent);
+  color: var(--danger);
   flex-shrink: 0;
   transition: opacity 0.2s;
 }
@@ -2420,3 +2420,18 @@ body.session-active .sidebar { display: none !important; }
 .pr-tl-name { font-weight: 600; font-size: 13px; text-transform: capitalize; }
 .pr-tl-meta { font-family: var(--ff-mono); font-size: 11px; color: var(--text-2); margin-top: 2px; }
 .pr-tl-date { font-family: var(--ff-mono); font-size: 10px; color: var(--text-3); white-space: nowrap; }
+
+/* ── Shared toast (v3.4) ── */
+.forge-toast {
+  position: fixed; bottom: 24px; left: 50%;
+  transform: translateX(-50%) translateY(16px);
+  background: var(--fire); color: var(--bg);
+  padding: 9px 22px; border-radius: var(--r-md);
+  font-family: var(--ff-mono); font-weight: 600; font-size: 12px; letter-spacing: 0.06em;
+  opacity: 0; transition: opacity .25s, transform .25s;
+  z-index: 9998; pointer-events: none; max-width: 90vw; text-align: center;
+}
+.forge-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+.forge-toast[data-type="green"]  { background: var(--forge-green); }
+.forge-toast[data-type="danger"] { background: var(--danger); color: var(--text); }
+@media (max-width: 768px) { .forge-toast { bottom: 78px; } }
