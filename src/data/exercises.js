@@ -7,6 +7,9 @@
 
 // Bulk-imported public-domain library (free-exercise-db), merged below.
 import { LIBRARY_EXERCISES } from './exercises-library.js';
+// Openly-licensed exercises derived from workout-guide (CC BY-SA 4.0 metadata +
+// animations, © Bryl Lim / Everkinetic), each carrying a matched animation.
+import { WG_EXERCISES } from './exercises-wg.js';
 
 export const EQUIPMENT_OPTIONS = [
   { id: 'full_gym',   label: 'Full Gym',      desc: 'Barbells, machines, cables', icon: '🏋️' },
@@ -285,6 +288,12 @@ const REQUIRES = {
 // Merge the imported public-domain library WITHOUT overriding curated entries —
 // the hand-authored exercises have richer cues/PRs, so they win on any key clash.
 for (const [k, v] of Object.entries(LIBRARY_EXERCISES)) {
+  if (!(k in EXERCISES)) EXERCISES[k] = v;
+}
+
+// Merge workout-guide-derived exercises (net-new, animated) — same guard, so
+// curated + library entries always win on any key clash.
+for (const [k, v] of Object.entries(WG_EXERCISES)) {
   if (!(k in EXERCISES)) EXERCISES[k] = v;
 }
 
