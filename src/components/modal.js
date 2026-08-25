@@ -5,8 +5,22 @@
 // ════════════════════════════════════
 
 import { GIF_BASE, EXERCISE_GIFS, GIF_ATTRIBUTION } from '../data/exercise-gifs.js';
+import { WG_BASE, WG_ATTRIBUTION, WG_ATTRIBUTION_URL, EXERCISE_ANIM } from '../data/exercise-anim.js';
 
 const GIF_CDN = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises';
+
+// Openly-licensed 3-frame animated illustration (workout-guide, CC BY-SA 4.0).
+// Cycles frame-1→2→3 via the `wgFlip` keyframe. Hotlinked at runtime (never
+// vendored); on error the wrap is removed so the next fallback shows.
+function _wgAnim(ex, cls, name) {
+  const wg = EXERCISE_ANIM[ex.id];
+  if (!wg) return '';
+  const frames = [1, 2, 3].slice(0, wg.frames || 3).map((i) =>
+    `<img class="wf wf${i}" src="${WG_BASE}${wg.slug}/frame-${i}.svg" alt="${name} — frame ${i}" loading="lazy"
+       ${i === 1 ? `onerror="const w=this.closest('.ex-gif-wrap');const f=w.nextElementSibling;if(f&&f.classList.contains('ex-gif-fallback'))f.style.display='';w.remove()"` : ''}>`
+  ).join('');
+  return `<div class="${cls} wg-anim wg-f${wg.frames || 3}">${frames}</div>`;
+}
 
 // Static preview: crossfaded free-exercise-db frames (public domain) when the
 // exercise has an `imgKey`; else its YouTube demo thumbnail. '' when neither.
@@ -41,6 +55,13 @@ function _staticPreview(ex, cls, name) {
 export function exPreviewHTML(ex, { variant = 'full' } = {}) {
   const cls = variant === 'thumb' ? 'ex-gif-wrap ex-gif-thumb' : 'ex-gif-wrap';
   const name = ex?.name || 'exercise';
+  // Prefer the openly-licensed workout-guide animation (CC BY-SA 4.0) when matched;
+  // it errors → the licensed GIF or static crossfade shows as the next fallback.
+  const wg = variant === 'full' && ex?.id ? EXERCISE_ANIM[ex.id] : null;
+  if (wg) {
+    const fallback = (EXERCISE_GIFS[ex.id] || ex.imgKey || ex.youtubeId) ? _staticPreview(ex, cls, name) : '';
+    return `${_wgAnim(ex, cls, name)}${fallback ? `<div class="ex-gif-fallback" style="display:none">${fallback}</div>` : ''}`;
+  }
   const gif = variant === 'full' && ex?.id ? EXERCISE_GIFS[ex.id] : null;
   if (gif) {
     const fallback = _staticPreview(ex, cls, name);
@@ -88,9 +109,13 @@ export function showExerciseModal(ex) {
   <div class="modal-body">
 
     <!-- ── ANIMATED EXERCISE PREVIEW ─────── -->
-    ${(ex.id && EXERCISE_GIFS[ex.id]) || ex.imgKey ? `
+    ${(ex.id && (EXERCISE_ANIM[ex.id] || EXERCISE_GIFS[ex.id])) || ex.imgKey ? `
     ${exPreviewHTML(ex)}
-    <div class="ex-gif-source">${ex.id && EXERCISE_GIFS[ex.id] ? `Animation ${GIF_ATTRIBUTION}` : 'Images: free-exercise-db · public domain'}</div>
+    <div class="ex-gif-source">${
+      ex.id && EXERCISE_ANIM[ex.id]
+        ? `Animation <a href="${WG_ATTRIBUTION_URL}" target="_blank" rel="noopener" style="color:inherit">${WG_ATTRIBUTION} ↗</a>`
+        : ex.id && EXERCISE_GIFS[ex.id] ? `Animation ${GIF_ATTRIBUTION}` : 'Images: free-exercise-db · public domain'
+    }</div>
     ` : ''}
 
     <!-- ── MUSCLES TRAINED ─────────────── -->

@@ -800,6 +800,17 @@ ${(() => {
   </div>
   <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
     <div>
+      <div style="font-size:13px;font-weight:500">Progression Scheme</div>
+      <div class="muted fs11" style="margin-top:2px">How the app suggests your next weight</div>
+    </div>
+    <select class="form-input" style="width:150px" onchange="setProgression(this.value)">
+      ${[['double','Double progression'],['linear','Linear (add each time)'],['greyskull','Greyskull LP']].map(([v,l]) =>
+        `<option value="${v}" ${(state.settings?.progression || 'double') === v ? 'selected' : ''}>${l}</option>`
+      ).join('')}
+    </select>
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
+    <div>
       <div style="font-size:13px;font-weight:500">Weight Units</div>
       <div class="muted fs11" style="margin-top:2px">How weights are shown across the app</div>
     </div>
@@ -900,6 +911,11 @@ window.switchLogTab = (tab) => {
 
 window.saveRestSetting = (val) => {
   state.settings.restSeconds = parseInt(val);
+  save();
+};
+
+window.setProgression = (val) => {
+  state.settings.progression = ['double','linear','greyskull'].includes(val) ? val : 'double';
   save();
 };
 

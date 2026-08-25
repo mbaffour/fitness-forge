@@ -83,7 +83,7 @@ function coldStartWeight(exId, profile) {
  * suggestNextSet(exId, targetReps, sessions, profile)
  * Returns { weight, reps, rationale, isBodyweight }
  */
-export function suggestNextSet(exId, targetRepsStr, sessions, profile) {
+export function suggestNextSet(exId, targetRepsStr, sessions, profile, scheme = 'double') {
   const exType  = classifyExercise(exId);
   const isBodyweight = exType === 'bodyweight';
   const level   = profile?.level || 'intermediate';
@@ -162,6 +162,28 @@ export function suggestNextSet(exId, targetRepsStr, sessions, profile) {
     return { weight: null, reps: Math.min(Math.round(avgReps) + 1, targetMax + 2), rationale: 'Push for one more rep.', isBodyweight: true };
   }
 
+  // ── Named progression schemes (weighted lifts) ──
+  const topReps = Math.max(0, ...workingSets.map(s => s.reps || 0));
+  if (scheme === 'linear') {
+    if (signal === 'MISS' && prevWasAlsoMiss) {
+      return { weight: roundToNearest(lastTopWeight * 0.9, 2.5), reps: targetMin, rationale: 'Linear — two misses, deload 10% and climb again.' };
+    }
+    if (signal === 'MISS') {
+      return { weight: lastTopWeight, reps: targetMin, rationale: 'Linear — repeat this weight, then add next time.' };
+    }
+    return { weight: roundToNearest(lastTopWeight + increment, 2.5), reps: targetMin, rationale: `Linear — add ${increment} lbs every session.` };
+  }
+  if (scheme === 'greyskull') {
+    if (topReps >= targetMin * 2) {
+      return { weight: roundToNearest(lastTopWeight + increment * 2, 2.5), reps: targetMin, rationale: `Greyskull — big AMRAP (${topReps}), double jump +${increment * 2} lbs.` };
+    }
+    if (signal === 'MISS') {
+      return { weight: roundToNearest(lastTopWeight * 0.9, 2.5), reps: targetMin, rationale: 'Greyskull — missed, deload 10% and rebuild.' };
+    }
+    return { weight: roundToNearest(lastTopWeight + increment, 2.5), reps: targetMin, rationale: `Greyskull — AMRAP hit, add ${increment} lbs. Last set: go to failure.` };
+  }
+
+  // ── Default: double progression ──
   if (signal === 'HIT_UPPER') {
     const nextW = roundToNearest(lastTopWeight + increment, 2.5);
     return { weight: nextW, reps: targetMin, rationale: `Hit the top of your range — add ${increment} lbs.` };

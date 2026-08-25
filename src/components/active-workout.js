@@ -255,7 +255,7 @@ function buildOverlayHTML() {
 }
 
 function renderExerciseBlock(ex, exIdx) {
-  const suggestion = suggestNextSet(ex.exId, ex.targetReps, state.sessions, state.profile);
+  const suggestion = suggestNextSet(ex.exId, ex.targetReps, state.sessions, state.profile, state.settings?.progression || 'double');
   const pr = state.prs[ex.exId];
   const isBodyweight = suggestion.isBodyweight;
   const exData = EXERCISES[ex.exId];
@@ -329,6 +329,7 @@ function renderExerciseBlock(ex, exIdx) {
     </div>
     <div class="ex-actions">
       ${exIdx > 0 ? `<button class="ex-act-btn" title="${groupedAbove ? 'Un-superset' : 'Superset with exercise above'}" onclick="toggleSuperset(${exIdx})">${groupedAbove ? '⛓✕' : '⛓'}</button>` : ''}
+      <button class="ex-act-btn" title="Swap for a similar exercise" onclick="swapExercise(${exIdx})">⇄</button>
       <button class="ex-act-btn" title="Remove exercise" onclick="removeExerciseFromSession(${exIdx})">🗑</button>
       ${!ex.timed ? `<button class="ex-act-btn" title="Log all remaining sets with the shown weight × reps" onclick="logRemainingSets(${exIdx})">✓✓</button>` : ''}
       <button class="btn btn-ghost btn-sm" onclick="addSetRow(${exIdx})">+ Set</button>
@@ -608,6 +609,22 @@ window.addExerciseToSession = (exId) => {
   if (!exId) { openExercisePicker(); return; }
   const exData = EXERCISES[exId];
   if (!exData) return;
+  // Swap mode: replace the targeted exercise instead of appending.
+  if (_swapIdx != null) {
+    const i = _swapIdx; _swapIdx = null;
+    const cur = sessionState.exercises[i];
+    if (cur) {
+      cur.exId = exId;
+      cur.exName = exData.name || exId;
+      cur.timed = isTimed(exId, exData);
+      cur.unilateral = isUnilateral(exId, exData);
+      cur.sets = [];   // different lift → start fresh
+    }
+    closeExercisePicker();
+    refreshAllExercises();
+    updateVolumeDisplay();
+    return;
+  }
   sessionState.exercises.push({
     exId, exName: exData.name || exId,
     targetSets: 3, targetReps: '8–10',
@@ -673,7 +690,26 @@ function scrollToExercise(exIdx) {
 
 // ── EXERCISE PICKER (add mid-session) ──
 let _pickerQ = '';
+let _swapIdx = null;   // when set, the picker replaces this exercise instead of adding
 window.pickerSearch = (v) => { _pickerQ = (v || '').trim().toLowerCase(); _renderPickerResults(); };
+
+// Swap an exercise mid-session for a similar one (same primary muscle group,
+// available under the active gym profile). Opens the picker pre-filtered.
+window.swapExercise = (exIdx) => {
+  if (!sessionState) return;
+  const ex = sessionState.exercises[exIdx];
+  _swapIdx = exIdx;
+  openExercisePicker();
+  const g = (EXERCISES[ex.exId]?.groups || [])[0] || '';
+  if (g) {
+    _pickerQ = g;
+    const inp = document.querySelector('#exercise-picker .lib-search');
+    if (inp) inp.value = g;
+    _renderPickerResults();
+  }
+  const title = document.querySelector('#exercise-picker .display');
+  if (title) title.textContent = 'SWAP EXERCISE';
+};
 
 function _pickerList() {
   const inSession = new Set(sessionState.exercises.map(e => e.exId));
@@ -724,6 +760,7 @@ function openExercisePicker() {
 function closeExercisePicker() {
   document.getElementById('exercise-picker')?.remove();
   document.body.style.overflow = '';
+  _swapIdx = null;   // cancel any pending swap
 }
 window.closeExercisePicker = closeExercisePicker;
 
