@@ -2456,3 +2456,22 @@ body.session-active .sidebar { display: none !important; }
   border: 1px solid var(--border);
   animation: none;
 }
+
+/* ── workout-guide animated illustrations (CC BY-SA 4.0) ── */
+.wg-anim { position: relative; background: #f3efe7; }
+.wg-anim .wf {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: contain; opacity: 0;
+}
+/* 3-frame loop: each frame shown a third of a 1.5s cycle */
+.wg-f3 .wf1 { animation: wgFlip3 1.5s steps(1, end) infinite; }
+.wg-f3 .wf2 { animation: wgFlip3 1.5s steps(1, end) infinite; animation-delay: .5s; }
+.wg-f3 .wf3 { animation: wgFlip3 1.5s steps(1, end) infinite; animation-delay: 1s; }
+@keyframes wgFlip3 { 0%, 33.32% { opacity: 1; } 33.33%, 100% { opacity: 0; } }
+/* 2-frame fallback */
+.wg-f2 .wf1 { animation: gifFlip 1.6s step-end infinite; }
+.wg-f2 .wf2 { animation: gifFlip 1.6s step-end infinite reverse; }
+@media (prefers-reduced-motion: reduce) {
+  .wg-anim .wf { animation: none !important; }
+  .wg-anim .wf1 { opacity: 1; }
+}
