@@ -2467,6 +2467,33 @@ body.session-active .sidebar { display: none !important; }
 .bm-tray { margin-top: 16px; border-left: 3px solid var(--green); }
 .bm-tray-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
 
+/* Per-set weight prescription + muscle recovery (Fitbod-style read-out) */
+.bm-ex { flex-direction: column; align-items: stretch; gap: 8px; }
+.bm-ex-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.bm-ex-target { display: flex; align-items: center; gap: 6px; }
+.bm-start {
+  font-style: normal; font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--text-3); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 1px 4px;
+}
+.bm-sets { display: flex; flex-wrap: wrap; gap: 6px; }
+.bm-set {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--ff-mono, monospace); font-size: 0.75rem; color: var(--text);
+  background: var(--bg-3); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 3px 7px;
+}
+.bm-set i {
+  font-style: normal; font-size: 0.6rem; color: var(--text-3);
+  letter-spacing: 0.08em;
+}
+.bm-set b { font-weight: 400; color: var(--text-3); margin: 0 1px; }
+.bm-recov {
+  font-size: 0.65rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; margin-top: 4px;
+}
+.bm-fresh      { color: var(--green); }
+.bm-recovering { color: var(--ember); }
+.bm-worked     { color: var(--text-3); }
+.bm-more { width: 100%; margin-bottom: 12px; }
+
 /* ── Animated GIF demos (v3.5, © Gym visual, runtime-hotlinked) ── */
 .ex-gif-wrap.ex-anim {
   display: flex; justify-content: center; align-items: center;
