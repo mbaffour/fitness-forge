@@ -55,6 +55,7 @@ const ALIAS = {
   russian:        'russian-twist',
   legraise:       'hanging-leg-raise',
   l_sit:          'l-sit-hold',
+  band_pulldown:  'banded-lat-pulldown',
 };
 
 // Build lookups from our DB: normalized name → our key.
