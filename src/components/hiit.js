@@ -8,23 +8,46 @@ import { toast } from './ui.js';
 
 // ── EXERCISE DATABASE ──────────────────────
 const _EXDB = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises';
+import { EXERCISES } from '../data/exercises.js';
+import { EXERCISE_ANIM, WG_BASE } from '../data/exercise-anim.js';
+import { EXERCISE_GIFS, GIF_BASE } from '../data/exercise-gifs.js';
+
+// Every bespoke HIIT gif URL 404'd — free-exercise-db serves .jpg not .gif, and
+// the Wikimedia files are gone — so media now comes from the mapped exercise,
+// the same verified animation / GIF / still the rest of the app uses.
+function hiitMediaSrc(ex) {
+  const id = ex.exId;
+  if (!id) return '';
+  const wg = EXERCISE_ANIM[id];
+  if (wg) return WG_BASE + wg.slug + '/frame-1.svg';
+  if (EXERCISE_GIFS[id]) return GIF_BASE + EXERCISE_GIFS[id];
+  const k = EXERCISES[id]?.imgKey;
+  return k ? _EXDB + '/' + k + '/0.jpg' : '';
+}
+// The move's own verified video, else the mapped exercise's, else none.
+function hiitVideoId(ex) {
+  return (ex.ytId || '').trim()
+      || (ex.exId ? (EXERCISES[ex.exId]?.youtubeId || '').trim() : '')
+      || '';
+}
+
 const HIIT_EX = {
-  burpees:         { name:'Burpees',           workSecs:40, restSecs:20, icon:'💥', ytId:'dZgVxmf6jkA', gif:'https://upload.wikimedia.org/wikipedia/commons/9/9a/Burpees.gif',             cues:'Squat → plank → push-up → jump. Keep core tight throughout.' },
-  mountainClimbers:{ name:'Mountain Climbers', workSecs:40, restSecs:20, icon:'🧗', ytId:'nmwgirgXLYM', gif:`${_EXDB}/Mountain%20Climber/0.gif`,                                           cues:'Plank. Drive knees to chest alternately. Hips stay low and level.' },
-  jumpingJacks:    { name:'Jumping Jacks',     workSecs:45, restSecs:15, icon:'⭐', ytId:'c4DAnQ6DtF8', gif:'https://upload.wikimedia.org/wikipedia/commons/5/52/Jumpingjacks_wbs.gif',    cues:'Full arm range. Arms over head each rep. Land softly on balls of feet.' },
-  highKnees:       { name:'High Knees',        workSecs:40, restSecs:20, icon:'🏃', ytId:'oDdkytliOqE', gif:`${_EXDB}/High%20Knees/0.gif`,                                                 cues:'Drive knees above hip height. Pump arms. Stay light and quick.' },
-  squat:           { name:'Squat Jumps',       workSecs:35, restSecs:25, icon:'🦵', ytId:'Azl5tkCzDcc', gif:`${_EXDB}/Jump%20Squat/0.gif`,                                                 cues:'Squat deep, explode up. Land soft with knees tracking toes.' },
-  pushUps:         { name:'Push-Ups',          workSecs:40, restSecs:20, icon:'💪', ytId:'IODxDxX7oi4', gif:`${_EXDB}/Push-up/0.gif`,                                                      cues:'Elbows 45°. Full range. Core braced. Control the descent.' },
-  plank:           { name:'Plank Hold',        workSecs:45, restSecs:15, icon:'🏋️', ytId:'pSHjTRCQxIw', gif:`${_EXDB}/Plank/0.gif`,                                                       cues:"Neutral spine. Squeeze glutes. Breathe steadily. Don't let hips sag." },
-  jumpingLunges:   { name:'Jump Lunges',       workSecs:35, restSecs:25, icon:'⚡', ytId:'G86Rp4nEpEQ', gif:`${_EXDB}/Jump%20Lunge/0.gif`,                                                 cues:'Switch legs mid-air. Land with 90° knee angles. Use arms for balance.' },
-  bicycleCrunches: { name:'Bicycle Crunches',  workSecs:40, restSecs:20, icon:'🔄', ytId:'9FGilxCbdz8', gif:`${_EXDB}/Bicycle%20Crunch/0.gif`,                                             cues:"Slow and controlled. Elbow to opposite knee. Don't pull your neck." },
-  legRaises:       { name:'Leg Raises',        workSecs:40, restSecs:20, icon:'🦵', ytId:'l4kQd9eWclE', gif:`${_EXDB}/Leg%20Raise/0.gif`,                                                  cues:'Lower back pressed flat. Control the descent. Legs stay straight.' },
-  supermanHold:    { name:'Superman Hold',     workSecs:30, restSecs:10, icon:'🦸', ytId:'z6PJMT2y8GQ', gif:`${_EXDB}/Superman/0.gif`,                                                     cues:'Lift arms and legs simultaneously. Squeeze glutes and back. Breathe.' },
-  inchWorms:       { name:'Inchworms',         workSecs:40, restSecs:20, icon:'🐛', ytId:'X0kCQdVr7rE', gif:`${_EXDB}/Inchworm/0.gif`,                                                     cues:'Walk hands out to plank. Walk feet to hands. Repeat. Keep legs straight.' },
-  sprintInPlace:   { name:'Sprint in Place',   workSecs:30, restSecs:30, icon:'🚀', ytId:'r8UBvJgQKCQ', gif:'https://upload.wikimedia.org/wikipedia/commons/b/b4/High_knees.gif',          cues:'Max effort. Pump arms hard. Stay on balls of feet. Full speed.' },
-  lateralJumps:    { name:'Lateral Jumps',     workSecs:40, restSecs:20, icon:'↔️', ytId:'2yFBUg0OaLQ', gif:`${_EXDB}/Lateral%20Bound/0.gif`,                                              cues:'Jump side to side over imaginary line. Stay light and quick. Land soft.' },
-  deadBugs:        { name:'Dead Bugs',         workSecs:40, restSecs:20, icon:'🐞', ytId:'4XLEnwUr1d8', gif:`${_EXDB}/Dead%20Bug/0.gif`,                                                   cues:'Opposite arm and leg extend slowly. Keep lower back flush to floor.' },
-  starJumps:       { name:'Star Jumps',        workSecs:40, restSecs:20, icon:'✨', ytId:'f7j7bGQPy9Y', gif:'https://upload.wikimedia.org/wikipedia/commons/5/52/Jumpingjacks_wbs.gif',    cues:'Explode from squat. Arms and legs out in star shape. Land softly and repeat.' },
+  burpees:         { name:'Burpees', exId:'burpee',           workSecs:40, restSecs:20, icon:'💥', ytId:'dZgVxmf6jkA', cues:'Squat → plank → push-up → jump. Keep core tight throughout.' },
+  mountainClimbers:{ name:'Mountain Climbers', exId:'mtn_climber', workSecs:40, restSecs:20, icon:'🧗', ytId:'nmwgirgXLYM', cues:'Plank. Drive knees to chest alternately. Hips stay low and level.' },
+  jumpingJacks:    { name:'Jumping Jacks', exId:'wg_jumping_jack',     workSecs:45, restSecs:15, icon:'⭐', ytId:'c4DAnQ6DtF8', cues:'Full arm range. Arms over head each rep. Land softly on balls of feet.' },
+  highKnees:       { name:'High Knees', exId:'wg_high_knees',        workSecs:40, restSecs:20, icon:'🏃', ytId:'oDdkytliOqE', cues:'Drive knees above hip height. Pump arms. Stay light and quick.' },
+  squat:           { name:'Squat Jumps', exId:'jump_sq',       workSecs:35, restSecs:25, icon:'🦵', ytId:'Azl5tkCzDcc', cues:'Squat deep, explode up. Land soft with knees tracking toes.' },
+  pushUps:         { name:'Push-Ups', exId:'pushup',          workSecs:40, restSecs:20, icon:'💪', ytId:'IODxDxX7oi4', cues:'Elbows 45°. Full range. Core braced. Control the descent.' },
+  plank:           { name:'Plank Hold', exId:'plank',        workSecs:45, restSecs:15, icon:'🏋️', ytId:'pSHjTRCQxIw', cues:"Neutral spine. Squeeze glutes. Breathe steadily. Don't let hips sag." },
+  jumpingLunges:   { name:'Jump Lunges',       workSecs:35, restSecs:25, icon:'⚡', ytId:'', cues:'Switch legs mid-air. Land with 90° knee angles. Use arms for balance.' },
+  bicycleCrunches: { name:'Bicycle Crunches', exId:'wg_bicycle_crunch',  workSecs:40, restSecs:20, icon:'🔄', ytId:'9FGilxCbdz8', cues:"Slow and controlled. Elbow to opposite knee. Don't pull your neck." },
+  legRaises:       { name:'Leg Raises', exId:'fx_Flat_Bench_Lying_Leg_Raise',        workSecs:40, restSecs:20, icon:'🦵', ytId:'l4kQd9eWclE', cues:'Lower back pressed flat. Control the descent. Legs stay straight.' },
+  supermanHold:    { name:'Superman Hold', exId:'wg_superman_hold',     workSecs:30, restSecs:10, icon:'🦸', ytId:'z6PJMT2y8GQ', cues:'Lift arms and legs simultaneously. Squeeze glutes and back. Breathe.' },
+  inchWorms:       { name:'Inchworms', exId:'fx_Inchworm',         workSecs:40, restSecs:20, icon:'🐛', ytId:'', cues:'Walk hands out to plank. Walk feet to hands. Repeat. Keep legs straight.' },
+  sprintInPlace:   { name:'Sprint in Place', exId:'wg_high_knees',   workSecs:30, restSecs:30, icon:'🚀', ytId:'', cues:'Max effort. Pump arms hard. Stay on balls of feet. Full speed.' },
+  lateralJumps:    { name:'Lateral Jumps', exId:'wg_skater_hop',     workSecs:40, restSecs:20, icon:'↔️', ytId:'', cues:'Jump side to side over imaginary line. Stay light and quick. Land soft.' },
+  deadBugs:        { name:'Dead Bugs', exId:'deadbug',         workSecs:40, restSecs:20, icon:'🐞', ytId:'4XLEnwUr1d8', cues:'Opposite arm and leg extend slowly. Keep lower back flush to floor.' },
+  starJumps:       { name:'Star Jumps',        workSecs:40, restSecs:20, icon:'✨', ytId:'', cues:'Explode from squat. Arms and legs out in star shape. Land softly and repeat.' },
 };
 
 // ── 4-WEEK PROGRAM ─────────────────────────
@@ -345,7 +368,7 @@ ${_tabs('library')}
         <div style="background:var(--bg);border-top:1px solid var(--border)">
           <div id="hiit-vid-${id}" style="width:100%;background:#000;min-height:200px;display:flex;align-items:center;justify-content:center">
             <iframe
-              src="https://www.youtube-nocookie.com/embed/${ex.ytId}?rel=0&autoplay=1&playsinline=1&modestbranding=1"
+              src="https://www.youtube-nocookie.com/embed/${hiitVideoId(ex)}?rel=0&autoplay=1&playsinline=1&modestbranding=1"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowfullscreen title="${ex.name} tutorial"
               style="width:100%;height:220px;border:none;display:block"
@@ -358,6 +381,7 @@ ${_tabs('library')}
           ${isOpen ? '⏹ Hide Video' : '▶ Play Video'}
         </button>
         <button class="btn" style="font-size:11px;padding:6px 10px" onclick="hiitOpenDemo('${id}')">Demo</button>
+        ${ex.exId ? `<button class="btn" style="font-size:11px;padding:6px 10px" title="Full guide — step-by-step walkthrough, muscles and video" onclick="openExDetail('${ex.exId}')">Guide</button>` : ''}
         <button class="btn" style="font-size:11px;padding:6px 10px;${_customSel[id]?'color:var(--fire);border-color:var(--fire)':''}" onclick="hiitLibAdd('${id}')">
           ${_customSel[id]?'✓ Added':'+ Add'}
         </button>
@@ -682,7 +706,9 @@ function _loadExInModal(exId, withTimer) {
   document.getElementById('hiit-modal-name').textContent = ex.name.toUpperCase();
   document.getElementById('hiit-modal-cue').textContent  = ex.cues;
   const ytLink = document.getElementById('hiit-yt-link');
-  if (ytLink) ytLink.href = `https://www.youtube.com/watch?v=${ex.ytId}`;
+  if (ytLink) ytLink.href = hiitVideoId(ex)
+      ? `https://www.youtube.com/watch?v=${hiitVideoId(ex)}`
+      : `https://www.youtube.com/results?search_query=${encodeURIComponent(ex.name + ' proper form')}`;
   _setVTab('video');
   if (withTimer) {
     _timerLeft = workSecs; _timerTotal = workSecs;
@@ -707,7 +733,7 @@ function _buildExCard(ex) {
       </div>
     </div>
     <p style="font-size:12px;color:var(--text-2);line-height:1.6;max-width:310px;margin:0 auto 14px">${ex.cues}</p>
-    <a href="https://www.youtube.com/watch?v=${ex.ytId}" target="_blank" rel="noopener"
+    <a href="${hiitVideoId(ex) ? `https://www.youtube.com/watch?v=${hiitVideoId(ex)}` : `https://www.youtube.com/results?search_query=${encodeURIComponent(ex.name + ' proper form')}`}" target="_blank" rel="noopener"
       class="btn btn-fire" style="text-decoration:none;display:inline-block">▶ Watch on YouTube</a>
   </div>`;
 }
@@ -723,17 +749,20 @@ function _setVTab(tab) {
   const box = document.getElementById('hiit-media-box');
   if (!box) return;
 
-  if (tab === 'video') {
+  // Without a real video id an iframe renders as an empty broken player, so
+  // fall through to the still/animation instead.
+  if (tab === 'video' && hiitVideoId(ex)) {
     box.innerHTML = `<iframe
-      src="https://www.youtube-nocookie.com/embed/${ex.ytId}?rel=0&playsinline=1&modestbranding=1"
+      src="https://www.youtube-nocookie.com/embed/${hiitVideoId(ex)}?rel=0&playsinline=1&modestbranding=1"
       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
       allowfullscreen title="${ex.name} tutorial"
       style="width:100%;height:260px;border:none;display:block"
     ></iframe>`;
   } else {
-    if (ex.gif) {
+    const mediaSrc = hiitMediaSrc(ex);
+    if (mediaSrc) {
       const img = document.createElement('img');
-      img.src   = ex.gif;
+      img.src   = mediaSrc;
       img.alt   = ex.name + ' demo';
       img.style.cssText = 'width:100%;max-height:260px;object-fit:contain;display:block;background:var(--bg-2)';
       img.onerror = () => { box.innerHTML = _buildExCard(ex); };
