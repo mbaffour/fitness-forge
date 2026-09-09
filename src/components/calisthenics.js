@@ -6,7 +6,7 @@
 
 import { EXERCISES, getCalisthenicsExercises } from '../data/exercises.js';
 import { state, save, logWorkout, updateStreak } from '../store.js';
-import { showExerciseModal } from './modal.js';
+import { showExerciseModal, exThumbHTML } from './modal.js';
 
 // ── Movement categories (covers both bodyweight + caliOnly pools) ──────────
 const CALI_CATEGORIES = [
@@ -184,6 +184,7 @@ ${CALI_CATEGORIES.map(cat => {
   <div style="display:flex;flex-direction:column;gap:6px">
     ${available.map(ex => `
       <div class="cali-ex-card" onclick="openCaliExDetail('${ex.id}')">
+        ${exThumbHTML(ex)}
         <div style="flex:1;min-width:0">
           <div style="font-family:var(--ff-mono);font-size:0.85rem;font-weight:600;color:var(--text);margin-bottom:4px">${ex.name}</div>
           <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">

@@ -5,6 +5,7 @@
 import { state, formatWeight, weightUnitLabel } from '../store.js';
 import { estimateOneRepMax } from '../engine/overload.js';
 import { EXERCISES } from '../data/exercises.js';
+import { exThumbHTML } from './modal.js';
 
 // All possible achievements (unlocked ones show as lit, locked as dim)
 const ALL_ACHIEVEMENTS = [
@@ -82,8 +83,11 @@ ${Object.keys(prs).length > 0 ? `
   ${Object.entries(prs).map(([exId, pr]) => {
     const exName = EXERCISES[exId]?.name || exId.replace(/_/g,' ');
     return `
-    <div class="pr-card">
-      <div class="label" style="margin-bottom:4px">${exName}</div>
+    <div class="pr-card is-tappable" role="button" tabindex="0"
+         onclick="openExDetail('${exId}')"
+         onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openExDetail('${exId}')}"
+         title="View ${exName} — demo, walkthrough and video">
+      <div class="pr-card-head">${exThumbHTML({ id: exId, ...(EXERCISES[exId] || {}) })}<span class="label">${exName}</span></div>
       <div class="display" style="font-size:24px;color:var(--fire)">${formatWeight(pr.weight, false)} <span style="font-size:14px">${weightUnitLabel()}</span></div>
       <div class="mono muted fs11">${pr.reps} reps · est. 1RM ${formatWeight(pr.e1rm)}</div>
       <div class="muted fs10 mt8" style="margin-top:6px">${new Date(pr.date).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})}</div>

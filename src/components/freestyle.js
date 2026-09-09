@@ -6,7 +6,7 @@
 
 import { MUSCLE_GROUPS, getExercisesForGroup, EXERCISES } from '../data/exercises.js';
 import { state, formatWeight, weightUnitLabel } from '../store.js';
-import { showExerciseModal } from './modal.js';
+import { showExerciseModal, exThumbHTML } from './modal.js';
 
 // Rep schemes by intensity
 const SCHEMES = {
@@ -189,6 +189,7 @@ function renderResult(exercises, intensity) {
   ${exercises.map((ex, i) => `
     <div class="freestyle-ex-card" onclick="openExDetail('${ex.id}')">
       <div class="ex-card-num">${String(i+1).padStart(2,'0')}</div>
+      ${exThumbHTML(ex)}
       <div style="flex:1">
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <div style="font-weight:500;font-size:14px">${ex.name}</div>
@@ -280,10 +281,8 @@ window.logFreestyleSession = () => {
   }
 };
 
-window.openExDetail = (exId) => {
-  const ex = EXERCISES[exId];
-  if (ex) showExerciseModal({ id: exId, ...ex });
-};
+// window.openExDetail is defined once in main.js — this file used to redefine
+// it identically, which meant whichever module loaded last silently won.
 
 function refreshFreestylePage() {
   const el = document.getElementById('page-freestyle');

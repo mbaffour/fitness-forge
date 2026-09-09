@@ -2731,3 +2731,13 @@ body.session-active .sidebar { display: none !important; }
 .pg-sess-name .ex-thumb { width: 30px; height: 30px; }
 .session-ex-name { display: flex; align-items: center; gap: 10px; }
 .session-ex-name .ex-thumb { width: 36px; height: 36px; }
+
+/* Anything that opens the exercise detail reads as tappable */
+.is-tappable { cursor: pointer; }
+.is-tappable:hover, .is-tappable:focus-visible { color: var(--fire); outline: none; }
+.pr-card.is-tappable:hover { border-color: var(--fire); }
+.pr-card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.pr-card-head .ex-thumb { width: 28px; height: 28px; }
+.pr-tl-name.is-tappable { display: flex; align-items: center; gap: 8px; }
+.pr-tl-name .ex-thumb { width: 26px; height: 26px; }
+.freestyle-ex-card .ex-thumb, .cali-ex-card .ex-thumb { width: 34px; height: 34px; }
