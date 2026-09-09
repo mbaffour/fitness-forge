@@ -39,7 +39,7 @@ const HIIT_EX = {
   squat:           { name:'Squat Jumps', exId:'jump_sq',       workSecs:35, restSecs:25, icon:'🦵', ytId:'Azl5tkCzDcc', cues:'Squat deep, explode up. Land soft with knees tracking toes.' },
   pushUps:         { name:'Push-Ups', exId:'pushup',          workSecs:40, restSecs:20, icon:'💪', ytId:'IODxDxX7oi4', cues:'Elbows 45°. Full range. Core braced. Control the descent.' },
   plank:           { name:'Plank Hold', exId:'plank',        workSecs:45, restSecs:15, icon:'🏋️', ytId:'pSHjTRCQxIw', cues:"Neutral spine. Squeeze glutes. Breathe steadily. Don't let hips sag." },
-  jumpingLunges:   { name:'Jump Lunges',       workSecs:35, restSecs:25, icon:'⚡', ytId:'', cues:'Switch legs mid-air. Land with 90° knee angles. Use arms for balance.' },
+  jumpingLunges:   { name:'Jump Lunges', exId:'fx_Scissors_Jump',       workSecs:35, restSecs:25, icon:'⚡', ytId:'', cues:'Switch legs mid-air. Land with 90° knee angles. Use arms for balance.' },
   bicycleCrunches: { name:'Bicycle Crunches', exId:'wg_bicycle_crunch',  workSecs:40, restSecs:20, icon:'🔄', ytId:'9FGilxCbdz8', cues:"Slow and controlled. Elbow to opposite knee. Don't pull your neck." },
   legRaises:       { name:'Leg Raises', exId:'fx_Flat_Bench_Lying_Leg_Raise',        workSecs:40, restSecs:20, icon:'🦵', ytId:'l4kQd9eWclE', cues:'Lower back pressed flat. Control the descent. Legs stay straight.' },
   supermanHold:    { name:'Superman Hold', exId:'wg_superman_hold',     workSecs:30, restSecs:10, icon:'🦸', ytId:'z6PJMT2y8GQ', cues:'Lift arms and legs simultaneously. Squeeze glutes and back. Breathe.' },
@@ -47,7 +47,7 @@ const HIIT_EX = {
   sprintInPlace:   { name:'Sprint in Place', exId:'wg_high_knees',   workSecs:30, restSecs:30, icon:'🚀', ytId:'', cues:'Max effort. Pump arms hard. Stay on balls of feet. Full speed.' },
   lateralJumps:    { name:'Lateral Jumps', exId:'wg_skater_hop',     workSecs:40, restSecs:20, icon:'↔️', ytId:'', cues:'Jump side to side over imaginary line. Stay light and quick. Land soft.' },
   deadBugs:        { name:'Dead Bugs', exId:'deadbug',         workSecs:40, restSecs:20, icon:'🐞', ytId:'4XLEnwUr1d8', cues:'Opposite arm and leg extend slowly. Keep lower back flush to floor.' },
-  starJumps:       { name:'Star Jumps',        workSecs:40, restSecs:20, icon:'✨', ytId:'', cues:'Explode from squat. Arms and legs out in star shape. Land softly and repeat.' },
+  starJumps:       { name:'Star Jumps', exId:'fx_Star_Jump',        workSecs:40, restSecs:20, icon:'✨', ytId:'', cues:'Explode from squat. Arms and legs out in star shape. Land softly and repeat.' },
 };
 
 // ── 4-WEEK PROGRAM ─────────────────────────
