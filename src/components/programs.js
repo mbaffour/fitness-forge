@@ -6,9 +6,10 @@
 
 import { state, save, getOwnedItems } from '../store.js';
 import { EXERCISES } from '../data/exercises.js';
-import { PROGRAMS, PROGRAM_CATEGORIES, getProgram } from '../data/programs.js';
+import { PROGRAMS, PROGRAM_CATEGORIES, getProgram, CHALLENGES, getChallenge } from '../data/programs.js';
 import { toast } from './ui.js';
 
+let _tab = 'programs';   // programs | challenges
 let _cat = 'all';        // catalog filter
 let _peek = null;        // program id expanded in the catalog
 
@@ -109,12 +110,14 @@ function cardHTML(prog) {
         <div class="pg-sess">
           <div class="pg-sess-name">${s.label}</div>
           ${s.exercises.map(e => `
-            <div class="pg-sess-ex" role="button" tabindex="0"
-                 onclick="openExDetail('${e.id}')"
-                 onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openExDetail('${e.id}')}"
-                 title="How to do it — demo, form cues and video">
-              <span>${EXERCISES[e.id]?.name || e.id} ›</span>
-              <span class="pg-sess-rx">${e.sets} × ${e.reps}</span>
+            <div class="pg-sess-ex">
+              <span>${EXERCISES[e.id]?.name || e.id}</span>
+              <span class="pg-sess-right">
+                <span class="pg-sess-rx">${e.sets} × ${e.reps}</span>
+                <button class="bm-demo" onclick="event.stopPropagation();openExDetail('${e.id}')"
+                        title="How to do it — demo, form cues and video tutorial"
+                        aria-label="How to do this exercise">▶</button>
+              </span>
             </div>`).join('')}
         </div>`).join('')}
       <div class="pg-note">${prog.progression}</div>
@@ -142,6 +145,100 @@ function cardHTML(prog) {
   </div>`;
 }
 
+// ── CHALLENGES ───────────────────────────────────────────────────────────────
+// state.challenge = { id, startedAt, done: [dayIndex, …] }
+function activeChallenge() { return state.challenge || null; }
+
+function challengeHTML() {
+  const ac = activeChallenge();
+  if (ac) {
+    const c = getChallenge(ac.id);
+    if (c) {
+      const done = ac.done || [];
+      const day = Math.min(c.days, done.length + 1);
+      const pct = Math.round((done.length / c.days) * 100);
+      const complete = done.length >= c.days;
+      const todayDone = done.includes(day - 1);
+      const dots = Array.from({ length: c.days }, (_, i) =>
+        `<span class="ch-dot ${done.includes(i) ? 'is-done' : i === day - 1 && !complete ? 'is-now' : ''}" title="Day ${i + 1}: ${c.target(i)} ${c.unit}"></span>`).join('');
+      return `
+      <div class="card ch-active">
+        <div class="pg-active-head">
+          <div>
+            <div class="label" style="margin-bottom:4px">Active challenge</div>
+            <div class="pg-active-name">${c.icon} ${c.name.toUpperCase()}</div>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="challengeQuit()">Quit</button>
+        </div>
+        <div class="pg-bar"><i style="width:${pct}%"></i></div>
+        <div class="pg-stats">
+          <span>Day <b>${Math.min(day, c.days)}</b> / ${c.days}</span>
+          <span><b>${done.length}</b> done</span>
+          <span><b>${pct}%</b></span>
+        </div>
+        <div class="ch-dots">${dots}</div>
+        ${complete ? `
+          <div class="pg-done-banner">🏆 Challenge complete — <b>${c.reward}</b> earned.</div>`
+        : `
+          <div class="ch-today">
+            <div>
+              <div class="label" style="margin-bottom:4px">Today · day ${day}</div>
+              <div class="ch-target">${c.target(day - 1)} <span>${c.unit}</span></div>
+            </div>
+            <div class="ch-today-actions">
+              ${c.exId ? `<button class="bm-demo" onclick="openExDetail('${c.exId}')" title="How to do it">▶</button>` : ''}
+              <button class="btn ${todayDone ? 'btn-secondary' : 'btn-fire'} btn-sm" onclick="challengeTick()">
+                ${todayDone ? '✓ Done today' : 'Mark done'}
+              </button>
+            </div>
+          </div>`}
+      </div>`;
+    }
+  }
+  return `
+  <div class="pg-grid">
+    ${CHALLENGES.map(c => `
+      <div class="card pg-card">
+        <div class="pg-card-head" style="cursor:default">
+          <div class="pg-icon">${c.icon}</div>
+          <div class="pg-card-main">
+            <div class="pg-card-name">${c.name}</div>
+            <div class="pg-card-meta">${c.days} days · ends at ${c.target(c.days - 1)} ${c.unit}</div>
+            <div class="pg-card-blurb">${c.blurb}</div>
+            <div class="ch-reward">🏅 ${c.reward}</div>
+          </div>
+        </div>
+        <div class="pg-card-actions">
+          <button class="btn btn-fire btn-sm" onclick="challengeStart('${c.id}')">Start ${c.days}-day challenge</button>
+        </div>
+      </div>`).join('')}
+  </div>`;
+}
+
+window.challengeStart = (id) => {
+  const c = getChallenge(id);
+  if (!c) return;
+  state.challenge = { id, startedAt: Date.now(), done: [] };
+  save(); rerender();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  toast(`${c.name} started — ${c.days} days`);
+};
+window.challengeQuit = () => { state.challenge = null; save(); rerender(); };
+window.challengeTick = () => {
+  const ac = activeChallenge(); const c = ac && getChallenge(ac.id);
+  if (!c) return;
+  ac.done = ac.done || [];
+  const day = Math.min(c.days, ac.done.length + 1);
+  const i = day - 1;
+  if (ac.done.includes(i)) ac.done = ac.done.filter(x => x !== i);
+  else {
+    ac.done.push(i);
+    if (ac.done.length >= c.days) toast(`🏆 ${c.name} complete — ${c.reward}!`);
+  }
+  save(); rerender();
+};
+window.programsTab = (t) => { _tab = t; rerender(); };
+
 export function renderPrograms() {
   const list = _cat === 'all' ? PROGRAMS : PROGRAMS.filter(p => p.cat === _cat);
   const chips = [{ id: 'all', label: 'All', icon: '◆' }, ...PROGRAM_CATEGORIES].map(c => `
@@ -151,14 +248,20 @@ export function renderPrograms() {
   <div class="page-header">
     <div class="label" style="margin-bottom:6px">Train with a target</div>
     <h1 class="display page-title">PROGRAMS</h1>
-    <div class="page-sub">Finite plans for a specific goal — a skill, a lift, a look, or a date on the calendar.</div>
+    <div class="page-sub">Finite plans for a specific goal — plus short daily challenges when you want a streak to chase.</div>
   </div>
 
+  <div class="seg" style="margin-bottom:16px">
+    <button class="seg-btn ${_tab === 'programs' ? 'active' : ''}" onclick="programsTab('programs')">🗺 Programs</button>
+    <button class="seg-btn ${_tab === 'challenges' ? 'active' : ''}" onclick="programsTab('challenges')">🏅 Challenges</button>
+  </div>
+
+  ${_tab === 'challenges' ? challengeHTML() : `
   ${activeHTML()}
 
   <div class="sec-head" style="margin:20px 0 12px">${active() ? 'Switch program' : 'Choose your goal'}</div>
   <div class="seg pg-seg" style="margin-bottom:14px">${chips}</div>
-  <div class="pg-grid">${list.map(cardHTML).join('')}</div>`;
+  <div class="pg-grid">${list.map(cardHTML).join('')}</div>`}`;
 }
 
 // ── HANDLERS ─────────────────────────────────────────────────────────────────

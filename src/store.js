@@ -49,6 +49,8 @@ const defaultState = {
   // ── v3.8 additions ──
   bodyMapTray: [],      // exercises stacked from the Body Map trainer, pending "Start session"
   goalProgram: null,    // { id, startedAt, done:[] } — active curated goal program
+  bodyMapSel:  [],      // muscle-group ids currently targeted on the Body Map
+  challenge:   null,    // { id, startedAt, done:[dayIndex] } — active daily challenge
 };
 
 export const state = (() => {
@@ -70,6 +72,8 @@ export const state = (() => {
         customExercises: parsed.customExercises || {},
         bodyMapTray: parsed.bodyMapTray || [],
         goalProgram: parsed.goalProgram ?? null,
+        bodyMapSel: parsed.bodyMapSel || [],
+        challenge: parsed.challenge ?? null,
       };
     }
     return { ...defaultState };

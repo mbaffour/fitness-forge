@@ -17,7 +17,14 @@ import { toast } from './ui.js';
 function tray() { return state.bodyMapTray || (state.bodyMapTray = []); }
 
 const GROUP = (id) => MUSCLE_GROUPS.find(g => g.id === id);
-const _open = { group: null, showAll: false };   // currently expanded muscle panel
+// Multi-muscle selection: tap muscles to add them to the target, then build one
+// workout across all of them. Persisted so a reload mid-pick doesn't lose it.
+function sel() {
+  if (!Array.isArray(state.bodyMapSel)) state.bodyMapSel = [];
+  return state.bodyMapSel;
+}
+const selSet = () => new Set(sel());
+let _showAll = false;
 
 // Default set/rep prescription for an exercise picked off the map.
 function prescribe(ex) {
@@ -111,62 +118,83 @@ function toSessionExercise(ex) {
   return { id: ex.id, name: ex.name, sets, reps, muscle: ex.muscle || GROUP(ex.groups?.[0])?.label || '' };
 }
 
-// ── PANEL (opened on tap) ────────────────────────────────────────────────────
-function panelHTML(groupId) {
-  const g = GROUP(groupId);
-  if (!g) return '';
-  const all = pickForGroup(groupId, Infinity);
-  const EXPANDED_MAX = 30;
-  const picks = _open.showAll ? all.slice(0, EXPANDED_MAX) : all.slice(0, 8);
-  const rec = recoveryText(groupId);
-  const head = `
-    <div class="bm-panel-head">
-      <div>
-        <div class="bm-panel-title">${g.icon} ${g.label}</div>
-        <div class="bm-recov bm-${rec.tone}">${rec.label}</div>
+// ── TARGET PANEL (one section per selected muscle) ───────────────────────────
+function exRowHTML(ex) {
+  const plan = setPlan(ex);
+  const chips = plan.perSet.map((st, i) => `
+    <span class="bm-set"><i>${i + 1}</i><b>·</b>${st.w == null ? 'BW' : formatWeight(st.w)} × ${st.r}</span>`).join('');
+  return `
+  <div class="bm-ex">
+    <div class="bm-ex-top">
+      <div class="bm-ex-main">
+        <div class="bm-ex-name">${ex.name}</div>
+        <div class="bm-ex-meta">${ex.type === 'compound' ? 'Compound' : 'Isolation'} · ${plan.sets} sets</div>
       </div>
-      <button class="modal-close" onclick="bodyMapClosePanel()" aria-label="Close">✕</button>
-    </div>`;
+      <div class="bm-ex-target">${loadText(plan)}${plan.isColdStart && !plan.isBodyweight ? '<i class="bm-start">start</i>' : ''}</div>
+      <button class="bm-demo" onclick="event.stopPropagation();openExDetail('${ex.id}')"
+              title="How to do it — demo, form cues and video tutorial"
+              aria-label="How to do ${ex.name}">▶</button>
+    </div>
+    <div class="bm-sets">${chips}</div>
+  </div>`;
+}
+
+function groupSectionHTML(groupId) {
+  const g = GROUP(groupId);
+  const all = pickForGroup(groupId, Infinity);
+  const picks = _showAll ? all.slice(0, 30) : all.slice(0, 5);
+  const rec = recoveryText(groupId);
   if (!all.length) {
     return `
-    <div class="bm-panel card">${head}
-      <div class="dim fs13 p-4 tc">No exercises for ${g.label} with your current equipment.
+    <div class="bm-sec">
+      <div class="bm-sec-head"><span class="bm-panel-title">${g.icon} ${g.label}</span></div>
+      <div class="dim fs13 tc p-4">No exercises with your current equipment.
         <div class="mt-3"><button class="btn btn-secondary btn-sm" onclick="navigate('equipment')">Edit equipment →</button></div>
       </div>
     </div>`;
   }
-  const rows = picks.map(ex => {
-    const plan = setPlan(ex);
-    const chips = plan.perSet.map((st, i) => `
-      <span class="bm-set"><i>${i + 1}</i><b>·</b>${st.w == null ? 'BW' : formatWeight(st.w)} × ${st.r}</span>`).join('');
-    return `
-    <div class="bm-ex">
-      <div class="bm-ex-top" role="button" tabindex="0"
-           onclick="openExDetail('${ex.id}')"
-           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openExDetail('${ex.id}')}"
-           title="How to do it — demo, form cues and video">
-        <div class="bm-ex-main">
-          <div class="bm-ex-name">${ex.name}</div>
-          <div class="bm-ex-meta">${ex.type === 'compound' ? 'Compound' : 'Isolation'} · ${plan.sets} sets</div>
-        </div>
-        <div class="bm-ex-target">${loadText(plan)}${plan.isColdStart && !plan.isBodyweight ? '<i class="bm-start">start</i>' : ''}</div>
-      </div>
-      <div class="bm-sets">${chips}</div>
-    </div>`;
-  }).join('');
-  const more = all.length > 8 ? `
-    <button class="btn btn-ghost btn-sm bm-more" onclick="bodyMapToggleAll()">
-      ${_open.showAll ? 'Show top 8 ▲' : `Show more ${g.label} exercises (${Math.min(all.length, EXPANDED_MAX)} of ${all.length}) ▼`}
-    </button>
-    ${_open.showAll && all.length > EXPANDED_MAX ? `<div class="dim fs11 tc" style="margin-bottom:12px">All ${all.length} in <a href="#" onclick="event.preventDefault();navigate('library')" style="color:var(--fire)">Exercise Library →</a></div>` : ''}` : '';
   return `
-  <div class="bm-panel card">${head}
-    <div class="bm-ex-list">${rows}</div>
-    ${more}
-    <div class="bm-panel-actions">
-      <button class="btn btn-fire" style="flex:1" onclick="bodyMapStartGroup('${groupId}')">⚡ Start ${g.label}</button>
-      <button class="btn btn-secondary" style="flex:1" onclick="bodyMapAddGroup('${groupId}')">＋ Add to session</button>
+  <div class="bm-sec">
+    <div class="bm-sec-head">
+      <div>
+        <div class="bm-panel-title">${g.icon} ${g.label}</div>
+        <div class="bm-recov bm-${rec.tone}">${rec.label}</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="bodyMapTap('${groupId}')">Remove</button>
     </div>
+    <div class="bm-ex-list">${picks.map(exRowHTML).join('')}</div>
+  </div>`;
+}
+
+function panelHTML() {
+  const chosen = sel();
+  if (!chosen.length) {
+    return `
+    <div class="card tc p-6 bm-empty">
+      <div style="font-size:34px;margin-bottom:10px">🎯</div>
+      <div class="fs13" style="margin-bottom:4px">Tap any muscle to target it</div>
+      <div class="dim fs12">Pick as many as you like — chest + triceps + shoulders builds one push session.</div>
+    </div>`;
+  }
+  const total = chosen.reduce((n, id) => n + Math.min(pickForGroup(id, Infinity).length, 5), 0);
+  const anyMore = chosen.some(id => pickForGroup(id, Infinity).length > 5);
+  const labels = chosen.map(id => GROUP(id)?.label).filter(Boolean).join(' + ');
+  return `
+  <div class="bm-panel card">
+    <div class="bm-panel-head">
+      <div>
+        <div class="label" style="margin-bottom:4px">Targeting ${chosen.length} muscle${chosen.length === 1 ? '' : 's'}</div>
+        <div class="bm-panel-title">${labels}</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="bodyMapClearSel()">Clear</button>
+    </div>
+    ${chosen.map(groupSectionHTML).join('')}
+    ${anyMore ? `<button class="btn btn-ghost btn-sm bm-more" onclick="bodyMapToggleAll()">${_showAll ? 'Show top 5 each ▲' : 'Show more per muscle ▼'}</button>` : ''}
+    <div class="bm-panel-actions">
+      <button class="btn btn-fire" style="flex:1" onclick="bodyMapStartSel()">⚡ Start workout (${chosen.length} muscle${chosen.length === 1 ? '' : 's'})</button>
+      <button class="btn btn-secondary" style="flex:1" onclick="bodyMapAddSel()">＋ Add to session</button>
+    </div>
+    <div class="dim fs11 tc" style="margin-top:8px">${total} exercises shown · ▶ on any exercise for its demo, cues and video</div>
   </div>`;
 }
 
@@ -189,64 +217,90 @@ function trayHTML() {
 // ── PAGE ─────────────────────────────────────────────────────────────────────
 export function renderBodyMap() {
   const data = muscleLoadData('balance');
+  const chosen = sel();
+  const chips = chosen.length ? `
+    <div class="bm-chips">
+      ${chosen.map(id => {
+        const g = GROUP(id);
+        return `<button class="bm-chip" onclick="bodyMapTap('${id}')" title="Remove ${g?.label}">${g?.icon} ${g?.label} ✕</button>`;
+      }).join('')}
+    </div>` : '';
+
   return `
   <div class="page-header">
     <div class="label" style="margin-bottom:6px">Train by target</div>
     <h1 class="display page-title">BODY MAP</h1>
-    <div class="page-sub">Tap a muscle to train it — every set comes with a stated weight.</div>
+    <div class="page-sub">Tap muscles to target them — stack as many as you like, with a weight for every set.</div>
   </div>
   <div class="card">
-    <div class="bm-figure">${renderBodyFigures(data, { interactive: true })}</div>
-    <div class="dim fs11 tc" style="margin-top:8px">Shaded by how much you've trained each muscle lately. Tap any muscle to build a workout for it.</div>
+    <div class="bm-figure">${renderBodyFigures(data, { interactive: true, selected: selSet() })}</div>
+    ${chips}
+    <div class="dim fs11 tc" style="margin-top:8px">Shaded by recent training. Tap several muscles to build one session across all of them.</div>
   </div>
-  <div id="bm-panel-slot">${_open.group ? panelHTML(_open.group) : ''}</div>
+  <div id="bm-panel-slot">${panelHTML()}</div>
   <div id="bm-tray-slot">${trayHTML()}</div>`;
 }
 
-function rerenderSlots() {
-  const p = document.getElementById('bm-panel-slot');
-  if (p) p.innerHTML = _open.group ? panelHTML(_open.group) : '';
-  const tr = document.getElementById('bm-tray-slot');
-  if (tr) tr.innerHTML = trayHTML();
+function rerender() {
+  const el = document.getElementById('page-bodymap');
+  if (el) el.innerHTML = renderBodyMap();
 }
 
 // ── HANDLERS ─────────────────────────────────────────────────────────────────
+// Tap toggles a muscle in/out of the target set (multi-select).
 window.bodyMapTap = (groupId) => {
-  _open.group = _open.group === groupId ? null : groupId;
-  _open.showAll = false;
-  rerenderSlots();
-  const p = document.getElementById('bm-panel-slot');
-  if (_open.group && p) p.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  const list = sel();
+  const i = list.indexOf(groupId);
+  if (i >= 0) list.splice(i, 1); else list.push(groupId);
+  save();
+  rerender();
 };
 
-window.bodyMapClosePanel = () => { _open.group = null; _open.showAll = false; rerenderSlots(); };
+window.bodyMapClearSel = () => { state.bodyMapSel = []; save(); rerender(); };
+window.bodyMapToggleAll = () => { _showAll = !_showAll; rerender(); };
 
-window.bodyMapToggleAll = () => { _open.showAll = !_open.showAll; rerenderSlots(); };
+// Balanced pick across every selected muscle, capped so one session stays sane.
+function selectedExercises() {
+  const chosen = sel();
+  if (!chosen.length) return [];
+  const per = chosen.length === 1 ? 4 : chosen.length === 2 ? 3 : 2;
+  const out = [];
+  const seen = new Set();
+  for (const id of chosen) {
+    for (const ex of pickForGroup(id, per + 2)) {
+      if (seen.has(ex.id)) continue;
+      seen.add(ex.id);
+      out.push(toSessionExercise(ex));
+      if (out.filter(o => o.muscle === (EXERCISES[ex.id]?.muscle || '')).length >= per) break;
+      if (out.length >= chosen.length * per) break;
+    }
+  }
+  return out.slice(0, 10);
+}
 
-window.bodyMapStartGroup = (groupId) => {
-  const picks = pickForGroup(groupId, 4);
-  if (!picks.length) return;
-  const g = GROUP(groupId);
-  const exercises = picks.map(toSessionExercise);
-  window.startActiveWorkout(`bodymap-${groupId}`, `${(g?.label || 'Focus').toUpperCase()} FOCUS`, exercises, 'strength');
+window.bodyMapStartSel = () => {
+  const chosen = sel();
+  const exercises = selectedExercises();
+  if (!exercises.length) return;
+  const label = chosen.length === 1
+    ? `${GROUP(chosen[0])?.label.toUpperCase()} FOCUS`
+    : chosen.map(id => GROUP(id)?.label.toUpperCase()).join(' + ');
+  state.bodyMapSel = [];
+  save();
+  window.startActiveWorkout(`bodymap-${chosen.join('-')}`, label, exercises, 'strength');
 };
 
-window.bodyMapAddGroup = (groupId) => {
-  const picks = pickForGroup(groupId, 4);
-  if (!picks.length) return;
+window.bodyMapAddSel = () => {
+  const exercises = selectedExercises();
+  if (!exercises.length) return;
   const t = tray();
   const have = new Set(t.map(e => e.id));
   let added = 0;
-  for (const ex of picks) {
-    if (have.has(ex.id)) continue;
-    t.push(toSessionExercise(ex));
-    added++;
-  }
+  for (const e of exercises) if (!have.has(e.id)) { t.push(e); added++; }
+  state.bodyMapSel = [];
   save();
-  _open.group = null;
-  rerenderSlots();
-  const g = GROUP(groupId);
-  toast(added ? `Added ${added} ${g?.label || ''} exercise${added === 1 ? '' : 's'} to your session` : `${g?.label || 'Those'} exercises already in session`);
+  rerender();
+  toast(added ? `Added ${added} exercise${added === 1 ? '' : 's'} to your session` : 'Already in your session');
 };
 
 window.bodyMapStartTray = () => {
@@ -258,8 +312,4 @@ window.bodyMapStartTray = () => {
   window.startActiveWorkout('bodymap-session', 'BODY MAP SESSION', exercises, 'strength');
 };
 
-window.bodyMapClearTray = () => {
-  state.bodyMapTray = [];
-  save();
-  rerenderSlots();
-};
+window.bodyMapClearTray = () => { state.bodyMapTray = []; save(); rerender(); };

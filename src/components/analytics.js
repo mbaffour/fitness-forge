@@ -89,7 +89,7 @@ function _muscleMap(mode) {
 // Muscle Contributors), tinted by each group's normalized training value.
 // Drawn as: body outline → muscle regions on top. `interactive` makes every
 // muscle a tappable button calling window.bodyMapTap('<id>').
-export function renderBodyFigures(groups, { interactive = false } = {}) {
+export function renderBodyFigures(groups, { interactive = false, selected = null } = {}) {
   const g = {};
   groups.forEach(x => { g[x.id] = x; });
 
@@ -106,10 +106,14 @@ export function renderBodyFigures(groups, { interactive = false } = {}) {
       }
       const grp = g[r.group];
       const pct = grp?.pct || 0;
-      // 0% volume = neutral surface; only trained muscles glow.
-      const fill = `color-mix(in srgb, var(--fire) ${Math.round(pct * 88)}%, var(--bg-3))`;
+      const isSel = selected?.has?.(r.group);
+      // 0% volume = neutral surface; only trained muscles glow. Selected muscles
+      // are filled solid so a multi-muscle target reads at a glance.
+      const fill = isSel
+        ? 'var(--fire)'
+        : `color-mix(in srgb, var(--fire) ${Math.round(pct * 88)}%, var(--bg-3))`;
       const tap = interactive
-        ? ` class="mm-tap" data-group="${r.group}" role="button" tabindex="0" onclick="bodyMapTap('${r.group}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();bodyMapTap('${r.group}')}"`
+        ? ` class="mm-tap${isSel ? ' is-sel' : ''}" data-group="${r.group}" role="button" tabindex="0" aria-pressed="${!!isSel}" onclick="bodyMapTap('${r.group}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();bodyMapTap('${r.group}')}"`
         : '';
       const title = `<title>${grp?.label || r.group} — ${Math.round(pct * 100)}%</title>`;
       return r.paths.map(d =>

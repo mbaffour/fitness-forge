@@ -2469,11 +2469,7 @@ body.session-active .sidebar { display: none !important; }
 
 /* Per-set weight prescription + muscle recovery (Fitbod-style read-out) */
 .bm-ex { flex-direction: column; align-items: stretch; gap: 8px; }
-.bm-ex-top { cursor: pointer; }
-.bm-ex-top:hover .bm-ex-name { color: var(--fire); }
-.bm-ex-name::after { content: ' ›'; color: var(--text-3); }
-.pg-sess-ex { cursor: pointer; }
-.pg-sess-ex:hover span:first-child { color: var(--fire); }
+
 .bm-ex-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .bm-ex-target { display: flex; align-items: center; gap: 6px; }
 .bm-start {
@@ -2603,4 +2599,51 @@ body.session-active .sidebar { display: none !important; }
   background: var(--bg-2); border: 1px solid var(--green); color: var(--green);
   border-radius: var(--r-md); padding: 14px; text-align: center;
   font-size: 0.85rem; margin: 16px 0;
+}
+
+/* ── BODY MAP: multi-muscle selection + demo buttons ── */
+.mm-tap.is-sel { stroke: var(--fire); stroke-width: 3; }
+.bm-chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 12px; }
+.bm-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: color-mix(in srgb, var(--fire) 16%, var(--bg-2));
+  border: 1px solid var(--fire); color: var(--text);
+  border-radius: var(--r-sm); padding: 4px 9px; cursor: pointer;
+  font-family: inherit; font-size: 0.72rem; letter-spacing: 0.04em;
+}
+.bm-chip:hover { background: color-mix(in srgb, var(--fire) 28%, var(--bg-2)); }
+.bm-empty { border-style: dashed; }
+.bm-sec { border-top: 1px solid var(--border); padding-top: 14px; margin-top: 14px; }
+.bm-sec:first-of-type { border-top: 0; padding-top: 0; margin-top: 0; }
+.bm-sec-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.bm-demo {
+  flex-shrink: 0; width: 30px; height: 30px; border-radius: var(--r-md);
+  background: var(--bg-3); border: 1px solid var(--border-hi); color: var(--fire);
+  font-size: 0.7rem; cursor: pointer; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.bm-demo:hover { background: var(--fire); color: var(--bg); border-color: var(--fire); }
+.bm-ex-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: default; }
+.pg-sess-right { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+/* ── CHALLENGES ── */
+.ch-active { border-left: 3px solid var(--green); }
+.ch-dots { display: flex; flex-wrap: wrap; gap: 4px; margin: 14px 0 4px; }
+.ch-dot {
+  width: 12px; height: 12px; border-radius: var(--r-sm);
+  background: var(--bg-3); border: 1px solid var(--border);
+}
+.ch-dot.is-done { background: var(--green); border-color: var(--green); }
+.ch-dot.is-now  { border-color: var(--fire); background: color-mix(in srgb, var(--fire) 30%, var(--bg-3)); }
+.ch-today {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin-top: 14px; padding: 14px; background: var(--bg-2);
+  border: 1px solid var(--border); border-radius: var(--r-md);
+}
+.ch-today-actions { display: flex; align-items: center; gap: 8px; }
+.ch-target { font-family: var(--ff-mono, monospace); font-size: 1.5rem; color: var(--fire); line-height: 1; }
+.ch-target span { font-size: 0.7rem; color: var(--text-2); letter-spacing: 0.08em; text-transform: uppercase; }
+.ch-reward {
+  font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--green); margin-top: 6px;
 }
