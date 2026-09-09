@@ -24,17 +24,18 @@ CC BY-SA 4.0 animations above. Generated data: `src/data/exercises-wg.js`
 (`WG_EXERCISES`). This metadata is likewise **CC BY-SA 4.0** (© Bryl Lim /
 Everkinetic); stretches and cardio entries are excluded from the strength library.
 
-## Anatomical body model — react-body-highlighter (MIT)
+## Anatomical body model — react-muscle-highlighter (MIT)
 
 The front/back muscle figures on the **Body Map** and the Analytics muscle map use
-anatomical polygon data from
-[react-body-highlighter](https://github.com/GV79/react-body-highlighter)
-(**MIT**, © 2020 GV79), remapped onto our own muscle-group ids and re-rendered
-with our own tokens/colours. No code from that project is used — only the model
-geometry. Generated data: `src/data/body-model.js`.
+the anatomical muscle paths and body outline from
+[react-muscle-highlighter](https://github.com/soroojshehryar/react-muscle-highlighter)
+(**MIT**, © 2024 My Muscle Contributors), remapped onto our own muscle-group ids
+and re-rendered with our own tokens and colours. No code from that project is
+used — only the model geometry. Generator: `tools/import-body-model.mjs`;
+generated data: `src/data/body-model.js`.
 
 ```
-MIT License — Copyright (c) 2020 GV79
+MIT License — Copyright (c) 2024 My Muscle Contributors
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights

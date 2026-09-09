@@ -141,7 +141,10 @@ function panelHTML(groupId) {
       <span class="bm-set"><i>${i + 1}</i><b>·</b>${st.w == null ? 'BW' : formatWeight(st.w)} × ${st.r}</span>`).join('');
     return `
     <div class="bm-ex">
-      <div class="bm-ex-top">
+      <div class="bm-ex-top" role="button" tabindex="0"
+           onclick="openExDetail('${ex.id}')"
+           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openExDetail('${ex.id}')}"
+           title="How to do it — demo, form cues and video">
         <div class="bm-ex-main">
           <div class="bm-ex-name">${ex.name}</div>
           <div class="bm-ex-meta">${ex.type === 'compound' ? 'Compound' : 'Isolation'} · ${plan.sets} sets</div>
