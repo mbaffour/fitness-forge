@@ -6,6 +6,9 @@
 //   written into the output or committed — this runs offline, and only the
 //   resulting static id map ships to the browser.
 //
+//   After running this, ALWAYS run tools/verify-videos.mjs --fix: search's
+//   top hit is not guaranteed to be the right movement, and ids rot over time.
+//
 //   Usage:
 //     YT_API_KEY=xxx node tools/import-youtube.mjs [--limit N] [--dry]
 //
