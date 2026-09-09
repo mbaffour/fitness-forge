@@ -6,6 +6,7 @@
 
 import { GIF_BASE, EXERCISE_GIFS, GIF_ATTRIBUTION } from '../data/exercise-gifs.js';
 import { WG_BASE, WG_ATTRIBUTION, WG_ATTRIBUTION_URL, EXERCISE_ANIM } from '../data/exercise-anim.js';
+import { EXERCISE_VIDEOS } from '../data/exercise-videos.js';
 
 const GIF_CDN = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises';
 
@@ -131,6 +132,7 @@ export function showExerciseModal(ex) {
   const stabilizers = mf.stabilizers || [];
   const isCali      = ex.tags?.includes('calisthenics');
   const wgAnim      = ex.id ? EXERCISE_ANIM[ex.id] : null;
+  const videoId     = (ex.youtubeId && ex.youtubeId.trim()) || (ex.id ? EXERCISE_VIDEOS[ex.id] : '') || '';
   _tut = {
     id: ex.id,
     steps: (ex.cues || []).filter(Boolean),
@@ -225,11 +227,11 @@ export function showExerciseModal(ex) {
     ` : ''}
 
     <!-- ── VIDEO DEMO (click-to-load) ── -->
-    ${ex.youtubeId ? `
-    <div class="sec-head" style="margin-bottom:12px">Form Demo</div>
+    ${videoId ? `
+    <div class="sec-head" style="margin-bottom:12px">Video Tutorial</div>
     <div class="video-embed" id="video-wrap-${ex.id || 'ex'}" style="margin-bottom:20px">
-      <div class="video-placeholder" onclick="loadVideo('${ex.youtubeId}', '${ex.id || 'ex'}')">
-        <div style="position:absolute;inset:0;background:url('https://img.youtube.com/vi/${ex.youtubeId}/mqdefault.jpg') center/cover no-repeat;border-radius:6px;opacity:0.55"></div>
+      <div class="video-placeholder" onclick="loadVideo('${videoId}', '${ex.id || 'ex'}')">
+        <div style="position:absolute;inset:0;background:url('https://img.youtube.com/vi/${videoId}/mqdefault.jpg') center/cover no-repeat;border-radius:6px;opacity:0.55"></div>
         <div class="play-btn" style="position:relative;z-index:1">▶</div>
         <div style="position:relative;z-index:1;font-family:var(--ff-mono);font-size:11px;color:var(--text);background:rgba(0,0,0,0.75);padding:4px 10px;border-radius:3px;letter-spacing:0.06em">CLICK TO LOAD VIDEO</div>
       </div>
@@ -275,7 +277,7 @@ export function loadVideo(youtubeId, exId) {
   if (!wrap) return;
   wrap.innerHTML = `
     <iframe
-      src="https://www.youtube.com/embed/${youtubeId}?autoplay=1&rel=0"
+      src="https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&rel=0"
       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope"
       allowfullscreen>
     </iframe>`;
