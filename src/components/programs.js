@@ -109,8 +109,11 @@ function cardHTML(prog) {
         <div class="pg-sess">
           <div class="pg-sess-name">${s.label}</div>
           ${s.exercises.map(e => `
-            <div class="pg-sess-ex">
-              <span>${EXERCISES[e.id]?.name || e.id}</span>
+            <div class="pg-sess-ex" role="button" tabindex="0"
+                 onclick="openExDetail('${e.id}')"
+                 onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openExDetail('${e.id}')}"
+                 title="How to do it — demo, form cues and video">
+              <span>${EXERCISES[e.id]?.name || e.id} ›</span>
               <span class="pg-sess-rx">${e.sets} × ${e.reps}</span>
             </div>`).join('')}
         </div>`).join('')}

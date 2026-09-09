@@ -4,7 +4,8 @@
 
 import { state, toDisplayWeight, weightUnitLabel, formatWeight } from '../store.js';
 import { MUSCLE_GROUPS, EXERCISES } from '../data/exercises.js';
-import { BODY_FRONT, BODY_BACK, BODY_VIEWBOX } from '../data/body-model.js';
+import { BODY_FRONT, BODY_BACK, BODY_VIEWBOX_FRONT, BODY_VIEWBOX_BACK,
+         BODY_OUTLINE_FRONT, BODY_OUTLINE_BACK } from '../data/body-model.js';
 import { initAnalyticsTrendChart, initWeightTrendChart, toggleChartSeries, initVolumeBarChart, initE1rmChart } from './charts.js';
 
 // ── STRENGTH ANALYTICS (v3.4) ──
@@ -84,40 +85,45 @@ function _muscleMap(mode) {
 }
 
 // ── ANATOMICAL MUSCLE MAP ──
-// Real anatomical muscle polygons (react-body-highlighter, MIT © GV79) on a
-// 100×200 canvas, tinted by each group's normalized training value. `interactive`
-// makes every muscle region a tappable button calling window.bodyMapTap('<id>') —
-// reused by the Body Map trainer page.
+// Detailed anatomical muscle paths (react-muscle-highlighter, MIT © 2024 My
+// Muscle Contributors), tinted by each group's normalized training value.
+// Drawn as: body outline → muscle regions on top. `interactive` makes every
+// muscle a tappable button calling window.bodyMapTap('<id>').
 export function renderBodyFigures(groups, { interactive = false } = {}) {
   const g = {};
   groups.forEach(x => { g[x.id] = x; });
 
-  const figure = (regions, label) => {
+  const figure = (regions, outline, viewBox, label) => {
+    const body = outline
+      ? `<path d="${outline}" fill="var(--bg-2)" stroke="var(--border-hi)" stroke-width="2" vector-effect="non-scaling-stroke"/>`
+      : '';
+
     const shapes = regions.map(r => {
-      // Neutral anatomy (head, neck, knees): drawn, never tappable.
       if (!r.group) {
-        return r.points.map(pts =>
-          `<polygon points="${pts}" fill="var(--bg-2)" stroke="var(--border)" stroke-width="0.6" stroke-linejoin="round"/>`
+        return r.paths.map(d =>
+          `<path d="${d}" fill="var(--bg-2)" stroke="var(--border)" stroke-width="1"/>`
         ).join('');
       }
       const grp = g[r.group];
       const pct = grp?.pct || 0;
-      const fill = `color-mix(in srgb, var(--fire) ${Math.round(8 + pct * 84)}%, var(--bg-2))`;
+      // 0% volume = neutral surface; only trained muscles glow.
+      const fill = `color-mix(in srgb, var(--fire) ${Math.round(pct * 88)}%, var(--bg-3))`;
       const tap = interactive
         ? ` class="mm-tap" data-group="${r.group}" role="button" tabindex="0" onclick="bodyMapTap('${r.group}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();bodyMapTap('${r.group}')}"`
         : '';
       const title = `<title>${grp?.label || r.group} — ${Math.round(pct * 100)}%</title>`;
-      return r.points.map(pts =>
-        `<polygon points="${pts}" fill="${fill}" stroke="var(--border-hi)" stroke-width="0.6" stroke-linejoin="round"${tap}>${title}</polygon>`
+      return r.paths.map(d =>
+        `<path d="${d}" fill="${fill}" stroke="var(--border-hi)" stroke-width="1"${tap}>${title}</path>`
       ).join('');
     }).join('');
-    return `<svg viewBox="${BODY_VIEWBOX}" class="mm-body" role="img" aria-label="${label} muscle map">${shapes}</svg>`;
+
+    return `<svg viewBox="${viewBox}" class="mm-body" role="img" aria-label="${label} muscle map">${body}${shapes}</svg>`;
   };
 
   return `
 <div class="mm-body-wrap">
-  <div class="mm-body-col">${figure(BODY_FRONT, 'Front')}<div class="label tc mt-2">Front</div></div>
-  <div class="mm-body-col">${figure(BODY_BACK, 'Back')}<div class="label tc mt-2">Back</div></div>
+  <div class="mm-body-col">${figure(BODY_FRONT, BODY_OUTLINE_FRONT, BODY_VIEWBOX_FRONT, 'Front')}<div class="label tc mt-2">Front</div></div>
+  <div class="mm-body-col">${figure(BODY_BACK, BODY_OUTLINE_BACK, BODY_VIEWBOX_BACK, 'Back')}<div class="label tc mt-2">Back</div></div>
 </div>`;
 }
 
