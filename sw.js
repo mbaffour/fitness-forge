@@ -1,7 +1,7 @@
 // FITNESS FORGE — Service Worker
 // Cache-first strategy for full offline support
 
-const CACHE = 'forge-v23';
+const CACHE = 'forge-v24';
 
 const PRECACHE = [
   './',
@@ -27,6 +27,7 @@ const PRECACHE = [
   './src/components/analytics.js',
   './src/components/hiit.js',
   './src/components/overload-mode.js',
+  './src/components/body-map.js',
   './src/components/equipment.js',
   './src/components/ui.js',
   './src/components/feedback.js',

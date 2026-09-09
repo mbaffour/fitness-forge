@@ -15,6 +15,7 @@ import { renderActivity, scheduleActivityCharts } from './components/activity.js
 import { renderAnalytics, scheduleAnalyticsCharts } from './components/analytics.js';
 import { renderHIIT, scheduleHIITCharts } from './components/hiit.js';
 import { renderOverloadMode } from './components/overload-mode.js';
+import { renderBodyMap } from './components/body-map.js';
 import { renderEquipment } from './components/equipment.js';
 import { renderLibrary } from './components/library.js';
 import './components/import-workouts.js';   // registers window.openImportDialog (Settings → Import)
@@ -161,6 +162,7 @@ const PAGE_META = {
   dashboard:    { label: 'Dashboard',    icon: '◈' },
   workout:      { label: 'Workout',      icon: '⚡' },
   overload:     { label: 'Overload',     icon: '📈' },
+  bodymap:      { label: 'Body Map',     icon: '🎯' },
   equipment:    { label: 'Equipment',    icon: '🎒' },
   freestyle:    { label: 'Freestyle',    icon: '🔀' },
   calisthenics: { label: 'Calisthenics', icon: '🤸' },
@@ -183,7 +185,7 @@ const PAGE_META = {
 // sub-tabs at the top of the content, and the hubs drive the mobile tab bar.
 const HUBS = [
   { id: 'today',    label: 'Today',    icon: '◈', pages: ['dashboard'] },
-  { id: 'train',    label: 'Train',    icon: '⚡', pages: ['workout','overload','equipment','freestyle','calisthenics','hiit','library','schedule'] },
+  { id: 'train',    label: 'Train',    icon: '⚡', pages: ['workout','overload','bodymap','equipment','freestyle','calisthenics','hiit','library','schedule'] },
   { id: 'log',      label: 'Log',      icon: '✎', pages: ['nutrition','fasting','sleep','activity','body','cardio'] },
   { id: 'progress', label: 'Progress', icon: '↑', pages: ['progress','analytics','achievements'] },
   { id: 'profile',  label: 'Profile',  icon: '⚙', pages: ['settings'] },
@@ -201,6 +203,7 @@ const PAGES = {
   dashboard:    { render: renderDashboard    },
   workout:      { render: renderWorkout      },
   overload:     { render: renderOverloadMode },
+  bodymap:      { render: renderBodyMap      },
   equipment:    { render: renderEquipment    },
   freestyle:    { render: renderFreestyle    },
   calisthenics: { render: renderCalisthenics },
@@ -282,8 +285,9 @@ function pageFromHash() {
 
 const PAGE_LABELS = {
   dashboard:    'Dashboard',    workout:      'Workout',
-  overload:     'Overload',     equipment:    'Equipment',
-  freestyle:    'Freestyle',    calisthenics: 'Calisthenics',
+  overload:     'Overload',     bodymap:      'Body Map',
+  equipment:    'Equipment',    freestyle:    'Freestyle',
+  calisthenics: 'Calisthenics',
   hiit:         'HIIT',
   library:      'Exercise Library',
   schedule:     'Schedule',

@@ -2443,6 +2443,30 @@ body.session-active .sidebar { display: none !important; }
 .mm-body path:hover, .mm-body ellipse:hover, .mm-body rect:hover { stroke: var(--fire); cursor: help; }
 @media (max-width: 480px) { .mm-body { width: 120px; height: 240px; } .mm-body-wrap { gap: 16px; } }
 
+/* ── BODY MAP TRAINER (tappable regions + panel + tray) ── */
+.mm-tap { cursor: pointer; transition: stroke 0.12s, filter 0.12s; }
+.mm-tap:hover, .mm-tap:focus-visible {
+  stroke: var(--fire); stroke-width: 2;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--fire) 60%, transparent));
+  outline: none;
+}
+.bm-figure { display: flex; justify-content: center; }
+.bm-panel { margin-top: 16px; border-left: 3px solid var(--fire); }
+.bm-panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.bm-panel-title { font-size: 1rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+.bm-ex-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.bm-ex {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 12px; background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-md);
+}
+.bm-ex-main { min-width: 0; }
+.bm-ex-name { font-size: 0.875rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bm-ex-meta { font-size: 0.7rem; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px; }
+.bm-ex-target { font-family: var(--ff-mono, monospace); font-size: 0.85rem; color: var(--fire); white-space: nowrap; }
+.bm-panel-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.bm-tray { margin-top: 16px; border-left: 3px solid var(--green); }
+.bm-tray-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+
 /* ── Animated GIF demos (v3.5, © Gym visual, runtime-hotlinked) ── */
 .ex-gif-wrap.ex-anim {
   display: flex; justify-content: center; align-items: center;
