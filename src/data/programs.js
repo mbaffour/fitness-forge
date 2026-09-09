@@ -1,0 +1,285 @@
+// ═══════════════════════════════════════════
+//   FITNESS FORGE — Goal Programs
+//   Curated, finite training plans for a specific target: a skill, a lift, a
+//   look, an event you're prepping for, or getting back on your feet.
+//   Distinct from `state.program` (the generated 16-week onboarding plan).
+//   Every exercise id here must exist in EXERCISES — validated by the test in
+//   the Programs page and at import time in dev.
+// ═══════════════════════════════════════════
+
+export const PROGRAM_CATEGORIES = [
+  { id: 'skill',    label: 'Skills',        icon: '🤸', blurb: 'Unlock a movement you can\'t do yet' },
+  { id: 'strength', label: 'Strength',      icon: '🏋', blurb: 'Add weight to the big lifts' },
+  { id: 'physique', label: 'Physique',      icon: '💪', blurb: 'Target how you look' },
+  { id: 'event',    label: 'Event Prep',    icon: '📅', blurb: 'Be ready for a date on the calendar' },
+  { id: 'health',   label: 'Health',        icon: '🧘', blurb: 'Feel better, move better, stay injury-free' },
+];
+
+const P = (id, sets, reps) => ({ id, sets, reps });
+
+export const PROGRAMS = [
+  // ── SKILLS ────────────────────────────────────────────────────────────────
+  {
+    id: 'first_pullup', name: 'First Pull-Up', cat: 'skill', icon: '🎯',
+    weeks: 6, days: 3, requires: ['pull_up_bar'],
+    blurb: 'Zero to one strict pull-up — build the pull from the ground up.',
+    goal: 'One strict bodyweight pull-up',
+    sessions: [
+      { label: 'Pull Strength', exercises: [P('inverted_row',4,'8-10'), P('lat_pull',4,'8-12'), P('curl_db',3,'10-12'), P('plank',3,'40s')] },
+      { label: 'Push + Core',   exercises: [P('pushup',4,'8-12'), P('ohp_db',3,'8-10'), P('hollow',3,'30s'), P('deadbug',3,'10')] },
+      { label: 'Pull Skill',    exercises: [P('pullup',5,'1-3'), P('inverted_row',3,'10-12'), P('str_pull',3,'12-15'), P('farmer',3,'40s')] },
+    ],
+    progression: 'Negatives first: jump to the top and lower for 5 seconds. Add one rep per set each week. Drop band assistance every two weeks.',
+    milestones: ['Week 2 — 5 controlled negatives', 'Week 4 — 1 band-assisted pull-up', 'Week 6 — 1 strict pull-up'],
+  },
+  {
+    id: 'first_pushup', name: 'First Push-Up', cat: 'skill', icon: '🌱',
+    weeks: 4, days: 3, requires: [],
+    blurb: 'Build pressing strength from incline to a full floor push-up.',
+    goal: 'One full-range floor push-up',
+    sessions: [
+      { label: 'Press A', exercises: [P('pushup',4,'5-10'), P('plank',3,'30s'), P('deadbug',3,'10')] },
+      { label: 'Full Body', exercises: [P('squat_bw',3,'12-15'), P('inverted_row',3,'8-10'), P('hipthrust_bw',3,'12-15')] },
+      { label: 'Press B', exercises: [P('pushup',5,'4-8'), P('side_plank',3,'20s'), P('hollow',3,'20s')] },
+    ],
+    progression: 'Start hands-elevated on a counter, then a bench, then a low step, then the floor. Lower the surface only when you can do 3×10 clean.',
+    milestones: ['Week 1 — 3×10 counter push-ups', 'Week 3 — 3×8 on a low step', 'Week 4 — 1 floor push-up'],
+  },
+  {
+    id: 'handstand', name: 'Handstand & Core Control', cat: 'skill', icon: '🤸',
+    weeks: 8, days: 3, requires: [],
+    blurb: 'Overhead strength, straight-line control and the core to hold it.',
+    goal: 'A 15-second wall handstand',
+    sessions: [
+      { label: 'Overhead', exercises: [P('pike_pu',4,'6-10'), P('ohp_db',3,'8-10'), P('hollow',3,'30s')] },
+      { label: 'Core Line', exercises: [P('l_sit',4,'15s'), P('plank',3,'45s'), P('side_plank',3,'30s'), P('deadbug',3,'12')] },
+      { label: 'Skill', exercises: [P('hspu',4,'3-6'), P('pike_pu',3,'8-12'), P('hollow',4,'30s')] },
+    ],
+    progression: 'Kick up to the wall daily for practice, not to failure. Add 5 seconds to your hold each week.',
+    milestones: ['Week 2 — 30s hollow hold', 'Week 5 — 10s wall handstand', 'Week 8 — 15s + 3 wall HSPU'],
+  },
+
+  // ── STRENGTH ──────────────────────────────────────────────────────────────
+  {
+    id: 'bench_builder', name: 'Bigger Bench', cat: 'strength', icon: '🏋',
+    weeks: 8, days: 3, requires: ['barbell','bench'],
+    blurb: 'Add real weight to your bench with heavy work plus targeted volume.',
+    goal: '+10–20 lbs on your bench 1RM',
+    sessions: [
+      { label: 'Heavy Bench', exercises: [P('bench_bb',5,'5'), P('row_bb',4,'8-10'), P('tri_push',3,'10-12'), P('face_pull',3,'15')] },
+      { label: 'Volume Push', exercises: [P('incline_db',4,'8-12'), P('dips',3,'8-10'), P('cable_fly',3,'12-15'), P('skull',3,'10-12')] },
+      { label: 'Speed + Back', exercises: [P('bench_bb',6,'3'), P('lat_pull',4,'10'), P('cgbench',3,'8-10'), P('rear_delt_fly',3,'15')] },
+    ],
+    progression: 'Add 5 lbs to the heavy day each week. If you miss twice, drop 10% and climb again. Speed day stays at 60% — move it fast.',
+    milestones: ['Week 3 — heavy 5s feel easy', 'Week 6 — new working weight', 'Week 8 — test a new 1RM'],
+  },
+  {
+    id: 'squat_5x5', name: 'Squat Strength 5×5', cat: 'strength', icon: '🦵',
+    weeks: 8, days: 3, requires: ['barbell'],
+    blurb: 'Classic linear 5×5 built around the back squat.',
+    goal: 'A clear jump in squat working weight',
+    sessions: [
+      { label: 'Squat Heavy', exercises: [P('squat_bb',5,'5'), P('rdl_bb',3,'8'), P('plank',3,'45s')] },
+      { label: 'Squat + Press', exercises: [P('squat_bb',5,'5'), P('ohp_bb',3,'5'), P('row_bb',3,'8')] },
+      { label: 'Squat + Pull', exercises: [P('squat_bb',5,'5'), P('deadlift',1,'5'), P('legcurl',3,'10-12')] },
+    ],
+    progression: 'Add 5 lbs every session while all 5×5 are clean. Two failed sessions in a row: deload 10%.',
+    milestones: ['Week 2 — form dialled at working weight', 'Week 5 — bodyweight squat ×5', 'Week 8 — new 5RM'],
+  },
+  {
+    id: 'deadlift_power', name: 'Deadlift Power', cat: 'strength', icon: '⚡',
+    weeks: 8, days: 3, requires: ['barbell'],
+    blurb: 'Pull heavier with focused posterior-chain and grip work.',
+    goal: '+20 lbs on your deadlift',
+    sessions: [
+      { label: 'Pull Heavy', exercises: [P('deadlift',5,'3'), P('row_bb',4,'8'), P('farmer',3,'40s')] },
+      { label: 'Posterior', exercises: [P('rdl_bb',4,'8-10'), P('good_morning',3,'10-12'), P('legcurl',3,'12'), P('hipthrust_bb',3,'10')] },
+      { label: 'Back + Grip', exercises: [P('pendlay_row',4,'6-8'), P('lat_pull',3,'10'), P('shrug_bb',3,'12-15'), P('wrist_curl',3,'15')] },
+    ],
+    progression: 'Add 10 lbs to the heavy triples each week while bar speed holds. Reset 10% if speed dies.',
+    milestones: ['Week 3 — triples move fast', 'Week 6 — new working triple', 'Week 8 — test a new 1RM'],
+  },
+
+  // ── PHYSIQUE ──────────────────────────────────────────────────────────────
+  {
+    id: 'bigger_arms', name: 'Bigger Arms', cat: 'physique', icon: '💪',
+    weeks: 6, days: 3, requires: ['dumbbells'],
+    blurb: 'High-frequency biceps and triceps work that actually adds size.',
+    goal: 'Visible arm growth in 6 weeks',
+    sessions: [
+      { label: 'Arms A', exercises: [P('curl_bb',4,'8-12'), P('skull',4,'10-12'), P('curl_hammer',3,'12'), P('tri_push',3,'12-15')] },
+      { label: 'Push + Tris', exercises: [P('cgbench',4,'8-10'), P('dips',3,'8-12'), P('tri_oh',3,'12'), P('diamond_pu',3,'10-15')] },
+      { label: 'Pull + Bis', exercises: [P('chinup',4,'6-10'), P('preacher_curl',3,'10-12'), P('curl_incline',3,'12'), P('concentration_curl',3,'12-15')] },
+    ],
+    progression: 'Arms recover fast — add a rep every session and weight once you top the range. Take the last set close to failure.',
+    milestones: ['Week 2 — pump and form locked', 'Week 4 — +1 sleeve-fill notch', 'Week 6 — measure cold and compare'],
+  },
+  {
+    id: 'glute_build', name: 'Glute Build', cat: 'physique', icon: '🍑',
+    weeks: 8, days: 3, requires: ['dumbbells'],
+    blurb: 'Hip-thrust-led programming that trains glutes through full range.',
+    goal: 'Stronger, fuller glutes',
+    sessions: [
+      { label: 'Heavy Hips', exercises: [P('hipthrust_bb',4,'8-10'), P('rdl_db',4,'10-12'), P('bss',3,'10'), P('hip_abduction',3,'15-20')] },
+      { label: 'Legs + Glutes', exercises: [P('squat_db',4,'10-12'), P('lunge_db',3,'12'), P('glute_kickback',3,'15'), P('calfr_bw',3,'20')] },
+      { label: 'Pump', exercises: [P('hipthrust_bw',4,'20'), P('stepup',3,'12'), P('hip_abduction',4,'20'), P('side_plank',3,'30s')] },
+    ],
+    progression: 'Drive through the heels and pause one second at lockout. Add weight on the heavy day weekly; chase reps on the pump day.',
+    milestones: ['Week 3 — bodyweight hip thrust ×10', 'Week 6 — noticeable strength jump', 'Week 8 — retest and photo'],
+  },
+  {
+    id: 'v_taper', name: 'V-Taper — Shoulders & Back', cat: 'physique', icon: '🔺',
+    weeks: 8, days: 4, requires: [],
+    blurb: 'Widen the shoulders and lats for a broader upper body.',
+    goal: 'Wider shoulders, thicker back',
+    sessions: [
+      { label: 'Width', exercises: [P('lat_pull',4,'10-12'), P('pullup',3,'6-10'), P('str_pull',3,'12-15'), P('lat_raise',4,'15')] },
+      { label: 'Delts', exercises: [P('ohp_bb',4,'6-8'), P('lat_raise',4,'12-15'), P('rear_delt_fly',3,'15'), P('face_pull',3,'15')] },
+      { label: 'Thickness', exercises: [P('row_bb',4,'8-10'), P('row_chest',3,'10-12'), P('shrug_db',3,'12-15'), P('band_pull_apart',3,'20')] },
+      { label: 'Upper Mix', exercises: [P('arnold_press',3,'10-12'), P('row_cable',3,'12'), P('lat_raise',3,'15-20'), P('pullover',3,'12')] },
+    ],
+    progression: 'Side raises are the width driver — go light, strict and high-rep. Add weight only on the pressing and rowing lifts.',
+    milestones: ['Week 3 — strict raise form', 'Week 6 — shirt fits differently', 'Week 8 — measure shoulder width'],
+  },
+  {
+    id: 'lean_out', name: 'Lean Out', cat: 'physique', icon: '🔥',
+    weeks: 8, days: 4, requires: [],
+    blurb: 'Keep your strength while dropping fat — full-body work with density.',
+    goal: 'Lose fat, hold muscle',
+    sessions: [
+      { label: 'Full Body A', exercises: [P('squat_db',4,'12'), P('bench_db',4,'12'), P('row_db',4,'12'), P('plank',3,'45s')] },
+      { label: 'Conditioning', exercises: [P('kb_swing',5,'20'), P('burpee',4,'10'), P('mtn_climber',4,'30s'), P('jump_sq',3,'15')] },
+      { label: 'Full Body B', exercises: [P('rdl_db',4,'12'), P('ohp_db',4,'12'), P('lat_pull',4,'12'), P('russian',3,'20')] },
+      { label: 'Circuit', exercises: [P('lunge_bw',3,'20'), P('pushup',3,'15'), P('inverted_row',3,'12'), P('hollow',3,'30s')] },
+    ],
+    progression: 'Keep the weights honest and shorten rest instead — 60s on lifting days, 30s on conditioning. Fat loss is won in the kitchen; log your food.',
+    milestones: ['Week 2 — routine locked in', 'Week 5 — waist down, lifts held', 'Week 8 — reassess and photo'],
+  },
+
+  // ── EVENT PREP ────────────────────────────────────────────────────────────
+  {
+    id: 'ski_prep', name: 'Ski & Snowboard Prep', cat: 'event', icon: '🎿',
+    weeks: 6, days: 3, requires: [],
+    blurb: 'Quads that survive day three — eccentric strength and single-leg control.',
+    goal: 'Ride all week without blown legs',
+    sessions: [
+      { label: 'Leg Strength', exercises: [P('squat_bb',4,'8-10'), P('bss',3,'10'), P('legcurl',3,'12'), P('calfr_bw',3,'20')] },
+      { label: 'Power + Balance', exercises: [P('jump_sq',4,'10'), P('boxjump',4,'6'), P('lunge_bw',3,'16'), P('side_plank',3,'30s')] },
+      { label: 'Endurance', exercises: [P('squat_bw',4,'25'), P('stepup',3,'15'), P('pallof',3,'12'), P('plank',3,'60s')] },
+    ],
+    progression: 'Lower slowly on every squat — the burn on a run is eccentric. Build the wall-sit hold to 90 seconds by week 6.',
+    milestones: ['Week 2 — 60s wall sit', 'Week 4 — 20 clean jump squats', 'Week 6 — 90s wall sit, legs ready'],
+  },
+  {
+    id: 'hike_prep', name: 'Hiking & Trek Prep', cat: 'event', icon: '🥾',
+    weeks: 6, days: 3, requires: [],
+    blurb: 'Carry a pack uphill for hours without your legs or back quitting.',
+    goal: 'A full day on the trail under load',
+    sessions: [
+      { label: 'Loaded Legs', exercises: [P('stepup',4,'12'), P('lunge_db',3,'12'), P('rdl_db',3,'10-12'), P('calfr_bb',4,'15')] },
+      { label: 'Carry + Core', exercises: [P('farmer',5,'45s'), P('plank',3,'60s'), P('side_plank',3,'40s'), P('pallof',3,'12')] },
+      { label: 'Descent', exercises: [P('squat_bw',4,'20'), P('bss',3,'10'), P('boxjump',3,'8'), P('calfr_bw',3,'25')] },
+    ],
+    progression: 'Add weight to the step-ups and carries weekly. Do one long weekend walk with your actual pack, adding 10 minutes each week.',
+    milestones: ['Week 2 — 45s heavy carry', 'Week 4 — 2h pack walk', 'Week 6 — full-day ready'],
+  },
+  {
+    id: 'beach_ready', name: 'Beach / Vacation Ready', cat: 'event', icon: '🏖',
+    weeks: 8, days: 4, requires: ['dumbbells'],
+    blurb: 'Upper body, core and conditioning for a date on the calendar.',
+    goal: 'Look and feel sharp on the trip',
+    sessions: [
+      { label: 'Push', exercises: [P('bench_db',4,'10-12'), P('ohp_db',3,'12'), P('lat_raise',3,'15'), P('tri_push',3,'15')] },
+      { label: 'Pull', exercises: [P('lat_pull',4,'12'), P('row_db',4,'12'), P('curl_db',3,'12'), P('face_pull',3,'15')] },
+      { label: 'Core + Cardio', exercises: [P('crunch',4,'20'), P('russian',3,'20'), P('mtn_climber',4,'30s'), P('burpee',3,'12')] },
+      { label: 'Legs', exercises: [P('squat_db',4,'12'), P('lunge_db',3,'12'), P('hipthrust_bw',3,'20'), P('calfr_bw',3,'20')] },
+    ],
+    progression: 'Train hard and eat in a small deficit — you cannot out-train the kitchen. Keep protein high so you hold muscle.',
+    milestones: ['Week 3 — habits locked', 'Week 6 — visible change', 'Week 8 — trip ready'],
+  },
+  {
+    id: 'wedding_prep', name: 'Wedding Prep', cat: 'event', icon: '💍',
+    weeks: 12, days: 4, requires: ['dumbbells'],
+    blurb: 'A twelve-week runway: build shape early, sharpen at the end.',
+    goal: 'Your best in the photos',
+    sessions: [
+      { label: 'Upper Push', exercises: [P('bench_db',4,'10'), P('ohp_db',4,'10'), P('lat_raise',3,'15'), P('dips',3,'10')] },
+      { label: 'Lower', exercises: [P('squat_db',4,'12'), P('rdl_db',4,'12'), P('bss',3,'10'), P('calfr_bw',4,'20')] },
+      { label: 'Upper Pull', exercises: [P('lat_pull',4,'12'), P('row_db',4,'12'), P('curl_db',3,'12'), P('rear_delt_fly',3,'15')] },
+      { label: 'Core + Conditioning', exercises: [P('plank',3,'60s'), P('russian',3,'20'), P('kb_swing',4,'20'), P('burpee',3,'12')] },
+    ],
+    progression: 'Weeks 1–8 build: add weight, eat at maintenance. Weeks 9–12 sharpen: hold the weights, add conditioning, small deficit.',
+    milestones: ['Week 4 — strength up', 'Week 8 — shape built', 'Week 12 — sharp for the day'],
+  },
+  {
+    id: 'military_prep', name: 'Fitness Test Prep', cat: 'event', icon: '🎖',
+    weeks: 8, days: 4, requires: [],
+    blurb: 'Push-ups, sit-ups, pull-ups and a timed run — train the test itself.',
+    goal: 'Pass or max a standard fitness test',
+    sessions: [
+      { label: 'Push Volume', exercises: [P('pushup',6,'15-25'), P('diamond_pu',3,'12'), P('dips',3,'10'), P('plank',3,'60s')] },
+      { label: 'Pull Volume', exercises: [P('pullup',6,'5-10'), P('inverted_row',4,'12'), P('curl_db',3,'12'), P('farmer',3,'40s')] },
+      { label: 'Core + Run', exercises: [P('crunch',5,'25'), P('russian',3,'20'), P('legraise',3,'15'), P('mtn_climber',4,'30s')] },
+      { label: 'Test Sim', exercises: [P('pushup',3,'25'), P('pullup',3,'8'), P('crunch',3,'30'), P('burpee',3,'15')] },
+    ],
+    progression: 'Every third session, run the real test cold and record your numbers. Train just above your target on volume days.',
+    milestones: ['Week 2 — baseline recorded', 'Week 5 — +25% on every event', 'Week 8 — test day'],
+  },
+  {
+    id: 'first_5k', name: 'First 5K', cat: 'event', icon: '🏃',
+    weeks: 6, days: 3, requires: [],
+    blurb: 'Run-walk to a continuous 5K, with the strength work that prevents injury.',
+    goal: 'Run 5K without stopping',
+    sessions: [
+      { label: 'Run + Legs', exercises: [P('squat_bw',3,'20'), P('lunge_bw',3,'16'), P('calfr_bw',4,'20')] },
+      { label: 'Strength Support', exercises: [P('rdl_db',3,'12'), P('stepup',3,'12'), P('plank',3,'45s'), P('side_plank',3,'30s')] },
+      { label: 'Long Effort', exercises: [P('hipthrust_bw',3,'20'), P('deadbug',3,'12'), P('calfr_bw',3,'25')] },
+    ],
+    progression: 'Run-walk intervals: week 1 is 1 min run / 2 min walk × 8. Add 30s of running and remove 30s of walking each week until you run 30 minutes straight.',
+    milestones: ['Week 2 — 2 min running blocks', 'Week 4 — 10 min continuous', 'Week 6 — 5K continuous'],
+  },
+
+  // ── HEALTH ────────────────────────────────────────────────────────────────
+  {
+    id: 'desk_reset', name: 'Desk-Job Posture Reset', cat: 'health', icon: '🪑',
+    weeks: 4, days: 3, requires: [],
+    blurb: 'Undo the desk slouch — open the chest, wake the glutes, pull more.',
+    goal: 'Stand taller, ache less',
+    sessions: [
+      { label: 'Pull & Open', exercises: [P('face_pull',4,'15-20'), P('band_pull_apart',4,'20'), P('rear_delt_fly',3,'15'), P('inverted_row',3,'10')] },
+      { label: 'Hips & Core', exercises: [P('hipthrust_bw',4,'15'), P('deadbug',3,'12'), P('side_plank',3,'30s'), P('pallof',3,'12')] },
+      { label: 'Full Reset', exercises: [P('row_cable',3,'12'), P('plank',3,'45s'), P('glute_kickback',3,'15'), P('band_pull_apart',3,'20')] },
+    ],
+    progression: 'Do the band pull-aparts daily — they are the highest-value minute in this plan. Quality over load throughout.',
+    milestones: ['Week 1 — daily band habit', 'Week 3 — less neck/shoulder ache', 'Week 4 — posture holds without thinking'],
+  },
+  {
+    id: 'strong_back', name: 'Bulletproof Lower Back', cat: 'health', icon: '🛡',
+    weeks: 6, days: 3, requires: [],
+    blurb: 'Build a back that tolerates load — bracing, hinging and endurance.',
+    goal: 'A back that stops flaring up',
+    sessions: [
+      { label: 'Brace', exercises: [P('deadbug',4,'12'), P('plank',3,'45s'), P('side_plank',4,'30s'), P('pallof',3,'12')] },
+      { label: 'Hinge', exercises: [P('hipthrust_bw',4,'15'), P('good_morning',3,'12'), P('rdl_db',3,'12'), P('wg_bird_dog',3,'10')] },
+      { label: 'Endurance', exercises: [P('farmer',4,'40s'), P('plank',3,'60s'), P('glute_kickback',3,'15'), P('deadbug',3,'15')] },
+    ],
+    progression: 'Never train through sharp pain. Build hold times before adding load — endurance protects the spine more than max strength.',
+    milestones: ['Week 2 — 45s side plank each side', 'Week 4 — pain-free hinging', 'Week 6 — loaded carries comfortable'],
+  },
+  {
+    id: 'comeback', name: 'Return to Training', cat: 'health', icon: '↩',
+    weeks: 4, days: 3, requires: [],
+    blurb: 'Back after a layoff — rebuild the habit without wrecking yourself.',
+    goal: 'Training consistently again',
+    sessions: [
+      { label: 'Full Body A', exercises: [P('squat_bw',3,'12-15'), P('pushup',3,'8-12'), P('inverted_row',3,'8-10'), P('plank',3,'30s')] },
+      { label: 'Full Body B', exercises: [P('lunge_bw',3,'12'), P('ohp_db',3,'10-12'), P('lat_pull',3,'12'), P('deadbug',3,'10')] },
+      { label: 'Full Body C', exercises: [P('hipthrust_bw',3,'15'), P('bench_db',3,'10-12'), P('row_db',3,'12'), P('side_plank',3,'25s')] },
+    ],
+    progression: 'Stop every set two reps short of failure for the first two weeks. Soreness is fine; joint pain is not. Consistency beats intensity right now.',
+    milestones: ['Week 1 — three sessions done', 'Week 2 — movement feels normal', 'Week 4 — ready for a real program'],
+  },
+];
+
+export const getProgram = (id) => PROGRAMS.find(p => p.id === id) || null;
+export const programsByCategory = (cat) => PROGRAMS.filter(p => p.cat === cat);
