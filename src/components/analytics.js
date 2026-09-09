@@ -4,6 +4,7 @@
 
 import { state, toDisplayWeight, weightUnitLabel, formatWeight } from '../store.js';
 import { MUSCLE_GROUPS, EXERCISES } from '../data/exercises.js';
+import { BODY_FRONT, BODY_BACK, BODY_VIEWBOX } from '../data/body-model.js';
 import { initAnalyticsTrendChart, initWeightTrendChart, toggleChartSeries, initVolumeBarChart, initE1rmChart } from './charts.js';
 
 // ── STRENGTH ANALYTICS (v3.4) ──
@@ -82,91 +83,41 @@ function _muscleMap(mode) {
   return MUSCLE_GROUPS.map(g => ({ ...g, val: vals[g.id], pct: vals[g.id] / max }));
 }
 
-// ── ANATOMICAL MUSCLE MAP (SVG front/back silhouettes) ──
-// Each muscle region is tinted by its normalized training value (same data as
-// the chip grid). Stylized figure drawn in-house — flat, on-token, no images.
-// `interactive` makes every muscle region a tappable button that calls
-// window.bodyMapTap('<groupId>') — reused by the Body Map trainer page.
+// ── ANATOMICAL MUSCLE MAP ──
+// Real anatomical muscle polygons (react-body-highlighter, MIT © GV79) on a
+// 100×200 canvas, tinted by each group's normalized training value. `interactive`
+// makes every muscle region a tappable button calling window.bodyMapTap('<id>') —
+// reused by the Body Map trainer page.
 export function renderBodyFigures(groups, { interactive = false } = {}) {
   const g = {};
   groups.forEach(x => { g[x.id] = x; });
-  // Region fill for a muscle group id: fire intensity over bg-2.
-  const F = (id) => {
-    const pct = g[id]?.pct || 0;
-    const base = `fill="color-mix(in srgb, var(--fire) ${Math.round(8 + pct * 84)}%, var(--bg-2))" stroke="var(--border-hi)" stroke-width="1" stroke-linejoin="round"`;
-    if (!interactive) return base;
-    return `${base} class="mm-tap" data-group="${id}" role="button" tabindex="0" onclick="bodyMapTap('${id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();bodyMapTap('${id}')}"`;
+
+  const figure = (regions, label) => {
+    const shapes = regions.map(r => {
+      // Neutral anatomy (head, neck, knees): drawn, never tappable.
+      if (!r.group) {
+        return r.points.map(pts =>
+          `<polygon points="${pts}" fill="var(--bg-2)" stroke="var(--border)" stroke-width="0.6" stroke-linejoin="round"/>`
+        ).join('');
+      }
+      const grp = g[r.group];
+      const pct = grp?.pct || 0;
+      const fill = `color-mix(in srgb, var(--fire) ${Math.round(8 + pct * 84)}%, var(--bg-2))`;
+      const tap = interactive
+        ? ` class="mm-tap" data-group="${r.group}" role="button" tabindex="0" onclick="bodyMapTap('${r.group}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();bodyMapTap('${r.group}')}"`
+        : '';
+      const title = `<title>${grp?.label || r.group} — ${Math.round(pct * 100)}%</title>`;
+      return r.points.map(pts =>
+        `<polygon points="${pts}" fill="${fill}" stroke="var(--border-hi)" stroke-width="0.6" stroke-linejoin="round"${tap}>${title}</polygon>`
+      ).join('');
+    }).join('');
+    return `<svg viewBox="${BODY_VIEWBOX}" class="mm-body" role="img" aria-label="${label} muscle map">${shapes}</svg>`;
   };
-  const N = `fill="var(--bg-2)" stroke="var(--border)" stroke-width="1" stroke-linejoin="round"`;   // neutral (head, hands…)
-  const T = (id) => `<title>${g[id]?.label || id} — ${Math.round((g[id]?.pct || 0) * 100)}%</title>`;
-
-  // Body-silhouette underlay: torso + limbs drawn first so the muscle regions
-  // sit on one connected figure instead of floating parts.
-  const UNDERLAY = `
-  <path d="M42,52 L108,52 L96,162 L54,162 Z" ${N}/>
-  <path d="M28,60 L42,62 L38,144 L28,144 Z" ${N}/>
-  <path d="M122,60 L108,62 L112,144 L122,144 Z" ${N}/>
-  <path d="M55,158 L74,158 L70,284 L58,284 Z" ${N}/>
-  <path d="M95,158 L76,158 L80,284 L92,284 Z" ${N}/>`;
-
-  const front = `
-<svg viewBox="0 0 150 300" class="mm-body" role="img" aria-label="Front muscle map">
-  ${UNDERLAY}
-  <ellipse cx="75" cy="24" rx="13" ry="15" ${N}/>
-  <rect x="68" y="37" width="14" height="12" rx="3" ${N}/>
-  <path d="M68,48 L46,56 L68,58 Z" ${F('traps')}>${T('traps')}</path>
-  <path d="M82,48 L104,56 L82,58 Z" ${F('traps')}>${T('traps')}</path>
-  <ellipse cx="40" cy="62" rx="11" ry="10" ${F('shoulders')}>${T('shoulders')}</ellipse>
-  <ellipse cx="110" cy="62" rx="11" ry="10" ${F('shoulders')}>${T('shoulders')}</ellipse>
-  <path d="M51,58 L73,58 L73,86 Q61,92 51,80 Z" ${F('chest')}>${T('chest')}</path>
-  <path d="M99,58 L77,58 L77,86 Q89,92 99,80 Z" ${F('chest')}>${T('chest')}</path>
-  <rect x="27" y="72" width="15" height="32" rx="7" ${F('biceps')}>${T('biceps')}</rect>
-  <rect x="108" y="72" width="15" height="32" rx="7" ${F('biceps')}>${T('biceps')}</rect>
-  <path d="M27,106 L41,106 L38,140 L29,140 Z" ${F('forearms')}>${T('forearms')}</path>
-  <path d="M123,106 L109,106 L112,140 L121,140 Z" ${F('forearms')}>${T('forearms')}</path>
-  <circle cx="33" cy="147" r="5" ${N}/>
-  <circle cx="117" cy="147" r="5" ${N}/>
-  <rect x="55" y="89" width="40" height="48" rx="8" ${F('core')}>${T('core')}</rect>
-  <path d="M56,139 L94,139 L88,158 L62,158 Z" ${N}/>
-  <path d="M57,158 L73,158 L72,224 Q65,231 59,224 Z" ${F('quads')}>${T('quads')}</path>
-  <path d="M93,158 L77,158 L78,224 Q85,231 91,224 Z" ${F('quads')}>${T('quads')}</path>
-  <path d="M59,234 L71,234 L68,280 L61,280 Z" ${F('calves')}>${T('calves')}</path>
-  <path d="M91,234 L79,234 L82,280 L89,280 Z" ${F('calves')}>${T('calves')}</path>
-  <rect x="58" y="282" width="13" height="7" rx="3" ${N}/>
-  <rect x="79" y="282" width="13" height="7" rx="3" ${N}/>
-</svg>`;
-
-  const back = `
-<svg viewBox="0 0 150 300" class="mm-body" role="img" aria-label="Back muscle map">
-  ${UNDERLAY}
-  <ellipse cx="75" cy="24" rx="13" ry="15" ${N}/>
-  <rect x="68" y="37" width="14" height="12" rx="3" ${N}/>
-  <path d="M46,64 L73,72 L73,132 L55,126 Z" ${F('back')}>${T('back')}</path>
-  <path d="M104,64 L77,72 L77,132 L95,126 Z" ${F('back')}>${T('back')}</path>
-  <path d="M75,46 L52,58 L75,90 L98,58 Z" ${F('traps')}>${T('traps')}</path>
-  <ellipse cx="40" cy="62" rx="11" ry="10" ${F('shoulders')}>${T('shoulders')}</ellipse>
-  <ellipse cx="110" cy="62" rx="11" ry="10" ${F('shoulders')}>${T('shoulders')}</ellipse>
-  <rect x="27" y="72" width="15" height="32" rx="7" ${F('triceps')}>${T('triceps')}</rect>
-  <rect x="108" y="72" width="15" height="32" rx="7" ${F('triceps')}>${T('triceps')}</rect>
-  <path d="M27,106 L41,106 L38,140 L29,140 Z" ${F('forearms')}>${T('forearms')}</path>
-  <path d="M123,106 L109,106 L112,140 L121,140 Z" ${F('forearms')}>${T('forearms')}</path>
-  <circle cx="33" cy="147" r="5" ${N}/>
-  <circle cx="117" cy="147" r="5" ${N}/>
-  <rect x="60" y="118" width="30" height="20" rx="5" ${N}/>
-  <ellipse cx="64" cy="152" rx="12" ry="13" ${F('glutes')}>${T('glutes')}</ellipse>
-  <ellipse cx="86" cy="152" rx="12" ry="13" ${F('glutes')}>${T('glutes')}</ellipse>
-  <path d="M56,168 L72,168 L71,226 Q64,233 58,226 Z" ${F('hamstrings')}>${T('hamstrings')}</path>
-  <path d="M94,168 L78,168 L79,226 Q86,233 92,226 Z" ${F('hamstrings')}>${T('hamstrings')}</path>
-  <ellipse cx="64" cy="254" rx="8" ry="22" ${F('calves')}>${T('calves')}</ellipse>
-  <ellipse cx="86" cy="254" rx="8" ry="22" ${F('calves')}>${T('calves')}</ellipse>
-  <rect x="58" y="282" width="13" height="7" rx="3" ${N}/>
-  <rect x="79" y="282" width="13" height="7" rx="3" ${N}/>
-</svg>`;
 
   return `
 <div class="mm-body-wrap">
-  <div class="mm-body-col">${front}<div class="label tc mt-2">Front</div></div>
-  <div class="mm-body-col">${back}<div class="label tc mt-2">Back</div></div>
+  <div class="mm-body-col">${figure(BODY_FRONT, 'Front')}<div class="label tc mt-2">Front</div></div>
+  <div class="mm-body-col">${figure(BODY_BACK, 'Back')}<div class="label tc mt-2">Back</div></div>
 </div>`;
 }
 

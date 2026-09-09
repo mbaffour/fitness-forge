@@ -2440,7 +2440,7 @@ body.session-active .sidebar { display: none !important; }
 .mm-body-wrap { display: flex; gap: 32px; justify-content: center; flex-wrap: wrap; padding: 8px 0 4px; }
 .mm-body-col { display: flex; flex-direction: column; align-items: center; }
 .mm-body { width: 150px; height: 300px; }
-.mm-body path:hover, .mm-body ellipse:hover, .mm-body rect:hover { stroke: var(--fire); cursor: help; }
+.mm-body polygon:hover { stroke: var(--fire); cursor: help; }
 @media (max-width: 480px) { .mm-body { width: 120px; height: 240px; } .mm-body-wrap { gap: 16px; } }
 
 /* ── BODY MAP TRAINER (tappable regions + panel + tray) ── */
