@@ -267,15 +267,16 @@ function selectedExercises() {
   const out = [];
   const seen = new Set();
   for (const id of chosen) {
-    for (const ex of pickForGroup(id, per + 2)) {
-      if (seen.has(ex.id)) continue;
+    let taken = 0;                       // count per muscle, not across the whole list
+    for (const ex of pickForGroup(id, Infinity)) {
+      if (taken >= per) break;
+      if (seen.has(ex.id)) continue;     // an exercise hitting two selected muscles counts once
       seen.add(ex.id);
       out.push(toSessionExercise(ex));
-      if (out.filter(o => o.muscle === (EXERCISES[ex.id]?.muscle || '')).length >= per) break;
-      if (out.length >= chosen.length * per) break;
+      taken++;
     }
   }
-  return out.slice(0, 10);
+  return out;
 }
 
 window.bodyMapStartSel = () => {

@@ -36,7 +36,7 @@ export function renderDashboard() {
 
   const today       = new Date();
   const dayName     = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][today.getDay()];
-  const todaySchedule = program.splitDays.find(d => d.day === dayName);
+  const todaySchedule = (program.splitDays || []).find(d => d.day === dayName);
   const recentLogs  = workoutLog.slice(0, 5);
   const totalSessions = workoutLog.length;
   const pct = Math.round((currentWeek / program.totalWeeks) * 100);
@@ -186,7 +186,7 @@ export function renderWorkout() {
 
   const today    = new Date();
   const dayName  = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][today.getDay()];
-  const todaySchedule = program.splitDays.find(d => d.day === dayName);
+  const todaySchedule = (program.splitDays || []).find(d => d.day === dayName);
   const phData   = program.phaseWorkouts?.[phaseKey(currentPhase)];
   const todayWorkout  = phData?.[dayName];
   const phaseDesc = PHASE_DESCS[currentPhase - 1] || '';
@@ -382,7 +382,7 @@ export function renderSchedule() {
 </div>
 
 <div class="g-auto">
-  ${program.splitDays.map(s => {
+  ${(program.splitDays || []).map(s => {
     const isToday = s.day === todayName;
     const workout = phData?.[s.day];
     const typeTag = {strength:'t-fire', cardio:'t-green', rest:'t-dim'}[s.type] || 't-dim';
@@ -540,7 +540,7 @@ ${prKeys.length > 0 ? `
       <div class="label tc">Wk 12</div>
       <div class="label tc" style="color:var(--fire)">Goal</div>
     </div>
-    ${program.benchmarks.map(b => `
+    ${(program.benchmarks || []).map(b => `
       <div style="display:grid;grid-template-columns:1fr 90px 90px 90px 90px 110px;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);font-size:13px;align-items:center">
         <div style="font-weight:500">${b.lift}</div>
         <div class="mono muted tc fs11">${b.w1}</div>
@@ -556,7 +556,7 @@ ${prKeys.length > 0 ? `
 ${program.cardioPrescriptions?.length ? `
   <div class="sec-head">Cardio Prescription</div>
   <div class="g-auto mb24" style="margin-bottom:24px">
-    ${program.cardioPrescriptions.map(p => `
+    ${(program.cardioPrescriptions || []).map(p => `
       <div class="card">
         <div class="label" style="margin-bottom:8px">${p.label || p.type}</div>
         <div class="display" style="font-size:22px;margin-bottom:8px">${(p.type||'').toUpperCase()}</div>
@@ -573,7 +573,7 @@ ${program.cardioPrescriptions?.length ? `
 <div class="sec-head">Program Targets</div>
 <div class="card">
   <div style="display:flex;flex-direction:column;gap:12px">
-    ${program.targets.map(t => `
+    ${(program.targets || []).map(t => `
       <div style="display:flex;gap:12px;align-items:flex-start">
         <span style="color:var(--fire);margin-top:3px;font-size:12px">◆</span>
         <span class="fs13">${t}</span>
