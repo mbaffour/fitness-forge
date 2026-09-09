@@ -627,6 +627,66 @@ export const CHALLENGES = [
     unit: 'seconds', target: (d) => 30 + d * 10,
     reward: 'Vice Grip',
   },
+  {
+    id: 'dip_dive', name: 'Dip Dive', icon: '⬇', days: 14, exId: 'dips',
+    blurb: 'Daily dips, climbing steadily. Triceps and chest, no equipment fuss.',
+    unit: 'reps', target: (d) => 5 + Math.round(d * 1.9),
+    reward: 'Locked Out',
+  },
+  {
+    id: 'lunge_march', name: 'Lunge March', icon: '🚶', days: 21, exId: 'lunge_bw',
+    blurb: 'Walking lunges every day — legs and balance, one step at a time.',
+    unit: 'reps', target: (d) => 20 + d * 2,
+    reward: 'Ironclad Legs',
+  },
+  {
+    id: 'row_streak', name: 'Row Streak', icon: '🚣', days: 14, exId: 'inverted_row',
+    blurb: 'Daily rows to balance out all that pressing. Your posture will thank you.',
+    unit: 'reps', target: (d) => 12 + Math.round(d * 1.7),
+    reward: 'Balanced Frame',
+  },
+  {
+    id: 'calf_climb', name: 'Calf Climb', icon: '🐮', days: 21, exId: 'calfr_bw',
+    blurb: 'The muscle everyone skips, trained every single day for three weeks.',
+    unit: 'reps', target: (d) => 25 + d * 3,
+    reward: 'No Skipped Days',
+  },
+  {
+    id: 'core_28', name: 'Core 28', icon: '⚙', days: 28, exId: 'crunch',
+    blurb: 'Four weeks of daily core work. Small doses, big compound effect.',
+    unit: 'reps', target: (d) => 20 + Math.round(d * 2.1),
+    reward: 'Solid Middle',
+  },
+  {
+    id: 'kb_swing_14', name: 'Swing Fortnight', icon: '🔔', days: 14, exId: 'kb_swing',
+    blurb: 'Kettlebell swings daily — the most efficient posterior-chain hit there is.',
+    unit: 'reps', target: (d) => 30 + Math.round(d * 5.4),
+    reward: 'Hip Engine',
+  },
+  {
+    id: 'mountain_10', name: 'Mountain Ten', icon: '⛰', days: 10, exId: 'mtn_climber',
+    blurb: 'Ten days of mountain climbers. Short, sharp, and it will find your lungs.',
+    unit: 'seconds', target: (d) => 30 + d * 8,
+    reward: 'Engine Built',
+  },
+  {
+    id: 'side_plank_14', name: 'Side Plank Duel', icon: '📐', days: 14, exId: 'side_plank',
+    blurb: 'Both sides, every day. The obliques nobody trains until their back hurts.',
+    unit: 'seconds per side', target: (d) => 20 + Math.round(d * 2.7),
+    reward: 'Armoured Obliques',
+  },
+  {
+    id: 'stretch_21', name: 'Daily Mobility', icon: '🧘', days: 21, exId: null,
+    blurb: 'Five minutes of stretching a day. The least glamorous habit that changes most.',
+    unit: 'session', target: () => 1,
+    reward: 'Freed Up',
+  },
+  {
+    id: 'wall_sit_14', name: 'Wall Sit Wager', icon: '🧱', days: 14, exId: 'wg_wall_sit',
+    blurb: 'One wall sit a day, longer each time. Simple, and it burns.',
+    unit: 'seconds', target: (d) => 30 + Math.round(d * 4.6),
+    reward: 'Quads of Stone',
+  },
 ];
 
 export const getChallenge = (id) => CHALLENGES.find(c => c.id === id) || null;

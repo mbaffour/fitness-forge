@@ -328,6 +328,7 @@ function renderExerciseBlock(ex, exIdx) {
       ${cuesHTML}
     </div>
     <div class="ex-actions">
+      <button class="ex-act-btn" title="How to do it — demo, step-by-step walkthrough and video" onclick="openExDetail('${ex.exId}')">▶</button>
       ${exIdx > 0 ? `<button class="ex-act-btn" title="${groupedAbove ? 'Un-superset' : 'Superset with exercise above'}" onclick="toggleSuperset(${exIdx})">${groupedAbove ? '⛓✕' : '⛓'}</button>` : ''}
       <button class="ex-act-btn" title="Swap for a similar exercise" onclick="swapExercise(${exIdx})">⇄</button>
       <button class="ex-act-btn" title="Remove exercise" onclick="removeExerciseFromSession(${exIdx})">🗑</button>
