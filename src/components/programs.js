@@ -8,6 +8,7 @@ import { state, save, getOwnedItems } from '../store.js';
 import { EXERCISES } from '../data/exercises.js';
 import { PROGRAMS, PROGRAM_CATEGORIES, getProgram, CHALLENGES, getChallenge } from '../data/programs.js';
 import { toast } from './ui.js';
+import { exThumbHTML } from './modal.js';
 
 let _tab = 'programs';   // programs | challenges
 let _cat = 'all';        // catalog filter
@@ -111,7 +112,7 @@ function cardHTML(prog) {
           <div class="pg-sess-name">${s.label}</div>
           ${s.exercises.map(e => `
             <div class="pg-sess-ex">
-              <span>${EXERCISES[e.id]?.name || e.id}</span>
+              <span class="pg-sess-name">${exThumbHTML({ id: e.id, ...EXERCISES[e.id] })}${EXERCISES[e.id]?.name || e.id}</span>
               <span class="pg-sess-right">
                 <span class="pg-sess-rx">${e.sets} × ${e.reps}</span>
                 <button class="bm-demo" onclick="event.stopPropagation();openExDetail('${e.id}')"
