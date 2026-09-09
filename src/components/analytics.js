@@ -6,6 +6,7 @@ import { state, toDisplayWeight, weightUnitLabel, formatWeight } from '../store.
 import { MUSCLE_GROUPS, EXERCISES } from '../data/exercises.js';
 import { BODY_FRONT, BODY_BACK, BODY_VIEWBOX_FRONT, BODY_VIEWBOX_BACK,
          BODY_OUTLINE_FRONT, BODY_OUTLINE_BACK } from '../data/body-model.js';
+import { exThumbHTML } from './modal.js';
 import { initAnalyticsTrendChart, initWeightTrendChart, toggleChartSeries, initVolumeBarChart, initE1rmChart } from './charts.js';
 
 // ── STRENGTH ANALYTICS (v3.4) ──
@@ -176,7 +177,7 @@ function _strengthSectionHTML() {
 </div>
 
 ${topLift ? `
-<div class="sec-head" style="margin-bottom:12px">Estimated 1RM — ${topName}</div>
+<div class="sec-head" style="margin-bottom:12px">Estimated 1RM — <span class="is-tappable" role="button" tabindex="0" onclick="openExDetail('${topLift}')" onkeydown="if(event.key==='Enter'){openExDetail('${topLift}')}" title="View this exercise">${topName}</span></div>
 <div class="card mb24" style="margin-bottom:24px">
   <div class="chart-wrap" style="height:180px"><canvas id="strength-e1rm-chart"></canvas></div>
 </div>` : ''}
@@ -190,7 +191,10 @@ ${prs.length ? `<div class="card mb24" style="margin-bottom:24px"><div class="pr
     <div class="pr-tl-row">
       <span class="pr-tl-dot"></span>
       <div class="pr-tl-body">
-        <div class="pr-tl-name">${(EXERCISES[p.id]?.name || p.id.replace(/_/g,' '))}</div>
+        <div class="pr-tl-name is-tappable" role="button" tabindex="0"
+             onclick="openExDetail('${p.id}')"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openExDetail('${p.id}')}"
+             title="View this exercise">${exThumbHTML({ id: p.id, ...(EXERCISES[p.id] || {}) })}<span>${(EXERCISES[p.id]?.name || p.id.replace(/_/g,' '))}</span></div>
         <div class="pr-tl-meta">${formatWeight(p.weight)} × ${p.reps} · est. 1RM ${formatWeight(p.e1rm)}</div>
       </div>
       <div class="pr-tl-date">${new Date(p.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>
