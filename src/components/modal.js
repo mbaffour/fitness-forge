@@ -126,6 +126,22 @@ window.tutStep = (d) => {
   window.tutGo(next);
 };
 
+// Compact still thumbnail for list rows — one image, no animation loop, so a
+// long list stays cheap. Prefers the workout-guide frame (the 157 wg_ exercises
+// have no imgKey, so a static-only thumb would be blank for them), then the GIF
+// poster, then the free-exercise-db still.
+export function exThumbHTML(ex) {
+  if (!ex?.id) return '';
+  const wg = EXERCISE_ANIM[ex.id];
+  let src = '';
+  if (wg) src = `${WG_BASE}${wg.slug}/frame-1.svg`;
+  else if (EXERCISE_GIFS[ex.id]) src = `${GIF_BASE}${EXERCISE_GIFS[ex.id]}`;
+  else if (ex.imgKey) src = `${GIF_CDN}/${ex.imgKey}/0.jpg`;
+  if (!src) return '<span class="ex-thumb ex-thumb-none" aria-hidden="true"></span>';
+  return `<span class="ex-thumb${wg ? ' is-wg' : ''}"><img src="${src}" alt="" loading="lazy"
+    onerror="this.closest('.ex-thumb')?.classList.add('ex-thumb-none');this.remove()"></span>`;
+}
+
 export function showExerciseModal(ex) {
   // Remove any existing modal
   document.getElementById('ex-modal')?.remove();

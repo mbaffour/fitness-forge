@@ -45,9 +45,26 @@ const HOME_ITEMS = new Set(['dumbbells', 'kettlebell', 'resistance_bands', 'pull
 const ISO_MUS = new Set(['Biceps', 'Triceps', 'Calves', 'Forearms', 'Rear Delts']);
 const ISO_RE = /curl|raise|extension|fly|kickback|pushdown|shrug/i;
 
+// Manual aliases: same movement, different wording, so the name matcher misses
+// it. Verified one-by-one against the manifest — only exact-movement matches
+// belong here (e.g. NOT box jump → jump squat, which is a different lift).
+const ALIAS = {
+  cable_fly:      'cable-fly',
+  hip_abduction:  'hip-abduction-machine',
+  glute_kickback: 'machine-glute-kickback',
+  russian:        'russian-twist',
+  legraise:       'hanging-leg-raise',
+  l_sit:          'l-sit-hold',
+};
+
 // Build lookups from our DB: normalized name → our key.
+// Exclude entries this generator itself produced on a previous run — otherwise
+// each of them matches its own name, the "net-new" branch is never reached, and
+// re-running silently empties exercises-wg.js (dropping them from the library).
+const isSelfGenerated = (id, ex) => id.startsWith('wg_') && ex?.source === 'workout-guide';
 const byName = new Map();
 for (const [id, ex] of Object.entries(EXERCISES)) {
+  if (isSelfGenerated(id, ex)) continue;
   const n = norm(ex.name);
   if (n && !byName.has(n)) byName.set(n, id);
 }
@@ -74,7 +91,7 @@ for (const e of wg) {
     const g = MUS[e.primaryMuscle];
     if (!g) { skipped++; continue; }
     const newKey = 'wg_' + e.slug.replace(/[^a-z0-9]+/gi, '_');
-    if (newKey in EXERCISES || newKey in wgExercises) { skipped++; continue; }
+    if ((EXERCISES[newKey] && !isSelfGenerated(newKey, EXERCISES[newKey])) || newKey in wgExercises) { skipped++; continue; }
     const groups = [g];
     for (const sm of (e.secondaryMuscles || [])) {
       const sg = MUS[sm];
@@ -108,6 +125,20 @@ for (const e of wg) {
 
   if (key && !anim[key]) anim[key] = { slug: e.slug, frames: e.frames.length };
 }
+
+// Apply the verified aliases (these win over nothing; they never overwrite a
+// match the name matcher already found).
+const bySlug = new Map(wg.map(e => [e.slug, e]));
+let aliased = 0;
+for (const [ourKey, slug] of Object.entries(ALIAS)) {
+  if (anim[ourKey]) continue;
+  const e = bySlug.get(slug);
+  if (!e) { console.warn(`  ! alias slug not in manifest: ${slug}`); continue; }
+  if (!(ourKey in EXERCISES)) { console.warn(`  ! alias key not in EXERCISES: ${ourKey}`); continue; }
+  anim[ourKey] = { slug: e.slug, frames: e.frames.length };
+  aliased++;
+}
+console.log(`aliases applied: ${aliased}`);
 
 const count = Object.keys(anim).length;
 const header = `// ═══════════════════════════════════════════
@@ -144,6 +175,12 @@ const exHeader = `// ═══════════════════�
 
 export const WG_EXERCISES = ${JSON.stringify(wgExercises, null, 0)};
 `;
+if (added === 0) {
+  console.error('\nREFUSING TO WRITE: 0 net-new exercises. Re-running should reproduce the\n'
+    + 'same set, so 0 means the self-generated entries were mistaken for pre-existing\n'
+    + 'ones — writing now would drop them from the library. Aborting.');
+  process.exit(1);
+}
 writeFileSync(outExPath, exHeader);
 
 console.log(`workout-guide entries: ${wg.length}`);

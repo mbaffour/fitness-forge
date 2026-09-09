@@ -10,6 +10,7 @@ import { MUSCLE_GROUPS, EXERCISES, getExercisesForItems } from '../data/exercise
 import { renderBodyFigures, muscleLoadData } from './analytics.js';
 import { suggestNextSet } from '../engine/overload.js';
 import { toast } from './ui.js';
+import { exThumbHTML } from './modal.js';
 
 // Building session ("add to session" mode) — persists across taps within a
 // visit; cleared on start or by the user. Kept in state so a mid-build reload
@@ -126,6 +127,7 @@ function exRowHTML(ex) {
   return `
   <div class="bm-ex">
     <div class="bm-ex-top">
+      ${exThumbHTML(ex)}
       <div class="bm-ex-main">
         <div class="bm-ex-name">${ex.name}</div>
         <div class="bm-ex-meta">${ex.type === 'compound' ? 'Compound' : 'Isolation'} · ${plan.sets} sets</div>

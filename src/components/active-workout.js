@@ -1,3 +1,4 @@
+import { exThumbHTML } from './modal.js';
 // ═══════════════════════════════════════════
 //   FITNESS FORGE — Active Workout Logger
 //   Live set-by-set session overlay
@@ -308,7 +309,7 @@ function renderExerciseBlock(ex, exIdx) {
   <div class="session-ex-header">
     <div style="flex:1">
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <div class="session-ex-name">${ex.exName}</div>
+<div class="session-ex-name">${exThumbHTML({ id: ex.exId, ...(EXERCISES[ex.exId] || {}) })}<span>${ex.exName}</span></div>
         <span class="tag t-dim" style="font-size:9px">${ex.targetSets}×${ex.timed ? 'time' : ex.targetReps}</span>
         ${ex.timed ? `<span class="tag t-steel" style="font-size:9px">⏱ timed</span>` : ''}
         ${ex.unilateral ? `<span class="tag t-steel" style="font-size:9px">↔ per side</span>` : ''}
