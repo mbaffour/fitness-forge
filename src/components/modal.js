@@ -75,6 +75,52 @@ export function exPreviewHTML(ex, { variant = 'full' } = {}) {
   return _staticPreview(ex, cls, name);
 }
 
+// ── INTERACTIVE TUTORIAL ─────────────────────────────────────────────────────
+// Cues become a step-through walkthrough instead of a wall of bullets: one step
+// at a time, with the animation frame for that phase of the lift alongside.
+let _tut = { id: null, steps: [], i: 0, frames: 0, slug: '' };
+
+function tutHTML() {
+  const { steps, i, frames, slug } = _tut;
+  if (!steps.length) return '';
+  const last = i === steps.length - 1;
+  // Map the current step onto a phase of the 3-frame animation.
+  const frameIdx = frames ? Math.min(frames - 1, Math.floor((i / steps.length) * frames)) : -1;
+  const strip = frames ? `
+    <div class="tut-frames">
+      ${Array.from({ length: frames }, (_, f) => `
+        <div class="tut-frame ${f === frameIdx ? 'is-on' : ''}">
+          <img src="${WG_BASE}${slug}/frame-${f + 1}.svg" alt="Phase ${f + 1}" loading="lazy">
+          <span>${['Start', 'Middle', 'End'][f] || `Phase ${f + 1}`}</span>
+        </div>`).join('')}
+    </div>` : '';
+  return `
+    <div class="tut-head">
+      <span class="label">How to do it</span>
+      <span class="tut-count">Step ${i + 1} / ${steps.length}</span>
+    </div>
+    ${strip}
+    <div class="tut-step"><span class="tut-num">${i + 1}</span><p>${steps[i]}</p></div>
+    <div class="tut-dots">
+      ${steps.map((_, d) => `<button class="tut-dot ${d === i ? 'is-on' : ''} ${d < i ? 'is-done' : ''}" onclick="tutGo(${d})" aria-label="Step ${d + 1}"></button>`).join('')}
+    </div>
+    <div class="tut-nav">
+      <button class="btn btn-secondary btn-sm" onclick="tutStep(-1)" ${i === 0 ? 'disabled' : ''}>◀ Back</button>
+      <button class="btn btn-fire btn-sm" onclick="tutStep(1)">${last ? '✓ Got it' : 'Next ▶'}</button>
+    </div>`;
+}
+
+function renderTut() {
+  const el = document.getElementById('tut-body');
+  if (el) el.innerHTML = tutHTML();
+}
+window.tutGo   = (i) => { _tut.i = Math.max(0, Math.min(_tut.steps.length - 1, i)); renderTut(); };
+window.tutStep = (d) => {
+  const next = _tut.i + d;
+  if (next >= _tut.steps.length) { _tut.i = 0; renderTut(); return; }   // "Got it" loops back
+  window.tutGo(next);
+};
+
 export function showExerciseModal(ex) {
   // Remove any existing modal
   document.getElementById('ex-modal')?.remove();
@@ -84,6 +130,14 @@ export function showExerciseModal(ex) {
   const secondary   = mf.secondary   || [];
   const stabilizers = mf.stabilizers || [];
   const isCali      = ex.tags?.includes('calisthenics');
+  const wgAnim      = ex.id ? EXERCISE_ANIM[ex.id] : null;
+  _tut = {
+    id: ex.id,
+    steps: (ex.cues || []).filter(Boolean),
+    i: 0,
+    frames: wgAnim?.frames || 0,
+    slug: wgAnim?.slug || '',
+  };
 
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
@@ -140,22 +194,26 @@ export function showExerciseModal(ex) {
     </div>
     ` : ''}
 
-    <!-- ── COACHING CUES ──────────────── -->
-    ${ex.cues?.length ? `
-    <div class="sec-head" style="margin-bottom:12px">Coaching Cues</div>
-    <div style="margin-bottom:20px">
-      ${ex.cues.map((cue, i) => `
-        <div class="cue-item">
-          <div class="cue-num">${i + 1}.</div>
-          <div>${cue}</div>
-        </div>
-      `).join('')}
+    <!-- ── INTERACTIVE WALKTHROUGH ───── -->
+    ${_tut.steps.length ? `
+    <div class="tut card" id="tut-card"><div id="tut-body">${tutHTML()}</div></div>
+    ` : _tut.frames ? `
+    <div class="tut card">
+      <div class="tut-head"><span class="label">How to do it</span></div>
+      <div class="tut-frames">
+        ${Array.from({ length: _tut.frames }, (_, f) => `
+          <div class="tut-frame">
+            <img src="${WG_BASE}${_tut.slug}/frame-${f + 1}.svg" alt="Phase ${f + 1}" loading="lazy">
+            <span>${['Start', 'Middle', 'End'][f] || `Phase ${f + 1}`}</span>
+          </div>`).join('')}
+      </div>
+      <div class="dim fs12 tc" style="margin-top:10px">Work through the positions above, then watch a tutorial below.</div>
     </div>
     ` : ''}
 
     <!-- ── COMMON MISTAKES ────────────── -->
     ${ex.commonErrors?.length ? `
-    <div class="sec-head" style="margin-bottom:12px">Common Mistakes</div>
+    <div class="sec-head" style="margin-bottom:12px">Avoid These Mistakes</div>
     <div style="margin-bottom:20px">
       ${ex.commonErrors.map(err => `
         <div class="error-item">

@@ -2647,3 +2647,49 @@ body.session-active .sidebar { display: none !important; }
   font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase;
   color: var(--green); margin-top: 6px;
 }
+
+/* ── INTERACTIVE EXERCISE TUTORIAL ── */
+.tut { margin-bottom: 20px; border-left: 3px solid var(--fire); }
+.tut-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.tut-count {
+  font-family: var(--ff-mono, monospace); font-size: 0.68rem; color: var(--fire);
+  letter-spacing: 0.1em; text-transform: uppercase;
+}
+.tut-frames { display: flex; gap: 8px; margin-bottom: 14px; }
+.tut-frame {
+  flex: 1; text-align: center; border: 1px solid var(--border); border-radius: var(--r-md);
+  background: #f3efe7; padding: 6px 4px 4px; opacity: 0.45; transition: opacity 0.2s, border-color 0.2s;
+}
+.tut-frame.is-on { opacity: 1; border-color: var(--fire); }
+.tut-frame img { width: 100%; height: 74px; object-fit: contain; display: block; }
+.tut-frame span {
+  display: block; font-size: 0.58rem; letter-spacing: 0.1em; text-transform: uppercase;
+  color: #5a5545; margin-top: 2px;
+}
+.tut-step {
+  display: flex; gap: 10px; align-items: flex-start; min-height: 74px;
+  background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-md); padding: 14px;
+}
+.tut-step p { margin: 0; font-size: 0.9rem; line-height: 1.6; }
+.tut-num {
+  flex-shrink: 0; width: 24px; height: 24px; border-radius: var(--r-sm);
+  background: var(--fire); color: var(--bg); font-family: var(--ff-mono, monospace);
+  font-size: 0.75rem; display: inline-flex; align-items: center; justify-content: center;
+}
+.tut-dots { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; margin: 12px 0; }
+.tut-dot {
+  width: 9px; height: 9px; border-radius: 50%; padding: 0; cursor: pointer;
+  background: var(--bg-3); border: 1px solid var(--border);
+}
+.tut-dot.is-done { background: var(--border-hi); }
+.tut-dot.is-on { background: var(--fire); border-color: var(--fire); transform: scale(1.25); }
+.tut-nav { display: flex; gap: 8px; }
+.tut-nav .btn { flex: 1; }
+/* Tutorial button inside the live workout logger */
+.aw-tut {
+  width: 30px; height: 30px; border-radius: var(--r-md);
+  background: var(--bg-3); border: 1px solid var(--border-hi); color: var(--fire);
+  font-size: 0.7rem; cursor: pointer; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.aw-tut:hover { background: var(--fire); color: var(--bg); border-color: var(--fire); }
