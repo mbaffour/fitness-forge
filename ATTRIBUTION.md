@@ -15,6 +15,15 @@ pose artwork derives from **[Everkinetic](https://github.com/everkinetic/data)**
 - **Credit shown in-app:** "© Bryl Lim / Everkinetic · CC BY-SA 4.0" beneath each animation, linking to the source.
 - Generated map: `tools/import-workout-guide.mjs` → `src/data/exercise-anim.js` (URLs only).
 
+### Exercise metadata & net-new entries
+
+The same generator also derives **157 net-new strength exercises** from
+workout-guide's structured metadata (equipment, primary/secondary muscles,
+exercise type) — movements not previously in our library, each carrying one of the
+CC BY-SA 4.0 animations above. Generated data: `src/data/exercises-wg.js`
+(`WG_EXERCISES`). This metadata is likewise **CC BY-SA 4.0** (© Bryl Lim /
+Everkinetic); stretches and cardio entries are excluded from the strength library.
+
 ## Static exercise images — free-exercise-db (public domain)
 
 Still-image previews come from

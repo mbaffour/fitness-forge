@@ -46,6 +46,8 @@ const defaultState = {
   activeGymId:  null,   // id of the active gym profile (Fitbod-style)
   // ── v3.4 additions ──
   customExercises: {},  // { id: {name, muscle, groups[], equip[], type, diff, requires[]} } — user-created
+  // ── v3.8 additions ──
+  bodyMapTray: [],      // exercises stacked from the Body Map trainer, pending "Start session"
 };
 
 export const state = (() => {
@@ -65,6 +67,7 @@ export const state = (() => {
         gymProfiles: parsed.gymProfiles || [],
         activeGymId: parsed.activeGymId ?? null,
         customExercises: parsed.customExercises || {},
+        bodyMapTray: parsed.bodyMapTray || [],
       };
     }
     return { ...defaultState };

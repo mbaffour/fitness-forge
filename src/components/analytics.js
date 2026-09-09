@@ -85,13 +85,17 @@ function _muscleMap(mode) {
 // ── ANATOMICAL MUSCLE MAP (SVG front/back silhouettes) ──
 // Each muscle region is tinted by its normalized training value (same data as
 // the chip grid). Stylized figure drawn in-house — flat, on-token, no images.
-function _bodySVGs(groups) {
+// `interactive` makes every muscle region a tappable button that calls
+// window.bodyMapTap('<groupId>') — reused by the Body Map trainer page.
+export function renderBodyFigures(groups, { interactive = false } = {}) {
   const g = {};
   groups.forEach(x => { g[x.id] = x; });
   // Region fill for a muscle group id: fire intensity over bg-2.
   const F = (id) => {
     const pct = g[id]?.pct || 0;
-    return `fill="color-mix(in srgb, var(--fire) ${Math.round(8 + pct * 84)}%, var(--bg-2))" stroke="var(--border-hi)" stroke-width="1" stroke-linejoin="round"`;
+    const base = `fill="color-mix(in srgb, var(--fire) ${Math.round(8 + pct * 84)}%, var(--bg-2))" stroke="var(--border-hi)" stroke-width="1" stroke-linejoin="round"`;
+    if (!interactive) return base;
+    return `${base} class="mm-tap" data-group="${id}" role="button" tabindex="0" onclick="bodyMapTap('${id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();bodyMapTap('${id}')}"`;
   };
   const N = `fill="var(--bg-2)" stroke="var(--border)" stroke-width="1" stroke-linejoin="round"`;   // neutral (head, hands…)
   const T = (id) => `<title>${g[id]?.label || id} — ${Math.round((g[id]?.pct || 0) * 100)}%</title>`;
@@ -166,6 +170,12 @@ function _bodySVGs(groups) {
 </div>`;
 }
 
+// Normalized per-group training load (0–1), reused by the Body Map trainer to
+// tint regions so undertrained muscles stand out. Default mode = balance.
+export function muscleLoadData(mode = 'balance') {
+  return _muscleMap(mode);
+}
+
 function _muscleMapHTML() {
   const data = _muscleMap(_mmMode);
   const cells = data.map(g => `
@@ -179,7 +189,7 @@ function _muscleMapHTML() {
   <div class="seg" style="margin-bottom:12px">
     ${modes.map(([id, lbl]) => `<button class="seg-btn ${_mmMode === id ? 'active' : ''}" onclick="setMuscleMapMode('${id}')">${lbl}</button>`).join('')}
   </div>
-  ${_bodySVGs(data)}
+  ${renderBodyFigures(data)}
   <div class="mm-grid" style="margin-top:16px">${cells}</div>
   <div class="dim fs11" style="margin-top:10px">${_mmMode === 'balance' ? 'Total training volume per muscle group.' : _mmMode === 'fatigue' ? 'Volume in the last 4 days — high = recently hammered.' : 'Best estimated 1RM reached per group.'}</div>`;
 }
