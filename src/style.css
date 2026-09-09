@@ -2711,3 +2711,8 @@ body.session-active .sidebar { display: none !important; }
   display: block; font-style: normal; font-size: 0.68rem; color: var(--text-2);
   letter-spacing: 0.06em; margin-top: 3px;
 }
+
+/* Demo shown inside the walkthrough for exercises without animation frames */
+.tut-visual { margin-bottom: 14px; }
+.tut-visual .ex-gif-wrap { max-height: 190px; margin: 0 auto; }
+.tut-visual img { max-height: 190px; object-fit: contain; }

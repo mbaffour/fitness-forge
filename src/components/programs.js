@@ -317,7 +317,15 @@ window.programUndoSession = (idx) => {
   const prog = gp && getProgram(gp.id);
   if (!prog) return;
   const p = progress(gp, prog);
-  gp.done = (gp.done || []).filter(k => k !== sessionKey(p.week, idx));
+  const key = sessionKey(p.week, idx);
+  const done = gp.done || [];
+  if (done.includes(key)) {
+    gp.done = done.filter(k => k !== key);
+  } else {
+    // Completing a week advances p.week, so the row's key no longer matches and
+    // undo silently did nothing. Fall back to reversing the most recent session.
+    gp.done = done.slice(0, -1);
+  }
   save();
   rerender();
 };

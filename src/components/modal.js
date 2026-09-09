@@ -79,10 +79,10 @@ export function exPreviewHTML(ex, { variant = 'full' } = {}) {
 // ── INTERACTIVE TUTORIAL ─────────────────────────────────────────────────────
 // Cues become a step-through walkthrough instead of a wall of bullets: one step
 // at a time, with the animation frame for that phase of the lift alongside.
-let _tut = { id: null, steps: [], i: 0, frames: 0, slug: '' };
+let _tut = { id: null, ex: null, steps: [], i: 0, frames: 0, slug: '' };
 
 function tutHTML() {
-  const { steps, i, frames, slug } = _tut;
+  const { steps, i, frames, slug, ex } = _tut;
   if (!steps.length) return '';
   const last = i === steps.length - 1;
   // Map the current step onto a phase of the 3-frame animation.
@@ -95,12 +95,16 @@ function tutHTML() {
           <span>${['Start', 'Middle', 'End'][f] || `Phase ${f + 1}`}</span>
         </div>`).join('')}
     </div>` : '';
+  // 774 exercises have written steps but no animation frames — they still have a
+  // GIF or a still, so show that beside the steps rather than words alone.
+  const visual = frames ? strip
+    : (ex ? `<div class="tut-visual">${exPreviewHTML(ex, { variant: 'full' })}</div>` : '');
   return `
     <div class="tut-head">
       <span class="label">How to do it</span>
       <span class="tut-count">Step ${i + 1} / ${steps.length}</span>
     </div>
-    ${strip}
+    ${visual}
     <div class="tut-step"><span class="tut-num">${i + 1}</span><p>${steps[i]}</p></div>
     <div class="tut-dots">
       ${steps.map((_, d) => `<button class="tut-dot ${d === i ? 'is-on' : ''} ${d < i ? 'is-done' : ''}" onclick="tutGo(${d})" aria-label="Step ${d + 1}"></button>`).join('')}
@@ -135,6 +139,7 @@ export function showExerciseModal(ex) {
   const videoId     = (ex.youtubeId && ex.youtubeId.trim()) || (ex.id ? EXERCISE_VIDEOS[ex.id] : '') || '';
   _tut = {
     id: ex.id,
+    ex,
     steps: (ex.cues || []).filter(Boolean),
     i: 0,
     frames: wgAnim?.frames || 0,
