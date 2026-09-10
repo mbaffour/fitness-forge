@@ -6,7 +6,7 @@
 // ═══════════════════════════════════════════
 
 import { state, getOwnedItems, saveGymProfile, setActiveGym, deleteGymProfile, formatWeight } from '../store.js';
-import { EQUIP_ITEMS, LOCATION_PRESETS, MUSCLE_GROUPS, EXERCISES, getExercisesForItems } from '../data/exercises.js';
+import { EQUIP_ITEMS, LOCATION_PRESETS, MUSCLE_GROUPS, EXERCISES, getExercisesForItems, isStrengthExercise } from '../data/exercises.js';
 import { buildFullBodyOverload, OVERLOAD_VARIANTS } from '../engine/generator.js';
 import { suggestNextSet } from '../engine/overload.js';
 import { exPreviewHTML } from './modal.js';
@@ -41,7 +41,12 @@ export function renderEquipment() {
 
   // coverage across the 12 groups given the owned items
   const cov = {};
-  MUSCLE_GROUPS.forEach(g => { cov[g.id] = getExercisesForItems(g.id, _owned, level).length; });
+  // Count only real strength movements — the public-domain library brought in
+  // stretches, mobility drills and cardio machines, and counting those made a
+  // thin kit look better covered than it is.
+  MUSCLE_GROUPS.forEach(g => {
+    cov[g.id] = getExercisesForItems(g.id, _owned, level).filter(isStrengthExercise).length;
+  });
   const hit = Object.values(cov).filter(c => c > 0).length;
 
   const presetChips = LOCATION_PRESETS.map(loc => {

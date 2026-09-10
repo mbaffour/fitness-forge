@@ -4,9 +4,10 @@
 //   Own exercise library, circuits, session log.
 // ════════════════════════════════════════════════
 
-import { EXERCISES, getCalisthenicsExercises } from '../data/exercises.js';
+import { EXERCISES } from '../data/exercises.js';
 import { state, save, logWorkout, updateStreak } from '../store.js';
 import { showExerciseModal, exThumbHTML } from './modal.js';
+import { suggestNextSet } from '../engine/overload.js';
 
 // ── Movement categories (covers both bodyweight + caliOnly pools) ──────────
 const CALI_CATEGORIES = [
@@ -97,6 +98,26 @@ const PROGRESSIONS = [
   { skill:'Dragon Flag',        steps:['Hollow Body Hold → Tuck Flag → Single Leg Extension → Full Dragon Flag'] },
   { skill:'Ring Dips',          steps:['Bar Dips (15+ reps) → Stable Ring Support → Ring Dip Negative → Full Ring Dips'] },
 ];
+
+// The rep target was a fixed string per exercise, so the page told everyone the
+// same thing forever — the bodyweight equivalent of the generic starting
+// weight the other sections had. Bodyweight progression IS rep progression, so
+// the base range goes through the same engine: once you have logged the
+// movement the target moves with you, and says why.
+function caliTarget(exId) {
+  const base = CALI_REPS[exId] || '8–12 reps';
+  const sug  = suggestNextSet(exId, base, state.sessions || [], state.profile || {});
+  if (sug.isColdStart || sug.reps == null) return { text: base, why: '' };
+  const isHold = /\d\s*s\b|hold|sec\b|min\b/i.test(base);
+  const unit = isHold ? 's hold' : ' reps';
+  // On a hit-upper the engine resets reps because the next step is added load
+  // or a harder variant. Showing that lower number after a big set reads as a
+  // demotion, so hold the mark you actually reached and let the note explain.
+  if (sug.signal === 'HIT_UPPER' && sug.bestReps) {
+    return { text: `${sug.bestReps}${unit} ✓`, why: sug.rationale || '' };
+  }
+  return { text: `${sug.reps}${unit}`, why: sug.rationale || '' };
+}
 
 let selectedLevel = null;
 
@@ -196,9 +217,11 @@ ${CALI_CATEGORIES.map(cat => {
             <span style="font-family:var(--ff-mono);font-size:0.7rem;color:var(--text-2)">${ex.muscle || ''}</span>
           </div>
         </div>
-        <div style="text-align:right;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;justify-content:center;gap:4px">
-          <div style="font-family:var(--ff-mono);font-size:0.8rem;color:var(--fire);font-weight:600">${CALI_REPS[ex.id] || '8–12 reps'}</div>
-          <div style="font-family:var(--ff-mono);font-size:0.65rem;color:var(--text-3)">Tap for form ↗</div>
+        <div style="text-align:right;flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;justify-content:center;gap:4px;max-width:180px">
+          <div style="font-family:var(--ff-mono);font-size:0.8rem;color:var(--fire);font-weight:600">${caliTarget(ex.id).text}</div>
+          ${caliTarget(ex.id).why
+            ? `<div style="font-family:var(--ff-mono);font-size:0.62rem;color:var(--text-2);line-height:1.35">${caliTarget(ex.id).why}</div>`
+            : `<div style="font-family:var(--ff-mono);font-size:0.65rem;color:var(--text-3)">Tap for form ↗</div>`}
         </div>
       </div>
     `).join('')}
