@@ -24,14 +24,18 @@ const BW_EXERCISES = new Set([
 // the exercise data itself asks for no equipment. Before this was data-driven,
 // only the 18 ids above counted, so Bird Dog, Wall Sit, Bicycle Crunch and the
 // rest of the bodyweight library were quoted a phantom barbell load.
+const NO_LOAD_ITEMS = new Set(['bench', 'pull_up_bar', 'ab_wheel', 'rings_trx']);
+
 function isUnloaded(exId, ex) {
   if (BW_EXERCISES.has(exId)) return true;
   const e = ex || EXERCISES[exId];
   if (!e) return false;
   if (!Array.isArray(e.requires)) return false;
   if (e.requires.length === 0) return !/\bplate\b|weighted|medicine ball|sandbag/i.test(e.name || '');
-  // Bench and a pull-up bar are supports, not load.
-  return e.requires.every(r => r === 'bench' || r === 'pull_up_bar');
+  // A bench, pull-up bar, ab wheel or set of rings is a tool, not a load —
+  // none of them has a weight to choose. Only barbell / dumbbells /
+  // kettlebell / cable / machine / bands carry an adjustable resistance.
+  return e.requires.every(r => NO_LOAD_ITEMS.has(r));
 }
 
 function classifyExercise(exId) {
@@ -270,12 +274,12 @@ const BAR_LB = 45;         // an empty olympic bar — you cannot load less
 const LIGHT_BAR_LB = 15;   // lightest EZ / fixed / training bar
 
 /**
- * coldStartWeight(exId, profile)
+ * coldStartWeight(exId, profile, reps)
  * Returns a starting load in canonical lbs, or null when the movement carries
  * no measurable external load (bodyweight, bands) or the profile has no
  * bodyweight to reason from.
  */
-function coldStartWeight(exId, profile) {
+function coldStartWeight(exId, profile, reps = 8) {
   const bw = profile?.weight;
   if (!bw) return null;
   const ex = EXERCISES[exId];
@@ -304,7 +308,7 @@ function coldStartWeight(exId, profile) {
   if (impl !== native) oneRm *= SUBSTITUTION[impl] ?? 0.8;
 
   // First session on this lift: leave headroom for technique.
-  let load = loadForReps(oneRm, 8) * (level === 'beginner' ? 0.78 : 0.85);
+  let load = loadForReps(oneRm, reps) * (level === 'beginner' ? 0.78 : 0.85);
 
   // A jump squat is not a squat — explosive work is loaded far lighter.
   if (PLYO_RE.test(ex?.name || '')) load *= 0.45;
@@ -361,7 +365,7 @@ export function suggestNextSet(exId, targetRepsStr, sessions, profile, scheme = 
 
   if (!relevant.length) {
     // Cold start
-    const weight = isBodyweight ? null : coldStartWeight(exId, profile);
+    const weight = isBodyweight ? null : coldStartWeight(exId, profile, targetMin);
     return {
       weight,
       reps: targetMin,
@@ -374,13 +378,13 @@ export function suggestNextSet(exId, targetRepsStr, sessions, profile, scheme = 
   const lastSession = relevant[0];
   const lastExData  = lastSession.exercises.find(e => e.exId === exId);
   if (!lastExData?.sets?.length) {
-    const weight = isBodyweight ? null : coldStartWeight(exId, profile);
+    const weight = isBodyweight ? null : coldStartWeight(exId, profile, targetMin);
     return { weight, reps: targetMin, rationale: coldStartRationale(profile, weight, isBodyweight), isBodyweight, isColdStart: true };
   }
 
   const completedSets = lastExData.sets.filter(s => s.completed);
   if (!completedSets.length) {
-    const weight = isBodyweight ? null : coldStartWeight(exId, profile);
+    const weight = isBodyweight ? null : coldStartWeight(exId, profile, targetMin);
     return { weight, reps: targetMin, rationale: coldStartRationale(profile, weight, isBodyweight), isBodyweight, isColdStart: true };
   }
 

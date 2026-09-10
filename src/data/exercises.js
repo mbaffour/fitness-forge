@@ -349,6 +349,54 @@ export function getExercisesForGroup(groupId, equip, level) {
   return getExercisesForItems(groupId, toItemSet(equip), level);
 }
 
+// ── PICKING A RECOGNIZABLE EXERCISE FOR A MUSCLE ────────────────────────────
+// Shared by every generator (Overload, Freestyle, Body Map) so all three agree
+// on what a staple is. Each used to carry its own rule, and they disagreed:
+// Overload picked uniformly at random from several hundred entries and served
+// up "Jogging, Treadmill" for quads, while Freestyle offered Pull-Ups for a
+// biceps session because it never checked which muscle was primary.
+
+// Cardio machines, stretches, mobility drills and SMR (foam-rolling) entries
+// arrived with the public-domain library. They are not strength movements and
+// must never fill a slot in a generated strength session.
+const NOT_STRENGTH_RE = /elliptical|treadmill|stationary bike|rowing machine|stair ?master|jacobs ladder|arc trainer|airdyne|ski ?erg|\bcycling\b|\bjogging\b|\brunning\b|\bwalking\b|stretch|mobility|foam roll|\byoga\b|\bpose\b|-smr\b|\bsmr\b|balance board|bosu|\bwarm[- ]?up\b/i;
+
+export function isStrengthExercise(ex) {
+  return !NOT_STRENGTH_RE.test(ex?.name || '');
+}
+
+// Lower is better. Movements that train this group as their PRIMARY target
+// rank above ones that only hit it as a secondary, and hand-authored entries
+// (short curated ids, with form cues) above the bulk-imported workout-guide
+// (wg_) and free-exercise-db (fx_) libraries.
+export function stapleRank(ex, groupId) {
+  const primary = ex.groups?.[0] === groupId ? 0 : 4;
+  const source  = /^fx_/.test(ex.id) ? 2 : /^wg_/.test(ex.id) ? 1 : 0;
+  return primary + source;
+}
+
+// Within a tier, a band version is the last resort — it only reaches a full-gym
+// user's list because it is available everywhere, and sorting by name alone put
+// "Band Chest Press" and "Banded Squat" ahead of the barbell lifts.
+function implementRank(ex) {
+  const req = ex.requires || [];
+  if (req.includes('resistance_bands')) return 2;
+  if (req.length === 0) return 1;          // bodyweight — good, but not the default pick
+  return 0;
+}
+
+// Every strength exercise for a group, best-known first. Callers slice off as
+// many as they need, or read the top rank to randomise within the best tier.
+export function rankedForGroup(list, groupId) {
+  return list
+    .filter(isStrengthExercise)
+    .sort((a, b) =>
+      stapleRank(a, groupId) - stapleRank(b, groupId) ||
+      implementRank(a) - implementRank(b) ||
+      (a.type === 'compound' ? 0 : 1) - (b.type === 'compound' ? 0 : 1) ||
+      (a.name || '').localeCompare(b.name || ''));
+}
+
 // Returns all exercises appropriate for the calisthenics page:
 // — caliOnly exercises (skill-based, tagged exclusively for this page)
 // — general bodyweight exercises (pushup, pullup, squat_bw, etc.)
