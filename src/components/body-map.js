@@ -6,7 +6,7 @@
 // ═══════════════════════════════════════════
 
 import { state, getOwnedItems, formatWeight, save } from '../store.js';
-import { MUSCLE_GROUPS, EXERCISES, getExercisesForItems } from '../data/exercises.js';
+import { MUSCLE_GROUPS, EXERCISES, getExercisesForItems, isStrengthExercise, stapleRank } from '../data/exercises.js';
 import { renderBodyFigures, muscleLoadData } from './analytics.js';
 import { suggestNextSet } from '../engine/overload.js';
 import { toast } from './ui.js';
@@ -36,7 +36,7 @@ function prescribe(ex) {
 // Top N available exercises for a muscle group, compounds first.
 function pickForGroup(groupId, n = 8) {
   const level = state.profile?.level || 'intermediate';
-  const list = getExercisesForItems(groupId, getOwnedItems(), level);
+  const list = getExercisesForItems(groupId, getOwnedItems(), level).filter(isStrengthExercise);
   // Exercises you've actually logged surface first — they carry real history,
   // so their targets are progressed rather than cold-start estimates.
   const logged = new Set();
@@ -46,21 +46,13 @@ function pickForGroup(groupId, n = 8) {
   // Recognizable staples first: curated exercises (hand-authored short ids with
   // form cues) rank above the bulk-imported free-exercise-db / workout-guide
   // entries (fx_/wg_ ids). Then primary-group match, compound, then name.
-  list.sort((a, b) => {
-    const ap = a.groups?.[0] === groupId ? 0 : 1;
-    const bp = b.groups?.[0] === groupId ? 0 : 1;
-    if (ap !== bp) return ap - bp;
-    const al = logged.has(a.id) ? 0 : 1;
-    const bl = logged.has(b.id) ? 0 : 1;
-    if (al !== bl) return al - bl;
-    const ac = /^(fx_|wg_)/.test(a.id) ? 1 : 0;
-    const bc = /^(fx_|wg_)/.test(b.id) ? 1 : 0;
-    if (ac !== bc) return ac - bc;
-    const at = a.type === 'compound' ? 0 : 1;
-    const bt = b.type === 'compound' ? 0 : 1;
-    if (at !== bt) return at - bt;
-    return (a.name || '').localeCompare(b.name || '');
-  });
+  // Logged lifts first (they carry real history, so their loads are progressed
+  // rather than estimated), then the shared staple ranking every generator uses.
+  list.sort((a, b) =>
+    (logged.has(a.id) ? 0 : 1) - (logged.has(b.id) ? 0 : 1) ||
+    stapleRank(a, groupId) - stapleRank(b, groupId) ||
+    (a.type === 'compound' ? 0 : 1) - (b.type === 'compound' ? 0 : 1) ||
+    (a.name || '').localeCompare(b.name || ''));
   return n === Infinity ? list : list.slice(0, n);
 }
 

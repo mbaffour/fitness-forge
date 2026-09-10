@@ -4,8 +4,9 @@
 //   → personalised session with weight suggestions
 // ════════════════════════════════════════
 
-import { MUSCLE_GROUPS, getExercisesForGroup, EXERCISES } from '../data/exercises.js';
+import { MUSCLE_GROUPS, getExercisesForGroup, rankedForGroup, EXERCISES } from '../data/exercises.js';
 import { state, formatWeight, weightUnitLabel } from '../store.js';
+import { suggestNextSet } from '../engine/overload.js';
 import { showExerciseModal, exThumbHTML } from './modal.js';
 
 // Rep schemes by intensity
@@ -15,48 +16,30 @@ const SCHEMES = {
   heavy:    { sets: 4, repRange: '4–6',   rest: '2–3 min', rpe: '~RPE 9',   desc: 'Heavy strength focus — big weights, low reps' },
 };
 
-// Weight suggestion logic (% of bodyweight, rough starting points)
-function weightSuggestion(exId, bw, level, intensity) {
-  if (!bw) return null;
-  const pct = {
-    beginner:     { light: 0.3, moderate: 0.4, heavy: 0.5 },
-    intermediate: { light: 0.4, moderate: 0.55, heavy: 0.7 },
-    advanced:     { light: 0.5, moderate: 0.7,  heavy: 0.9 },
-  };
-
-  // Multipliers per exercise type
-  const multipliers = {
-    squat_bb: 0.9, squat_db: 0.25, deadlift: 1.1, trap_dl: 1.0,
-    rdl_bb: 0.7, bss: 0.3, legpress: 1.2,
-    bench_bb: 0.6, bench_db: 0.25, incline_bb: 0.5, incline_db: 0.22,
-    ohp_bb: 0.4, ohp_db: 0.16,
-    row_bb: 0.55, row_db: 0.22,
-    pullup: null, chinup: null, // bodyweight
-    lat_pull: 0.5,
-    curl_bb: 0.25, curl_db: 0.1,
-    lat_raise: 0.06, tri_push: 0.15,
-  };
-
-  const base = (pct[level] || pct.intermediate)[intensity];
-  const mult = multipliers[exId] ?? 0.25;
-  const rawLbs = Math.round((bw * base * mult) / 5) * 5; // round to nearest 5
-
-  const ex = EXERCISES[exId];
-  if (!ex) return null;
-
-  // Bodyweight exercises
-  if (['pullup','chinup','dips','pushup','squat_bw','lunge_bw','plank','deadbug','hollow','russian','crunch','legraise'].includes(exId)) {
-    return { text: 'Bodyweight', note: 'Add weight when form is solid' };
+// Freestyle used to carry its OWN copy of the cold-start weight model — the
+// same one that shipped in the engine, with the same two faults: a level
+// fraction multiplied on top of a per-exercise bodyweight fraction (halving
+// every number) and a flat 0.25x fallback for anything outside its 20-entry
+// table. Two models also meant Freestyle ignored your training history and
+// always quoted a first-timer's load, even for a lift you had logged for
+// months. It now asks the shared engine, which reads both.
+function weightSuggestion(exId, reps) {
+  const sug = suggestNextSet(exId, reps, state.sessions || [], state.profile || {},
+                             state.settings?.progression || 'double');
+  if (sug.isBodyweight) {
+    return { text: 'Bodyweight', note: sug.rationale || 'Add weight when form is solid' };
   }
-
-  if (rawLbs < 10) return null;
-
-  const isDB = exId.includes('_db') || exId.includes('curl_') || exId.includes('shrug_db') || exId === 'lat_raise' || exId === 'front_raise' || exId === 'farmer';
-  const label = isDB
-    ? `${formatWeight(rawLbs/2, false)}–${formatWeight(rawLbs/2 + 5, false)} ${weightUnitLabel()} per DB`
-    : `${formatWeight(rawLbs, false)}–${formatWeight(rawLbs + 10, false)} ${weightUnitLabel()}`;
-
-  return { text: label, note: 'Starting estimate — adjust to your strength' };
+  if (sug.weight == null) {
+    return sug.rationale ? { text: `${sug.reps ?? reps} reps`, note: sug.rationale } : null;
+  }
+  const ex = EXERCISES[exId];
+  const perHand = (ex?.requires || []).some(r => r === 'dumbbells' || r === 'kettlebell')
+    && !/goblet|single[- ]?arm|one[- ]?arm|suitcase|swing/i.test(ex?.name || '');
+  const unit = weightUnitLabel();
+  return {
+    text: `${formatWeight(sug.weight, false)} ${unit}${perHand ? ' per hand' : ''}`,
+    note: sug.rationale || '',
+  };
 }
 
 let selectedGroups = [];
@@ -132,7 +115,6 @@ function hexToRgb(hex) {
 function buildFreestyleSession(groups, intensity, profile) {
   const equip = profile?.equipment || 'full_gym';
   const level = profile?.level    || 'intermediate';
-  const bw    = profile?.weight   || null;
   const scheme = SCHEMES[intensity];
 
   // Collect exercises per group, deduplicate
@@ -140,9 +122,11 @@ function buildFreestyleSession(groups, intensity, profile) {
   const exercises = [];
 
   for (const gid of groups) {
-    const pool = getExercisesForGroup(gid, equip, level);
-    // Sort: compounds first, then isolations
-    pool.sort((a,b) => (a.type === 'compound' ? 0 : 1) - (b.type === 'compound' ? 0 : 1));
+    // Shared ranking: exercises that train this group as their PRIMARY target
+    // first, curated staples above the bulk libraries, cardio/SMR excluded.
+    // Sorting on compound-vs-isolation alone offered Pull-Ups and Lat Pulldown
+    // for a biceps session, and Farmer Carries + Air Bike for core.
+    const pool = rankedForGroup(getExercisesForGroup(gid, equip, level), gid);
 
     // Take 1–2 per group depending on total groups
     const perGroup = groups.length <= 3 ? 2 : 1;
@@ -160,7 +144,7 @@ function buildFreestyleSession(groups, intensity, profile) {
   const final = exercises.slice(0, 8);
 
   return final.map(ex => {
-    const suggestion = weightSuggestion(ex.id, bw, level, intensity);
+    const suggestion = weightSuggestion(ex.id, scheme.repRange);
     return {
       ...ex,
       sets: scheme.sets,
