@@ -4,8 +4,9 @@
 //   run one week by week, and tick off milestones as you go.
 // ═══════════════════════════════════════════
 
-import { state, save, getOwnedItems } from '../store.js';
+import { state, save, getOwnedItems, formatWeight } from '../store.js';
 import { EXERCISES } from '../data/exercises.js';
+import { suggestNextSet } from '../engine/overload.js';
 import { PROGRAMS, PROGRAM_CATEGORIES, getProgram, CHALLENGES, getChallenge } from '../data/programs.js';
 import { toast } from './ui.js';
 import { exThumbHTML } from './modal.js';
@@ -100,6 +101,63 @@ function activeHTML() {
   </div>`;
 }
 
+// ── TARGETS ──────────────────────────────────────────────────────────────────
+// A program session used to list "4 × 8-10" and nothing else, so the one thing
+// you needed at the rack — what to put on the bar — was the one thing missing.
+function programLoad(e) {
+  const sug = suggestNextSet(e.id, e.reps, state.sessions || [], state.profile || {},
+                             state.settings?.progression || 'double');
+  if (sug.isBodyweight) return 'BW';
+  if (sug.weight == null) return '';
+  const ex = EXERCISES[e.id];
+  const perHand = (ex?.requires || []).some(r => r === 'dumbbells' || r === 'kettlebell')
+    && !/goblet|single[- ]?arm|one[- ]?arm|suitcase|swing/i.test(ex?.name || '');
+  return `${formatWeight(sug.weight)}${perHand ? '/hand' : ''}`;
+}
+
+// Best set you have actually logged for a movement — reps, or seconds for a
+// timed hold. Used to anchor a challenge ramp to your real capacity.
+function personalBest(exId, unit) {
+  if (!exId) return null;
+  const timed = unit === 'seconds';
+  let best = 0;
+  for (const sess of state.sessions || []) {
+    for (const e of sess.exercises || []) {
+      if (e.exId !== exId) continue;
+      for (const set of e.sets || []) {
+        if (!set.completed || set.warmup) continue;
+        const v = timed ? (set.seconds || 0) : (set.reps || 0);
+        if (v > best) best = v;
+      }
+    }
+  }
+  return best || null;
+}
+
+// The authored ramp is one fixed curve for everyone: day 1 of the 30-day
+// push-up asks 11 reps whether you can do 5 or 40 — impossible for one person
+// and trivial for weeks for the other. Scale the author's curve to the person.
+//
+// Anchor on the FINISH, not day 1. The authored curves grow ~5x over 30 days;
+// scaling by day 1 keeps that multiple, which sent someone already doing 40
+// push-ups to a 134-rep set. Aiming the last day at ~2.2x your current best
+// gives a hard but real finish, and day 1 falls out around half of what you
+// can do today. With no history the authored numbers stand, and the card says so.
+const CHALLENGE_END_MULTIPLE = 2.2;
+
+function challengeScale(c) {
+  const best = personalBest(c.exId, c.unit);
+  if (!best) return 1;
+  const designedEnd = c.target(c.days - 1) || 1;
+  const k = (best * CHALLENGE_END_MULTIPLE) / designedEnd;
+  return Math.min(3, Math.max(0.4, k));   // one freak set must not warp the ramp
+}
+
+function challengeTarget(c, dayIdx, scale) {
+  const k = scale ?? challengeScale(c);
+  return Math.max(1, Math.round(c.target(dayIdx) * k));
+}
+
 // ── CATALOG ──────────────────────────────────────────────────────────────────
 function cardHTML(prog) {
   const missing = missingItems(prog);
@@ -114,7 +172,7 @@ function cardHTML(prog) {
             <div class="pg-sess-ex">
               <span class="pg-sess-name">${exThumbHTML({ id: e.id, ...EXERCISES[e.id] })}${EXERCISES[e.id]?.name || e.id}</span>
               <span class="pg-sess-right">
-                <span class="pg-sess-rx">${e.sets} × ${e.reps}</span>
+                <span class="pg-sess-rx">${e.sets} × ${e.reps}${(() => { const l = programLoad(e); return l ? ` · ${l}` : ''; })()}</span>
                 <button class="bm-demo" onclick="event.stopPropagation();openExDetail('${e.id}')"
                         title="How to do it — demo, form cues and video tutorial"
                         aria-label="How to do this exercise">▶</button>
@@ -160,8 +218,10 @@ function challengeHTML() {
       const pct = Math.round((done.length / c.days) * 100);
       const complete = done.length >= c.days;
       const todayDone = done.includes(day - 1);
+      const chScale = challengeScale(c);
+      const chBest  = personalBest(c.exId, c.unit);
       const dots = Array.from({ length: c.days }, (_, i) =>
-        `<span class="ch-dot ${done.includes(i) ? 'is-done' : i === day - 1 && !complete ? 'is-now' : ''}" title="Day ${i + 1}: ${c.target(i)} ${c.unit}"></span>`).join('');
+        `<span class="ch-dot ${done.includes(i) ? 'is-done' : i === day - 1 && !complete ? 'is-now' : ''}" title="Day ${i + 1}: ${challengeTarget(c, i, chScale)} ${c.unit}"></span>`).join('');
       return `
       <div class="card ch-active">
         <div class="pg-active-head">
@@ -184,7 +244,7 @@ function challengeHTML() {
           <div class="ch-today">
             <div>
               <div class="label" style="margin-bottom:4px">Today · day ${day}</div>
-              <div class="ch-target">${c.target(day - 1)} <span>${c.unit}</span></div>
+              <div class="ch-target">${challengeTarget(c, day - 1, chScale)} <span>${c.unit}</span></div>
             </div>
             <div class="ch-today-actions">
               ${c.exId ? `<button class="bm-demo" onclick="openExDetail('${c.exId}')" title="How to do it">▶</button>` : ''}
@@ -192,7 +252,10 @@ function challengeHTML() {
                 ${todayDone ? '✓ Done today' : 'Mark done'}
               </button>
             </div>
-          </div>`}
+          </div>
+          ${c.exId ? `<div class="ch-basis">${chBest
+            ? `Scaled to your best logged set — ${chBest} ${c.unit}. Ends at ${challengeTarget(c, c.days - 1, chScale)}.`
+            : `Default ramp. Log ${EXERCISES[c.exId]?.name || 'this movement'} once and it re-anchors to what you can actually do.`}</div>` : ''}`}
       </div>`;
     }
   }
@@ -204,7 +267,7 @@ function challengeHTML() {
           <div class="pg-icon">${c.icon}</div>
           <div class="pg-card-main">
             <div class="pg-card-name">${c.name}</div>
-            <div class="pg-card-meta">${c.days} days · ends at ${c.target(c.days - 1)} ${c.unit}</div>
+            <div class="pg-card-meta">${c.days} days · ends at ${challengeTarget(c, c.days - 1)} ${c.unit}</div>
             <div class="pg-card-blurb">${c.blurb}</div>
             <div class="ch-reward">🏅 ${c.reward}</div>
           </div>

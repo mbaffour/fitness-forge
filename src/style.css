@@ -2670,6 +2670,10 @@ body.session-active .sidebar { display: none !important; }
 .ch-today-actions { display: flex; align-items: center; gap: 8px; }
 .ch-target { font-family: var(--ff-mono, monospace); font-size: 1.5rem; color: var(--fire); line-height: 1; }
 .ch-target span { font-size: 0.7rem; color: var(--text-2); letter-spacing: 0.08em; text-transform: uppercase; }
+.ch-basis {
+  font-family: var(--ff-mono, monospace); font-size: 0.65rem; line-height: 1.5;
+  color: var(--text-2); margin-top: 10px;
+}
 .ch-reward {
   font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase;
   color: var(--green); margin-top: 6px;
