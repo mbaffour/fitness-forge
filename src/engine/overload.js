@@ -60,17 +60,16 @@ function classifyExercise(exId) {
   return 'compound_bb';
 }
 
+// Handles "10–12", "10-12", "10", "30–45s" (timed), and suffixed forms like
+// "10–20 reps" or "8–12/side". Splitting on "-" after stripping a trailing "s"
+// left "20 reps" as the second part, which is NaN, so every suffixed range
+// silently collapsed to min === max and the rep-progression signal misfired.
 function parseRepRange(repsStr) {
-  if (!repsStr) return { min: 8, max: 12 };
-  // Handle "10–12" or "10-12" or "10" or "30–45s" (timed)
-  const clean = repsStr.replace(/s$/, '').replace('–', '-');
-  const parts = clean.split('-').map(Number);
-  if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-    return { min: parts[0], max: parts[1] };
-  }
-  const single = parseInt(clean);
-  if (!isNaN(single)) return { min: single, max: single };
-  return { min: 8, max: 12 };
+  const nums = String(repsStr ?? '').replace(/[–—]/g, '-').match(/\d+/g);
+  if (!nums?.length) return { min: 8, max: 12 };
+  const min = parseInt(nums[0], 10);
+  const max = nums[1] != null ? parseInt(nums[1], 10) : min;
+  return { min, max: Math.max(min, max) };
 }
 
 // ══ COLD START — first-ever load for an exercise ═══════════════════════════
@@ -422,13 +421,17 @@ export function suggestNextSet(exId, targetRepsStr, sessions, profile, scheme = 
   const increment = incTable[level] || 2.5;
 
   if (isBodyweight) {
+    const best = Math.max(0, ...workingSets.map(x => x.reps || 0));
     if (signal === 'HIT_UPPER') {
-      return { weight: null, reps: targetMin, rationale: 'Great reps — try adding weight (vest/belt) or progress to a harder variant.', isBodyweight: true };
+      return { weight: null, reps: targetMin, bestReps: best, signal,
+               rationale: 'Great reps — try adding weight (vest/belt) or progress to a harder variant.', isBodyweight: true };
     }
     if (signal === 'MISS' && prevWasAlsoMiss) {
-      return { weight: null, reps: Math.max(targetMin - 2, 1), rationale: 'Take it down a notch — rebuild your base.', isBodyweight: true };
+      return { weight: null, reps: Math.max(targetMin - 2, 1), bestReps: best, signal,
+               rationale: 'Take it down a notch — rebuild your base.', isBodyweight: true };
     }
-    return { weight: null, reps: Math.min(Math.round(avgReps) + 1, targetMax + 2), rationale: 'Push for one more rep.', isBodyweight: true };
+    return { weight: null, reps: Math.min(Math.round(avgReps) + 1, targetMax + 2), bestReps: best, signal,
+             rationale: 'Push for one more rep.', isBodyweight: true };
   }
 
   // ── Named progression schemes (weighted lifts) ──

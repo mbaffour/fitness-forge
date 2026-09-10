@@ -359,10 +359,15 @@ export function getExercisesForGroup(groupId, equip, level) {
 // Cardio machines, stretches, mobility drills and SMR (foam-rolling) entries
 // arrived with the public-domain library. They are not strength movements and
 // must never fill a slot in a generated strength session.
-const NOT_STRENGTH_RE = /elliptical|treadmill|stationary bike|rowing machine|stair ?master|jacobs ladder|arc trainer|airdyne|ski ?erg|\bcycling\b|\bjogging\b|\brunning\b|\bwalking\b|stretch|mobility|foam roll|\byoga\b|\bpose\b|-smr\b|\bsmr\b|balance board|bosu|\bwarm[- ]?up\b/i;
+const NOT_STRENGTH_RE = /elliptical|treadmill|stationary bike|rowing machine|stair ?master|jacobs ladder|arc trainer|airdyne|ski ?erg|stretch|mobility|foam roll|\byoga\b|\bpose\b|-smr\b|\bsmr\b|balance board|bosu|\bwarm[- ]?up\b/i;
+// Gait entries are cardio, but "Walking Lunge" and "Farmer's Walk" are lifts —
+// so these only match when the whole name IS the activity, not when the word
+// appears inside a movement name.
+const CARDIO_GAIT_RE = /^(?:\w+ )?(?:walking|running|jogging|cycling|sprinting|rowing|swimming|hiking|stair climbing|skipping)(?:,.*)?$/i;
 
 export function isStrengthExercise(ex) {
-  return !NOT_STRENGTH_RE.test(ex?.name || '');
+  const name = ex?.name || '';
+  return !NOT_STRENGTH_RE.test(name) && !CARDIO_GAIT_RE.test(name.trim());
 }
 
 // Lower is better. Movements that train this group as their PRIMARY target
