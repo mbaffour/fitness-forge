@@ -3,6 +3,8 @@
 //   Pure functions — no side effects
 // ═══════════════════════════════════════════
 
+import { EXERCISES } from '../data/exercises.js';
+
 // Weight increments by exercise category and level
 const INCREMENT = {
   compound_bb: { beginner: 5, intermediate: 2.5, advanced: 2.5 },
@@ -18,8 +20,22 @@ const BW_EXERCISES = new Set([
   'side_plank','v_up',
 ]);
 
+// A movement carries no external load when the curated list says so, or when
+// the exercise data itself asks for no equipment. Before this was data-driven,
+// only the 18 ids above counted, so Bird Dog, Wall Sit, Bicycle Crunch and the
+// rest of the bodyweight library were quoted a phantom barbell load.
+function isUnloaded(exId, ex) {
+  if (BW_EXERCISES.has(exId)) return true;
+  const e = ex || EXERCISES[exId];
+  if (!e) return false;
+  if (!Array.isArray(e.requires)) return false;
+  if (e.requires.length === 0) return !/\bplate\b|weighted|medicine ball|sandbag/i.test(e.name || '');
+  // Bench and a pull-up bar are supports, not load.
+  return e.requires.every(r => r === 'bench' || r === 'pull_up_bar');
+}
+
 function classifyExercise(exId) {
-  if (BW_EXERCISES.has(exId)) return 'bodyweight';
+  if (isUnloaded(exId)) return 'bodyweight';
   if (exId.endsWith('_db') || exId.includes('curl_db') || exId.includes('shrug_db') ||
       exId === 'lat_raise' || exId === 'front_raise' || exId === 'farmer' ||
       exId === 'ohp_db' || exId === 'bench_db' || exId === 'incline_db' ||
@@ -53,30 +69,279 @@ function parseRepRange(repsStr) {
   return { min: 8, max: 12 };
 }
 
-// Cold-start: use freestyle weight suggestion fallback
+// ══ COLD START — first-ever load for an exercise ═══════════════════════════
+// Nothing has been logged, so the load is estimated from the person: their
+// bodyweight, training level, sex and age, against published strength
+// standards for the movement pattern. It is deliberately conservative — this
+// is the first set of a lift you have never done here, so it should be a
+// weight you can own with clean technique, not a test.
+//
+// The previous model multiplied a per-exercise bodyweight fraction by a second
+// level fraction, halving every number, and fell back to a flat 0.25 x for any
+// exercise not in its 60-entry table — which is 950 of the 1057 in the library.
+// That is why almost everything quoted the same generic load.
+
+// Approximate 1RM as a multiple of bodyweight for an INTERMEDIATE MALE aged
+// <= 35, expressed as total external load (both hands / the whole bar).
+// These are ballpark strength-standard figures, not a medical prescription.
+const PATTERN_1RM = {
+  squat: 1.25, front_squat: 1.00, leg_press: 2.30, lunge: 0.55,
+  hinge: 1.50, hinge_light: 0.95, hip_thrust: 1.40,
+  horiz_push: 1.00, incline_push: 0.80, vert_push: 0.62,
+  horiz_pull: 0.90, vert_pull: 0.80, shrug: 1.30, carry: 1.00,
+  curl: 0.35, tri_ext: 0.35, lat_raise: 0.22, rear_delt: 0.20,
+  chest_fly: 0.55, pullover: 0.35,
+  calf: 1.40, leg_ext: 0.55, leg_curl: 0.45, hip_iso: 0.50,
+  core_loaded: 0.35, forearm: 0.18,
+  other_compound: 0.50, other_iso: 0.25,
+};
+
+// Ceiling on a cold-start suggestion, as a multiple of bodyweight. A backstop
+// against a nonsense profile producing a dangerous first set — never a target.
+const PATTERN_CAP = {
+  leg_press: 3.0, hinge: 2.0, squat: 1.75, hip_thrust: 2.0, calf: 2.0, shrug: 1.8,
+};
+const DEFAULT_CAP = 1.5;
+
+// Movement pattern for the curated staples, where the name alone is ambiguous.
+const PATTERN_BY_ID = {
+  squat_bb: 'squat', squat_front: 'front_squat', squat_db: 'squat', hack_squat: 'squat',
+  legpress: 'leg_press', bss: 'lunge', lunge_db: 'lunge', lunge_bb: 'lunge', stepup: 'lunge',
+  deadlift: 'hinge', trap_dl: 'hinge', sumo_dl: 'hinge', pendlay_row: 'horiz_pull',
+  rdl_bb: 'hinge_light', rdl_db: 'hinge_light', good_morning: 'hinge_light',
+  hipthrust: 'hip_thrust', glute_bridge: 'hip_thrust',
+  bench_bb: 'horiz_push', bench_db: 'horiz_push', decline_bench: 'horiz_push',
+  machine_press: 'horiz_push', cgbench: 'horiz_push',
+  incline_bb: 'incline_push', incline_db: 'incline_push',
+  ohp_bb: 'vert_push', ohp_db: 'vert_push', pushpress: 'vert_push', arnold_press: 'vert_push',
+  row_bb: 'horiz_pull', row_db: 'horiz_pull', row_cable: 'horiz_pull',
+  row_chest: 'horiz_pull', row_tbar: 'horiz_pull',
+  lat_pull: 'vert_pull', str_pull: 'vert_pull',
+  shrug_bb: 'shrug', shrug_db: 'shrug', farmer: 'carry',
+  curl_bb: 'curl', curl_db: 'curl', curl_hammer: 'curl', curl_incline: 'curl',
+  preacher_curl: 'curl', cable_curl: 'curl', concentration_curl: 'curl', reverse_curl: 'curl',
+  tri_push: 'tri_ext', tri_oh: 'tri_ext', skull: 'tri_ext',
+  lat_raise: 'lat_raise', front_raise: 'lat_raise', upright_row: 'lat_raise',
+  rear_delt_fly: 'rear_delt', face_pull: 'rear_delt',
+  cable_fly: 'chest_fly', db_fly: 'chest_fly', pullover: 'pullover',
+  seated_calf: 'calf', calf_raise: 'calf',
+  leg_ext: 'leg_ext', legcurl: 'leg_curl',
+  hip_abduction: 'hip_iso', hip_adduction: 'hip_iso', glute_kickback: 'hip_iso',
+  cable_crunch: 'core_loaded', wood_chop: 'core_loaded',
+  wrist_curl: 'forearm', rev_wrist_curl: 'forearm',
+};
+
+// Keyword fallback for the ~950 library exercises with no hand-written entry.
+const PATTERN_BY_NAME = [
+  [/leg press/i,                                  'leg_press'],
+  [/hack squat/i,                                 'squat'],
+  [/front squat|goblet/i,                          'front_squat'],
+  [/squat|belt squat|sissy/i,                      'squat'],
+  [/lunge|split squat|step[- ]?up|bulgarian/i,     'lunge'],
+  [/romanian|rdl|good ?morning|back extension|hyperextension/i, 'hinge_light'],
+  [/deadlift|clean|snatch|swing|pull[- ]?through/i,'hinge'],
+  [/hip thrust|glute bridge/i,                     'hip_thrust'],
+  [/incline (bench|press|push)/i,                  'incline_push'],
+  [/shoulder press|overhead press|military|push press|arnold|landmine press/i, 'vert_push'],
+  [/bench press|chest press|floor press|board press|dip machine/i, 'horiz_push'],
+  [/fly|flye|pec deck|crossover/i,                 'chest_fly'],
+  [/pullover/i,                                     'pullover'],
+  [/pulldown|pull[- ]?down|pull[- ]?up|chin[- ]?up/i, 'vert_pull'],
+  [/row|face pull/i,                                'horiz_pull'],
+  [/shrug/i,                                        'shrug'],
+  [/carry|farmer|suitcase|waiter/i,                 'carry'],
+  [/lateral raise|side raise|front raise|upright row/i, 'lat_raise'],
+  [/rear delt|reverse fly|reverse flye/i,           'rear_delt'],
+  [/curl/i,                                         'curl'],
+  [/tricep|pushdown|push[- ]?down|skull ?crusher|extension.*tricep|kickback/i, 'tri_ext'],
+  [/calf|heel raise/i,                              'calf'],
+  [/leg extension|knee extension/i,                 'leg_ext'],
+  [/leg curl|hamstring curl/i,                      'leg_curl'],
+  [/abduction|adduction|clamshell|glute kick/i,     'hip_iso'],
+  [/\bwrist\b|\bforearm\b|gripper|grip (?:strength|trainer|machine)|pinch|hand squeeze/i, 'forearm'],
+  [/crunch|sit[- ]?up|twist|woodchop|wood chop|pallof|leg raise|plank/i, 'core_loaded'],
+  [/press/i,                                        'horiz_push'],
+];
+
+// Last resort: the exercise's own muscle group + compound/isolation flag.
+const PATTERN_BY_GROUP = {
+  chest: 'horiz_push', shoulders: 'vert_push', back: 'horiz_pull',
+  quads: 'squat', hamstrings: 'hinge_light', glutes: 'hip_thrust', calves: 'calf',
+  biceps: 'curl', triceps: 'tri_ext', forearms: 'forearm', core: 'core_loaded',
+};
+
+const CARDIO_RE = /elliptical|treadmill|stationary bike|rowing machine|stair ?master|jacobs ladder|arc trainer|airdyne|ski ?erg|\bcycling\b|\bjogging\b|\brunning\b|\bwalking\b/i;
+
+// Explosive variants are trained well below the strength version of the lift.
+const PLYO_RE = /\bjump|plyo|explosive|\bhop\b|bound|depth drop|clap/i;
+
+function movementPattern(exId, ex) {
+  if (PATTERN_BY_ID[exId]) return PATTERN_BY_ID[exId];
+  const name = ex?.name || '';
+  for (const [re, pat] of PATTERN_BY_NAME) if (re.test(name)) return pat;
+  const g = ex?.groups?.[0];
+  if (g && PATTERN_BY_GROUP[g]) {
+    const pat = PATTERN_BY_GROUP[g];
+    // An isolation move on a compound pattern is much lighter than the pattern.
+    return ex?.type === 'isolation' ? (pat === 'horiz_push' ? 'chest_fly' : pat) : pat;
+  }
+  return ex?.type === 'isolation' ? 'other_iso' : 'other_compound';
+}
+
+// Each standard above is quoted for the implement the movement is normally
+// performed on — a lat pulldown's number is a cable stack, a lateral raise's
+// is a pair of dumbbells. Only a SUBSTITUTION is discounted; scaling a
+// natively-cable lift by a "cable factor" was double-counting and made
+// pulldowns and raises read far too light.
+const NATIVE_IMPLEMENT = {
+  squat: 'barbell', front_squat: 'barbell', leg_press: 'machine', lunge: 'dumbbell',
+  hinge: 'barbell', hinge_light: 'barbell', hip_thrust: 'barbell',
+  horiz_push: 'barbell', incline_push: 'barbell', vert_push: 'barbell',
+  horiz_pull: 'barbell', vert_pull: 'cable', shrug: 'barbell', carry: 'dumbbell',
+  curl: 'barbell', tri_ext: 'cable', lat_raise: 'dumbbell', rear_delt: 'dumbbell',
+  chest_fly: 'dumbbell', pullover: 'dumbbell',
+  calf: 'machine', leg_ext: 'machine', leg_curl: 'machine', hip_iso: 'machine',
+  core_loaded: 'cable', forearm: 'barbell',
+  other_compound: 'barbell', other_iso: 'dumbbell',
+};
+const SUBSTITUTION = { barbell: 1.15, machine: 1.05, cable: 0.85, dumbbell: 0.75, kettlebell: 0.60, other: 0.80 };
+
+function implementOf(exId, ex) {
+  const req = ex?.requires || [];
+  if (req.includes('resistance_bands')) return 'band';
+  if (req.includes('barbell'))          return 'barbell';
+  if (req.includes('machine'))          return 'machine';
+  if (req.includes('cable'))            return 'cable';
+  if (req.includes('kettlebell'))       return 'kettlebell';
+  if (req.includes('dumbbells'))        return 'dumbbell';
+  if (/\bplate\b/i.test(ex?.name || '')) return 'dumbbell';
+  return 'other';
+}
+
+// Isolation work is done on EZ, fixed or light bars, so the 45 lb olympic bar
+// is not its floor — forcing it handed a 140 lb beginner a 45 lb barbell curl.
+const ISOLATION_PATTERNS = new Set(['curl', 'tri_ext', 'lat_raise', 'rear_delt', 'chest_fly',
+  'pullover', 'forearm', 'core_loaded', 'leg_ext', 'leg_curl', 'hip_iso']);
+
+// One implement held in both hands (goblet, swings, single-arm work) takes the
+// whole load; a matched pair splits it, and the number the user types is the
+// weight of ONE dumbbell.
+const SINGLE_IMPLEMENT = /goblet|single[- ]?arm|one[- ]?arm|single[- ]?leg|suitcase|swing|halo|windmill|turkish|landmine|around the world/i;
+
+// Strength scales with bodyweight but not linearly — a 250 lb lifter is not
+// 1.6x as strong as a 155 lb one at the same level. Allometric-style damping.
+function bodyweightScale(bw) {
+  const ref = 175;
+  return Math.pow(bw / ref, 0.67) * ref;
+}
+
+const LEVEL_FACTOR = { beginner: 0.62, intermediate: 1.0, advanced: 1.35 };
+
+// Upper-body strength relative to bodyweight differs more by sex than lower.
+// When sex is unknown, take the lower of the two — starting light is the safe
+// error, and one working set corrects it.
+const UPPER = new Set(['horiz_push', 'incline_push', 'vert_push', 'horiz_pull', 'vert_pull',
+  'curl', 'tri_ext', 'lat_raise', 'rear_delt', 'chest_fly', 'pullover', 'shrug', 'forearm']);
+function sexFactor(sex, pattern) {
+  const upper = UPPER.has(pattern);
+  if (sex === 'male')   return 1.0;
+  if (sex === 'female') return upper ? 0.60 : 0.72;
+  return upper ? 0.68 : 0.78;   // unstated — conservative middle
+}
+
+// Peak roughly 20–35; taper after, and hold youth well back.
+function ageFactor(age) {
+  if (!age) return 1.0;
+  if (age < 18) return 0.70;
+  if (age <= 35) return 1.0;
+  return Math.max(0.62, 1 - (age - 35) * 0.006);
+}
+
+// Inverse Epley: the load you can move for `reps` given a 1RM.
+const loadForReps = (oneRm, reps) => oneRm / (1 + Math.max(1, reps) / 30);
+
+function roundLoad(w) {
+  if (w < 12) return Math.round(w);              // small dumbbells come in 1s
+  if (w < 25) return Math.round(w / 2.5) * 2.5;
+  return Math.round(w / 5) * 5;
+}
+
+const BAR_LB = 45;         // an empty olympic bar — you cannot load less
+const LIGHT_BAR_LB = 15;   // lightest EZ / fixed / training bar
+
+/**
+ * coldStartWeight(exId, profile)
+ * Returns a starting load in canonical lbs, or null when the movement carries
+ * no measurable external load (bodyweight, bands) or the profile has no
+ * bodyweight to reason from.
+ */
 function coldStartWeight(exId, profile) {
-  if (!profile?.weight) return null;
-  const bw = profile.weight;
-  const level = profile.level || 'intermediate';
-  const pct = { beginner: 0.4, intermediate: 0.55, advanced: 0.7 }[level] || 0.55;
-  const multipliers = {
-    squat_bb: 0.9, squat_front: 0.65, squat_db: 0.25, deadlift: 1.1, trap_dl: 1.0,
-    rdl_bb: 0.7, rdl_db: 0.3, bss: 0.3, legpress: 1.2, hack_squat: 0.7,
-    good_morning: 0.35, leg_ext: 0.35, seated_calf: 0.4,
-    hip_abduction: 0.3, hip_adduction: 0.3, glute_kickback: 0.15,
-    bench_bb: 0.6, bench_db: 0.25, incline_bb: 0.5, incline_db: 0.22,
-    decline_bench: 0.55, machine_press: 0.5,
-    ohp_bb: 0.4, ohp_db: 0.16, pushpress: 0.45, arnold_press: 0.14, upright_row: 0.3,
-    row_bb: 0.55, row_db: 0.22, row_cable: 0.4, row_chest: 0.2, row_tbar: 0.5, pendlay_row: 0.5,
-    lat_pull: 0.5, pullover: 0.25, rear_delt_fly: 0.05,
-    curl_bb: 0.25, curl_db: 0.1, preacher_curl: 0.2, cable_curl: 0.2,
-    concentration_curl: 0.12, reverse_curl: 0.18,
-    wrist_curl: 0.15, rev_wrist_curl: 0.1,
-    lat_raise: 0.06, tri_push: 0.15, cable_crunch: 0.35, wood_chop: 0.2,
-  };
-  const mult = multipliers[exId] ?? 0.25;
-  const raw = Math.round((bw * pct * mult) / 5) * 5;
-  return raw >= 10 ? raw : null;
+  const bw = profile?.weight;
+  if (!bw) return null;
+  const ex = EXERCISES[exId];
+  if (isUnloaded(exId, ex)) return null;
+
+  if (CARDIO_RE.test(ex?.name || '')) return null;   // cardio machine, not a lift
+
+  const impl = implementOf(exId, ex);
+  if (impl === 'band') return null;               // bands are not measured in lbs
+
+  const pattern = movementPattern(exId, ex);
+  const base    = PATTERN_1RM[pattern] ?? PATTERN_1RM.other_compound;
+  const level   = profile.level || 'intermediate';
+
+  // 1RM estimate for this person on this pattern, as total external load.
+  let oneRm = bodyweightScale(bw) * base
+            * (LEVEL_FACTOR[level] ?? 1.0)
+            * sexFactor(profile.sex, pattern)
+            * ageFactor(profile.age);
+
+  // A vertical pull already moves bodyweight; the stack only makes up the rest.
+  if (pattern === 'vert_pull') oneRm *= 0.9;
+
+  // Only discount when the implement differs from the one the standard assumes.
+  const native = NATIVE_IMPLEMENT[pattern] || 'barbell';
+  if (impl !== native) oneRm *= SUBSTITUTION[impl] ?? 0.8;
+
+  // First session on this lift: leave headroom for technique.
+  let load = loadForReps(oneRm, 8) * (level === 'beginner' ? 0.78 : 0.85);
+
+  // A jump squat is not a squat — explosive work is loaded far lighter.
+  if (PLYO_RE.test(ex?.name || '')) load *= 0.45;
+
+  // Health backstop — never suggest an absurd first set.
+  load = Math.min(load, bw * (PATTERN_CAP[pattern] ?? DEFAULT_CAP));
+
+  // Per-implement, not total, for anything held in the hands.
+  if ((impl === 'dumbbell' || impl === 'kettlebell') && !SINGLE_IMPLEMENT.test(ex?.name || '')) {
+    load /= 2;
+  }
+
+  load = roundLoad(load);
+
+  // Below the bar is not a weight you can load on a big barbell lift, and an
+  // empty bar is the standard place to start one. Accessory barbell work is
+  // exempt — EZ and fixed bars go lighter.
+  if (impl === 'barbell') {
+    return ISOLATION_PATTERNS.has(pattern)
+      ? Math.max(LIGHT_BAR_LB, load)   // EZ / fixed / training bar
+      : Math.max(BAR_LB, load);
+  }
+  return load >= 2 ? load : null;   // lighter than the smallest dumbbell — reps only
+}
+
+// Say what the number is based on, so a first-session load does not read as an
+// arbitrary default. Also names the missing input when there isn't one.
+function coldStartRationale(profile, weight, isBodyweight) {
+  if (isBodyweight) return 'Bodyweight movement — chase clean reps, not load.';
+  if (!profile?.weight) {
+    return 'Add your bodyweight in Profile and starting weights get estimated for you.';
+  }
+  if (weight == null) return 'No fixed load here — work to the rep target.';
+  const bits = [`${Math.round(profile.weight)} lb bodyweight`];
+  if (profile.level) bits.push(profile.level);
+  if (profile.age)   bits.push(`age ${profile.age}`);
+  return `Start estimate from ${bits.join(' · ')} — deliberately light. Adjust after set 1.`;
 }
 
 /**
@@ -100,7 +365,7 @@ export function suggestNextSet(exId, targetRepsStr, sessions, profile, scheme = 
     return {
       weight,
       reps: targetMin,
-      rationale: 'Starting estimate — adjust to your strength.',
+      rationale: coldStartRationale(profile, weight, isBodyweight),
       isBodyweight,
       isColdStart: true,
     };
@@ -110,13 +375,13 @@ export function suggestNextSet(exId, targetRepsStr, sessions, profile, scheme = 
   const lastExData  = lastSession.exercises.find(e => e.exId === exId);
   if (!lastExData?.sets?.length) {
     const weight = isBodyweight ? null : coldStartWeight(exId, profile);
-    return { weight, reps: targetMin, rationale: 'No sets logged yet.', isBodyweight, isColdStart: true };
+    return { weight, reps: targetMin, rationale: coldStartRationale(profile, weight, isBodyweight), isBodyweight, isColdStart: true };
   }
 
   const completedSets = lastExData.sets.filter(s => s.completed);
   if (!completedSets.length) {
     const weight = isBodyweight ? null : coldStartWeight(exId, profile);
-    return { weight, reps: targetMin, rationale: 'No completed sets found.', isBodyweight, isColdStart: true };
+    return { weight, reps: targetMin, rationale: coldStartRationale(profile, weight, isBodyweight), isBodyweight, isColdStart: true };
   }
 
   // Find "working sets" = sets at ≥60% of max weight for this exercise that session

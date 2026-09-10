@@ -180,13 +180,34 @@ function buildFullBody(equip, level, goal, phase) {
 
 // Pick one exercise for a muscle group, preferring compounds and avoiding
 // exercises already used this session. Falls back to reuse, then null.
+// Cardio machines and mobility work came in with the public-domain library and
+// are not strength movements — a full-body strength rotation must never draw
+// "Jogging, Treadmill" for its quads slot.
+const NOT_STRENGTH_RE = /elliptical|treadmill|stationary bike|rowing machine|stair ?master|jacobs ladder|arc trainer|airdyne|ski ?erg|\bcycling\b|\bjogging\b|\brunning\b|\bwalking\b|stretch|mobility|foam roll|\byoga\b|\bpose\b|-smr\b|\bsmr\b|balance board|bosu|\bwarm[- ]?up\b/i;
+
+// Recognizable staples first. The pool for a group is several hundred entries
+// once the bulk-imported library is merged in, so picking uniformly at random
+// almost never lands on a lift anyone would name — it served up Bottoms-Up
+// Clean From The Hang Position for biceps. Curated ids (hand-authored, with
+// form cues) outrank the wg_ additions, which outrank the fx_ long tail; the
+// choice stays random *within* the best available tier so sessions still vary.
+// Same ranking the Body Map uses, so both surfaces agree on what a staple is.
 function pickForGroup(group, equip, level, used) {
-  const all = getExercisesForGroup(group, equip, level);
+  const all = getExercisesForGroup(group, equip, level)
+    .filter(e => !NOT_STRENGTH_RE.test(e.name || ''));
   let pool = all.filter(e => !used.has(e.id));
   if (!pool.length) pool = all;
   if (!pool.length) return null;
-  const compounds = pool.filter(e => e.type === 'compound');
-  const src = compounds.length ? compounds : pool;
+
+  // Rank BEFORE preferring compounds. Filtering to compounds first threw away
+  // every curated core exercise (plank, hanging leg raise, ab wheel are all
+  // typed isolation), leaving the core slot to fx_ conditioning moves.
+  const tier = (e) => (e.groups?.[0] === group ? 0 : 4)
+                    + (/^fx_/.test(e.id) ? 2 : /^wg_/.test(e.id) ? 1 : 0);
+  const best = Math.min(...pool.map(tier));
+  const top  = pool.filter(e => tier(e) === best);
+  const comp = top.filter(e => e.type === 'compound');
+  const src  = comp.length ? comp : top;
   return src[Math.floor(Math.random() * src.length)];
 }
 
