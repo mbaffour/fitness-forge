@@ -11,12 +11,16 @@
   --border:     #2e2c28;
   --border-hi:  #403e38;
 
-  /* Surface behind exercise artwork. The workout-guide illustrations are pure
-     white silhouettes (fill:#fff, no strokes), so they need a dark well to be
-     legible — on the cream surface they were previously drawn on, the figure
-     was near-invisible. Fixed dark in every theme for that reason. */
-  --anim-bg:    #14130f;
-  --anim-label: #6b6553;
+  /* Exercise artwork. The workout-guide illustrations are pure white
+     silhouettes (fill:#fff, no strokes), so they are invisible on a light
+     surface. Two ways to fix that, and each theme takes the one that suits it:
+     dark themes keep the white figure and put a dark well behind it; the light
+     themes flip --anim-invert to 1, which inverts the figure to dark ink on a
+     cream card. Only workout-guide art is inverted — the GIFs and photo stills
+     are already dark-on-light and must never be flipped. */
+  --anim-bg:     #14130f;
+  --anim-label:  #6b6553;
+  --anim-invert: 0;
 
   --text:       #f2ede4;
   --text-2:     #a09880;
@@ -91,6 +95,10 @@ html[data-theme="day"] {
   --danger:     #c02020;
   --shadow: 0 4px 24px rgba(0,0,0,0.10);
   --glow:   0 0 32px rgba(200,72,8,0.08);
+  /* Light theme — invert the white artwork to ink on a warm card. */
+  --anim-bg:     #f3efe7;
+  --anim-label:  #5a5040;
+  --anim-invert: 1;
 }
 
 /* ── Ambient (deep space) ── */
@@ -231,6 +239,8 @@ html[data-theme="vivid"] {
   --ember:#ff9f1c; --steel:#2f6bff; --forge-green:#16c784; --danger:#e5484d;
   --grad:linear-gradient(92deg,#ff7a1f,#ff5a1f);
   --glow:0 6px 20px rgba(0,0,0,0.06);
+  /* Light theme — invert the white artwork to ink on a clean card. */
+  --anim-bg:#f7f7f5; --anim-label:#6a6a62; --anim-invert:1;
 }
 html[data-theme="vivid"] .btn, html[data-theme="vivid"] .btn-fire { border-radius:999px; }
 html[data-theme="vivid"] .card, html[data-theme="vivid"] .stat { box-shadow:0 1px 2px rgba(0,0,0,0.05); }
@@ -2530,6 +2540,7 @@ body.session-active .sidebar { display: none !important; }
 .wg-anim .wf {
   position: absolute; inset: 0; width: 100%; height: 100%;
   object-fit: contain; opacity: 0;
+  filter: invert(var(--anim-invert));
 }
 /* 3-frame loop: each frame shown a third of a 1.5s cycle */
 .wg-f3 .wf1 { animation: wgFlip3 1.5s steps(1, end) infinite; }
@@ -2677,7 +2688,10 @@ body.session-active .sidebar { display: none !important; }
   background: var(--anim-bg); padding: 6px 4px 4px; opacity: 0.45; transition: opacity 0.2s, border-color 0.2s;
 }
 .tut-frame.is-on { opacity: 1; border-color: var(--fire); }
-.tut-frame img { width: 100%; height: 74px; object-fit: contain; display: block; }
+.tut-frame img {
+  width: 100%; height: 74px; object-fit: contain; display: block;
+  filter: invert(var(--anim-invert));
+}
 .tut-frame span {
   display: block; font-size: 0.58rem; letter-spacing: 0.1em; text-transform: uppercase;
   color: var(--anim-label); margin-top: 2px;
@@ -2740,6 +2754,7 @@ body.session-active .sidebar { display: none !important; }
   display: inline-flex; align-items: center; justify-content: center; overflow: hidden;
 }
 .ex-thumb.is-wg { background: var(--anim-bg); }
+.ex-thumb.is-wg img { filter: invert(var(--anim-invert)); }
 .ex-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .ex-thumb-none { background: var(--bg-3); }
 .ex-thumb-none::after { content: '🏋'; font-size: 15px; opacity: 0.35; }
