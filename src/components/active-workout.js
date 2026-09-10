@@ -795,6 +795,10 @@ function closeOverlay() {
   if (mainArea) {
     mainArea.querySelectorAll('.page').forEach(p => p.style.display = '');
   }
+
+  // The page underneath was rendered before the session — re-render it so the
+  // streak, session count and today's card reflect what was just logged.
+  window.refreshCurrentPage?.();
 }
 
 function showPRToast(exName, weight, reps, e1rm) {

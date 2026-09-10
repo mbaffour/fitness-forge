@@ -11,6 +11,13 @@
   --border:     #2e2c28;
   --border-hi:  #403e38;
 
+  /* Surface behind exercise artwork. The workout-guide illustrations are pure
+     white silhouettes (fill:#fff, no strokes), so they need a dark well to be
+     legible — on the cream surface they were previously drawn on, the figure
+     was near-invisible. Fixed dark in every theme for that reason. */
+  --anim-bg:    #14130f;
+  --anim-label: #6b6553;
+
   --text:       #f2ede4;
   --text-2:     #a09880;
   --text-3:     #5a5545;
@@ -949,6 +956,15 @@ select.input { cursor: pointer; }
   transition: transform 0.15s;
 }
 .video-placeholder:hover .play-btn { transform: scale(1.1); }
+
+/* Escape hatch under an embedded tutorial: a few videos disallow embedding,
+   so always offer the direct link rather than leaving a blank player. */
+.vid-out {
+  display: inline-block; margin: 8px 0 20px;
+  font-family: var(--ff-mono); font-size: 0.7rem; letter-spacing: 0.06em;
+  color: var(--text-2); text-decoration: none;
+}
+.vid-out:hover { color: var(--fire); }
 
 /* ══ FREESTYLE PAGE ══ */
 .muscle-grid {
@@ -2510,7 +2526,7 @@ body.session-active .sidebar { display: none !important; }
 }
 
 /* ── workout-guide animated illustrations (CC BY-SA 4.0) ── */
-.wg-anim { position: relative; background: #f3efe7; }
+.wg-anim { position: relative; background: var(--anim-bg); }
 .wg-anim .wf {
   position: absolute; inset: 0; width: 100%; height: 100%;
   object-fit: contain; opacity: 0;
@@ -2658,13 +2674,13 @@ body.session-active .sidebar { display: none !important; }
 .tut-frames { display: flex; gap: 8px; margin-bottom: 14px; }
 .tut-frame {
   flex: 1; text-align: center; border: 1px solid var(--border); border-radius: var(--r-md);
-  background: #f3efe7; padding: 6px 4px 4px; opacity: 0.45; transition: opacity 0.2s, border-color 0.2s;
+  background: var(--anim-bg); padding: 6px 4px 4px; opacity: 0.45; transition: opacity 0.2s, border-color 0.2s;
 }
 .tut-frame.is-on { opacity: 1; border-color: var(--fire); }
 .tut-frame img { width: 100%; height: 74px; object-fit: contain; display: block; }
 .tut-frame span {
   display: block; font-size: 0.58rem; letter-spacing: 0.1em; text-transform: uppercase;
-  color: #5a5545; margin-top: 2px;
+  color: var(--anim-label); margin-top: 2px;
 }
 .tut-step {
   display: flex; gap: 10px; align-items: flex-start; min-height: 74px;
@@ -2723,7 +2739,7 @@ body.session-active .sidebar { display: none !important; }
   background: var(--bg-3); border: 1px solid var(--border);
   display: inline-flex; align-items: center; justify-content: center; overflow: hidden;
 }
-.ex-thumb.is-wg { background: #f3efe7; }
+.ex-thumb.is-wg { background: var(--anim-bg); }
 .ex-thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .ex-thumb-none { background: var(--bg-3); }
 .ex-thumb-none::after { content: '🏋'; font-size: 15px; opacity: 0.35; }
