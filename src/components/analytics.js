@@ -102,7 +102,7 @@ export function renderBodyFigures(groups, { interactive = false, selected = null
     const shapes = regions.map(r => {
       if (!r.group) {
         return r.paths.map(d =>
-          `<path d="${d}" fill="var(--bg-2)" stroke="var(--border)" stroke-width="1"/>`
+          `<path d="${d}" fill="var(--bg-2)" stroke="var(--border)" stroke-width="1" vector-effect="non-scaling-stroke"/>`
         ).join('');
       }
       const grp = g[r.group];
@@ -110,15 +110,21 @@ export function renderBodyFigures(groups, { interactive = false, selected = null
       const isSel = selected?.has?.(r.group);
       // 0% volume = neutral surface; only trained muscles glow. Selected muscles
       // are filled solid so a multi-muscle target reads at a glance.
+      // Untrained sits a step above the body surface so every muscle is still
+      // visible on a cold-start account — the figure is the page's whole
+      // affordance, and at 0% it used to melt into the silhouette.
       const fill = isSel
         ? 'var(--fire)'
-        : `color-mix(in srgb, var(--fire) ${Math.round(pct * 88)}%, var(--bg-3))`;
+        : `color-mix(in srgb, var(--fire) ${Math.round(pct * 88)}%, var(--bg-4))`;
       const tap = interactive
         ? ` class="mm-tap${isSel ? ' is-sel' : ''}" data-group="${r.group}" role="button" tabindex="0" aria-pressed="${!!isSel}" onclick="bodyMapTap('${r.group}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();bodyMapTap('${r.group}')}"`
         : '';
       const title = `<title>${grp?.label || r.group} — ${Math.round(pct * 100)}%</title>`;
+      // The figure is drawn from a ~724×1448 viewBox into a ~200px box, so a
+      // plain stroke-width:1 scales down to a fraction of a pixel and the
+      // muscle separations disappear. Keep the hairline at device scale.
       return r.paths.map(d =>
-        `<path d="${d}" fill="${fill}" stroke="var(--border-hi)" stroke-width="1"${tap}>${title}</path>`
+        `<path d="${d}" fill="${fill}" stroke="var(--border-hi)" stroke-width="1" vector-effect="non-scaling-stroke"${tap}>${title}</path>`
       ).join('');
     }).join('');
 

@@ -78,11 +78,7 @@ window.setWeightUnit = (unit) => {
   state.settings.weightUnit = u;
   save();
   // Re-render the current page so weight displays pick up the new unit.
-  const el = document.getElementById(`page-${currentPage}`);
-  if (el) {
-    el.innerHTML = PAGES[currentPage]?.render() || '';
-    if (CHART_PAGES[currentPage]) CHART_PAGES[currentPage]();
-  }
+  refreshCurrentPage();
 };
 
 // ── INSTALL (Add to Home Screen) ──
@@ -481,6 +477,18 @@ window.gotoHub = gotoHub;
 
 // ── GLOBAL HANDLERS ──
 window.navigate = navigate;
+
+// Re-render whatever page is on screen, in place (no history entry, no scroll
+// reset). Used whenever state changes behind an overlay — finishing a workout
+// updates the streak, session count and today's card, and the page underneath
+// would otherwise keep showing the pre-workout numbers until you navigated away.
+function refreshCurrentPage() {
+  const el = document.getElementById(`page-${currentPage}`);
+  if (!el || !PAGES[currentPage]) return;
+  el.innerHTML = PAGES[currentPage].render();
+  if (CHART_PAGES[currentPage]) CHART_PAGES[currentPage]();
+}
+window.refreshCurrentPage = refreshCurrentPage;
 
 window.goBack = () => {
   if (!navHistory.length) return;

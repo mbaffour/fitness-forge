@@ -247,16 +247,17 @@ export function showExerciseModal(ex) {
     </div>
     ` : ''}
 
-    <!-- ── VIDEO DEMO (click-to-load) ── -->
+    <!-- ── VIDEO DEMO (embedded inline) ── -->
     ${videoId ? `
     <div class="sec-head" style="margin-bottom:12px">Video Tutorial</div>
-    <div class="video-embed" id="video-wrap-${ex.id || 'ex'}" style="margin-bottom:20px">
-      <div class="video-placeholder" onclick="loadVideo('${videoId}', '${ex.id || 'ex'}')">
-        <div style="position:absolute;inset:0;background:url('https://img.youtube.com/vi/${videoId}/mqdefault.jpg') center/cover no-repeat;border-radius:6px;opacity:0.55"></div>
-        <div class="play-btn" style="position:relative;z-index:1">▶</div>
-        <div style="position:relative;z-index:1;font-family:var(--ff-mono);font-size:11px;color:var(--text);background:rgba(0,0,0,0.75);padding:4px 10px;border-radius:3px;letter-spacing:0.06em">CLICK TO LOAD VIDEO</div>
-      </div>
+    <div class="video-embed" id="video-wrap-${ex.id || 'ex'}">
+      <iframe src="https://www.youtube-nocookie.com/embed/${videoId}?rel=0&modestbranding=1&playsinline=1"
+        title="${(ex.name || 'Exercise').replace(/"/g, '')} — video tutorial" loading="lazy"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
     </div>
+    <a class="vid-out" href="https://www.youtube.com/watch?v=${videoId}" target="_blank" rel="noopener">
+      Won't play here? Open on YouTube ↗</a>
     ` : `
     <!-- No embedded demo → prominent link out to real tutorials -->
     <div class="sec-head" style="margin-bottom:12px">Video Tutorial</div>
