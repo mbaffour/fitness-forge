@@ -511,7 +511,7 @@ ${sessions.length >= 2 ? `
 <div class="g4 mb24" style="margin-bottom:24px">
   <div class="stat s-fire"><div class="label">Goal</div><div class="display" style="font-size:22px;margin-top:6px">${goalLabel(profile.goal)}</div></div>
   <div class="stat s-green"><div class="label">Level</div><div class="display" style="font-size:22px;margin-top:6px">${levelLabel(profile.level)}</div></div>
-  <div class="stat s-steel"><div class="label">Equipment</div><div class="display" style="font-size:22px;margin-top:6px">${profile.equipment.replace(/_/g,' ')}</div></div>
+  <div class="stat s-steel"><div class="label">Equipment</div><div class="display" style="font-size:22px;margin-top:6px">${(profile.equipment || 'not set').replace(/_/g, ' ')}</div></div>
   <div class="stat s-ember"><div class="label">PRs</div><div class="display" style="font-size:22px;margin-top:6px">${prKeys.length}</div></div>
 </div>
 

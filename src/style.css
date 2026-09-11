@@ -976,6 +976,30 @@ select.input { cursor: pointer; }
 }
 .vid-out:hover { color: var(--fire); }
 
+/* Storage-failure banner — pinned above everything, including the session
+   overlay, because losing a logged workout is the one thing the user must
+   never discover only after a reload. */
+.storage-banner {
+  position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 100000;
+  display: flex; align-items: flex-start; gap: 12px;
+  background: var(--bg-4); border: 1px solid var(--danger);
+  border-left: 3px solid var(--danger);
+  border-radius: var(--r-lg); padding: 14px 16px;
+  font-family: var(--ff-mono, monospace);
+  max-width: 720px; margin: 0 auto;
+}
+.storage-banner-ic { color: var(--danger); font-size: 18px; line-height: 1.2; flex-shrink: 0; }
+.storage-banner-body { flex: 1; min-width: 0; font-size: 0.72rem; line-height: 1.55; color: var(--text-2); }
+.storage-banner-body b { display: block; color: var(--text); font-size: 0.8rem; margin-bottom: 3px; }
+.storage-banner-x {
+  background: none; border: none; color: var(--text-3); cursor: pointer;
+  font-size: 13px; padding: 0 2px; flex-shrink: 0;
+}
+.storage-banner-x:hover { color: var(--text); }
+@media (max-width: 768px) {
+  .storage-banner { bottom: 68px; flex-wrap: wrap; }   /* clear the mobile tab bar */
+}
+
 /* ══ FREESTYLE PAGE ══ */
 .muscle-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px;

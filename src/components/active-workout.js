@@ -4,7 +4,7 @@ import { exThumbHTML } from './modal.js';
 //   Live set-by-set session overlay
 // ═══════════════════════════════════════════
 
-import { state, logSession, recordPR, updateStreak, checkFirstSession, formatWeight, weightUnitLabel, toStoredWeight, toDisplayWeight, weightInputStep } from '../store.js';
+import { state, logSession, saveOk, recordPR, updateStreak, checkFirstSession, formatWeight, weightUnitLabel, toStoredWeight, toDisplayWeight, weightInputStep } from '../store.js';
 import { suggestNextSet, detectPR, computeSessionVolume, estimateOneRepMax } from '../engine/overload.js';
 import { EXERCISES } from '../data/exercises.js';
 import { cue, acquireWakeLock, releaseWakeLock, notify } from './feedback.js';
@@ -661,10 +661,11 @@ window.finishActiveWorkout = () => {
   sessionState.id = sessionId;
 
   logSession({ ...sessionState });
+  const persisted = saveOk();
   updateStreak();
   checkFirstSession();
 
-  showSessionSummary(sessionState);
+  showSessionSummary(sessionState, persisted);
   closeOverlay();
 };
 
@@ -951,7 +952,7 @@ window.openPlateCalc = (weightDisp = null) => {
   document.getElementById('pc-weight')?.focus();
 };
 
-function showSessionSummary(session) {
+function showSessionSummary(session, persisted = true) {
   const vol   = session.totalVolume || 0;
   const sets  = session.exercises.reduce((s, ex) => s + ex.sets.filter(x => x.completed && !x.warmup).length, 0);
   const dur   = session.durationMinutes;
@@ -964,10 +965,10 @@ function showSessionSummary(session) {
   toast.className = 'session-summary-toast';
   toast.innerHTML = `
 <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-  <span style="font-family:var(--ff-display);font-size:20px">SESSION COMPLETE 🔥</span>
+  <span style="font-family:var(--ff-display);font-size:20px">${persisted ? 'SESSION COMPLETE 🔥' : 'SESSION NOT SAVED'}</span>
 </div>
-<div style="font-family:var(--ff-mono);font-size:10px;color:var(--forge-green);margin-bottom:12px;letter-spacing:0.12em">
-  ✓ SAVED TO YOUR LOG
+<div style="font-family:var(--ff-mono);font-size:10px;color:var(--${persisted ? 'forge-green' : 'danger'});margin-bottom:12px;letter-spacing:0.12em">
+  ${persisted ? '✓ SAVED TO YOUR LOG' : '⚠ NOT SAVED — STORAGE FULL'}
 </div>
 <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:8px">
   <div><div class="label">Sets</div><div class="mono fire">${sets}</div></div>
