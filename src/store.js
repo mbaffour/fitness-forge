@@ -82,8 +82,43 @@ export const state = (() => {
   }
 })();
 
+// Persist. Returns false when the write did not land.
+//
+// This used to be `try { ... } catch {}` — every failure swallowed. When
+// localStorage is full the workout you just finished is silently dropped while
+// the summary still reads "✓ SAVED TO YOUR LOG", and it is gone on reload.
+// Silent data loss is the worst outcome this app can produce, so a failed
+// write is now reported: callers get `false`, and a `forge:save-failed` event
+// lets the shell warn the user without store.js having to import any UI.
+let _lastSaveOk = true;
+
 export function save() {
-  try { localStorage.setItem(KEY, JSON.stringify(state)); } catch {}
+  try {
+    localStorage.setItem(KEY, JSON.stringify(state));
+    if (!_lastSaveOk) {
+      _lastSaveOk = true;
+      window.dispatchEvent?.(new CustomEvent('forge:save-recovered'));
+    }
+    return true;
+  } catch (err) {
+    _lastSaveOk = false;
+    try {
+      window.dispatchEvent?.(new CustomEvent('forge:save-failed', {
+        detail: { name: err?.name || 'Error', message: err?.message || String(err) },
+      }));
+    } catch { /* dispatch must never mask the original failure */ }
+    return false;
+  }
+}
+
+// True when the most recent write failed — the UI uses this to avoid claiming
+// something was saved when it was not.
+export function saveOk() { return _lastSaveOk; }
+
+// Rough size of what we are persisting, in bytes. Used to warn before the
+// wall rather than at it.
+export function stateBytes() {
+  try { return JSON.stringify(state).length; } catch { return 0; }
 }
 
 // ── CUSTOM EXERCISES ──
@@ -267,6 +302,8 @@ export function advanceOverloadVariant() {
 
 // ── NEW: SESSIONS (per-set workout logs) ──
 
+// Returns false if the session did not reach storage, so the caller can say so
+// instead of showing a success summary for data that was dropped.
 export function logSession(session) {
   state.sessions.unshift({ id: Date.now(), ...session });
   if (state.sessions.length > 200) state.sessions.length = 200;

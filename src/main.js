@@ -475,6 +475,41 @@ function gotoHub(hubId) {
 }
 window.gotoHub = gotoHub;
 
+// ── STORAGE FAILURE ──────────────────────────────────────────────────────────
+// localStorage is the only place user data lives. When a write fails — the
+// quota is full, or the browser is blocking site data — everything after that
+// point is lost on reload. The app used to swallow the error and still tell
+// you the session was saved, so the only way to find out was to lose a
+// workout. Say it loudly instead, and keep saying it until a write succeeds.
+let _storageBannerUp = false;
+
+function showStorageBanner(detail) {
+  if (_storageBannerUp) return;
+  _storageBannerUp = true;
+  const quota = /quota/i.test(detail?.name || '') || /quota/i.test(detail?.message || '');
+  const el = document.createElement('div');
+  el.id = 'storage-banner';
+  el.className = 'storage-banner';
+  el.innerHTML = `
+    <span class="storage-banner-ic">⚠</span>
+    <div class="storage-banner-body">
+      <b>Not saving — your data is at risk.</b>
+      <span>${quota
+        ? 'This browser will not store more app data — storage is full, or you are in private browsing.'
+        : 'The browser refused to store app data. Site data may be blocked for this page.'}
+        Anything you log now is lost on reload. Export a backup from Settings before you continue.</span>
+    </div>
+    <button class="btn btn-fire btn-sm" onclick="navigate('settings')">Back up →</button>
+    <button class="storage-banner-x" onclick="this.closest('.storage-banner').remove()" aria-label="Dismiss">✕</button>`;
+  document.body.appendChild(el);
+}
+
+window.addEventListener('forge:save-failed', (e) => showStorageBanner(e.detail));
+window.addEventListener('forge:save-recovered', () => {
+  document.getElementById('storage-banner')?.remove();
+  _storageBannerUp = false;
+});
+
 // ── GLOBAL HANDLERS ──
 window.navigate = navigate;
 
