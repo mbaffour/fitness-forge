@@ -4,10 +4,10 @@ import { exThumbHTML } from './modal.js';
 //   Live set-by-set session overlay
 // ═══════════════════════════════════════════
 
-import { state, logSession, saveOk, recordPR, updateStreak, checkFirstSession, formatWeight, weightUnitLabel, toStoredWeight, toDisplayWeight, weightInputStep } from '../store.js';
+import { state, logSession, saveOk, recordPR, clampReps, clampSeconds, updateStreak, checkFirstSession, formatWeight, weightUnitLabel, toStoredWeight, toDisplayWeight, weightInputStep } from '../store.js';
 import { suggestNextSet, detectPR, computeSessionVolume, estimateOneRepMax } from '../engine/overload.js';
 import { EXERCISES } from '../data/exercises.js';
-import { cue, acquireWakeLock, releaseWakeLock, notify } from './feedback.js';
+import { cue, acquireWakeLock, releaseWakeLock, notify, countUp, sparkBurst } from './feedback.js';
 
 let sessionState = null;  // current in-progress session
 let timerInterval = null;
@@ -174,6 +174,7 @@ export function startActiveWorkout(workoutId, workoutLabel, exercises, workoutTy
 
   renderOverlay();
   startTimer();
+  cue('start');
   acquireWakeLock();   // keep the screen on for the whole session
 }
 
@@ -475,10 +476,23 @@ window.logSet = (exIdx) => {
 
   // Inputs are in the user's display unit; convert back to canonical lbs to store.
   const weight = isBodyweight ? 0 : (toStoredWeight(weightEl?.value) || 0);
-  const count  = parseInt(repsEl?.value || 0);   // reps, or seconds for timed exercises
+
+  // A typed or pasted negative clamps to 0, which would quietly log a loaded
+  // lift as a bodyweight set. Re-prompt instead of recording something the
+  // user did not do.
+  if (!isBodyweight && weightEl && String(weightEl.value).trim() !== '' && weight <= 0) {
+    weightEl.classList.add('input-error');
+    cue('error');
+    setTimeout(() => weightEl.classList.remove('input-error'), 800);
+    return;
+  }
+  // Clamp, don't trust: "-5", "999999" and "8.7" all reach here from a number
+  // input. A rejected value returns 0 and re-prompts rather than being stored.
+  const count  = ex.timed ? clampSeconds(repsEl?.value) : clampReps(repsEl?.value);
 
   if (!count || count < 1) {
     repsEl?.classList.add('input-error');
+    cue('error');
     setTimeout(() => repsEl?.classList.remove('input-error'), 800);
     return;
   }
@@ -512,7 +526,9 @@ window.logSet = (exIdx) => {
       cue('pr');
     }
   }
-  if (!wasPR && !_quickLog) cue('setDone');
+  if (!wasPR && !_quickLog) cue(warmup ? 'warmup' : 'setDone');
+  // Sparks off the anvil where the set landed.
+  if (!_quickLog) sparkBurst(document.querySelector(`#ex-block-${exIdx} .btn-log-set`));
 
   if (block) block.dataset.pendingWarmup = '';   // warm-up is per-set, reset after logging
   updateVolumeDisplay();
@@ -564,9 +580,9 @@ window.saveEditSet = (exIdx, setIdx) => {
   if (!set) return;
   const wEl = document.getElementById(`edit-w-${exIdx}-${setIdx}`);
   const rEl = document.getElementById(`edit-r-${exIdx}-${setIdx}`);
-  const count = parseInt(rEl?.value || 0);
+  const count = set.timed ? clampSeconds(rEl?.value) : clampReps(rEl?.value);
   if (!count || count < 1) { rEl?.classList.add('input-error'); setTimeout(() => rEl?.classList.remove('input-error'), 800); return; }
-  if (wEl) set.weight = toStoredWeight(wEl.value) || 0;
+  if (wEl) set.weight = toStoredWeight(wEl.value) || 0;   // clamped in the store
   if (set.timed) set.seconds = count; else set.reps = count;
   editingSet = null;
   updateVolumeDisplay();
@@ -773,7 +789,7 @@ function updateVolumeDisplay() {
   const sets = sessionState.exercises.reduce((s, ex) => s + ex.sets.filter(x => x.completed && !x.warmup).length, 0);
   const volEl  = document.getElementById('session-volume');
   const setsEl = document.getElementById('session-sets-done');
-  if (volEl)  volEl.textContent  = vol > 0 ? formatWeight(vol) : formatWeight(0);
+  if (volEl) countUp(volEl, vol, { format: (n) => formatWeight(Math.round(n)) });
   if (setsEl) setsEl.textContent = sets;
 }
 

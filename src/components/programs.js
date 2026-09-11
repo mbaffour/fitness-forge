@@ -9,6 +9,7 @@ import { EXERCISES } from '../data/exercises.js';
 import { suggestNextSet } from '../engine/overload.js';
 import { PROGRAMS, PROGRAM_CATEGORIES, getProgram, CHALLENGES, getChallenge } from '../data/programs.js';
 import { toast } from './ui.js';
+import { cue } from './feedback.js';
 import { exThumbHTML } from './modal.js';
 
 let _tab = 'programs';   // programs | challenges
@@ -297,7 +298,14 @@ window.challengeTick = () => {
   if (ac.done.includes(i)) ac.done = ac.done.filter(x => x !== i);
   else {
     ac.done.push(i);
-    if (ac.done.length >= c.days) toast(`🏆 ${c.name} complete — ${c.reward}!`);
+    const done = ac.done.length >= c.days;
+    cue(done ? 'achievement' : 'milestone');
+    if (done) toast(`🏆 ${c.name} complete — ${c.reward}!`);
+    // Stamp the dot that was just claimed, after the re-render below.
+    setTimeout(() => {
+      const dot = document.querySelectorAll('.ch-dot')[i];
+      if (dot) { dot.classList.add('just-done'); setTimeout(() => dot.classList.remove('just-done'), 430); }
+    }, 30);
   }
   save(); rerender();
 };
@@ -344,6 +352,7 @@ window.programStart = (id) => {
   state.goalProgram = { id, startedAt: Date.now(), done: [] };
   save();
   _peek = null;
+  cue('start');
   rerender();
   window.scrollTo({ top: 0, behavior: 'smooth' });
   toast(`${prog.name} started — ${prog.weeks} weeks, ${prog.days}×/week`);
