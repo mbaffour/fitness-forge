@@ -59,20 +59,34 @@ export const state = (() => {
     if (raw) {
       const parsed = JSON.parse(raw);
       // Merge with defaultState so new keys are always present
+      // Coerce every collection to the shape the app expects. The merge below
+      // fills in MISSING keys, but a key present with the wrong type sailed
+      // through: a `nutritionLog` saved as an object threw
+      // `.find is not a function` during shell construction, so whole pages
+      // were never created at all — a blank app, not just a blank page.
+      const arr = (v) => (Array.isArray(v) ? v.filter((x) => x != null) : []);
+      const obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
+      for (const k of ['workoutLog', 'sessions', 'cardioLog', 'nutritionLog', 'bodyLog',
+                       'achievements', 'fastingLog', 'sleepLog', 'activityLog',
+                       'gymProfiles', 'bodyMapTray', 'bodyMapSel']) {
+        parsed[k] = arr(parsed[k]);
+      }
+      for (const k of ['prs', 'customExercises']) parsed[k] = obj(parsed[k]);
+
       return {
         ...defaultState,
         ...parsed,
         streak:    { ...defaultState.streak,    ...(parsed.streak    || {}) },
         settings:  { ...defaultState.settings,  ...(parsed.settings  || {}) },
-        prs:       parsed.prs || {},
+        prs:       parsed.prs,
         hiitState: { ...defaultState.hiitState, ...(parsed.hiitState || {}) },
         overloadState: { ...defaultState.overloadState, ...(parsed.overloadState || {}) },
-        gymProfiles: parsed.gymProfiles || [],
+        gymProfiles: parsed.gymProfiles,
         activeGymId: parsed.activeGymId ?? null,
-        customExercises: parsed.customExercises || {},
-        bodyMapTray: parsed.bodyMapTray || [],
+        customExercises: parsed.customExercises,
+        bodyMapTray: parsed.bodyMapTray,
         goalProgram: parsed.goalProgram ?? null,
-        bodyMapSel: parsed.bodyMapSel || [],
+        bodyMapSel: parsed.bodyMapSel,
         challenge: parsed.challenge ?? null,
       };
     }
@@ -121,6 +135,34 @@ export function stateBytes() {
   try { return JSON.stringify(state).length; } catch { return 0; }
 }
 
+// One-time sweep of free text already in storage. A payload that arrived via
+// an imported backup before input cleaning existed would otherwise keep firing
+// on every page load.
+(function scrubExistingText() {
+  try {
+    if (state.profile) state.profile.name = cleanText(state.profile.name, 60);
+    (state.gymProfiles || []).forEach((g) => { g.name = cleanText(g.name, 40); });
+    for (const ex of Object.values(state.customExercises || {})) {
+      ex.name = cleanText(ex.name, 80);
+      ex.muscle = cleanText(ex.muscle, 60);
+      if (Array.isArray(ex.cues)) ex.cues = ex.cues.map((c) => cleanText(c, 200));
+    }
+    for (const list of ['sessions', 'workoutLog', 'cardioLog', 'bodyLog', 'sleepLog', 'activityLog']) {
+      (state[list] || []).forEach((e) => {
+        if (!e || typeof e !== 'object') return;
+        if (e.notes != null) e.notes = cleanText(e.notes, 2000);
+        if (e.label != null) e.label = cleanText(e.label, 120);
+        if (e.workoutLabel != null) e.workoutLabel = cleanText(e.workoutLabel, 120);
+        if (e.type != null) e.type = cleanText(e.type, 60);
+        (e.exercises || []).forEach((x) => { if (x?.exName != null) x.exName = cleanText(x.exName, 120); });
+      });
+    }
+    (state.nutritionLog || []).forEach((d) => {
+      (d?.meals || []).forEach((m) => { if (m?.name != null) m.name = cleanText(m.name, 120); });
+    });
+  } catch { /* never let a scrub failure stop the app booting */ }
+})();
+
 // ── CUSTOM EXERCISES ──
 // Merge any persisted custom exercises into the shared EXERCISES map at boot so
 // they show up everywhere (library, generator, active workout) like built-ins.
@@ -131,14 +173,14 @@ export function addCustomExercise(ex) {
   let id = `custom_${base}`, n = 2;
   while (state.customExercises[id]) id = `custom_${base}_${n++}`;
   const record = {
-    name:   ex.name || 'Custom Exercise',
-    muscle: ex.muscle || '',
+    name:   cleanText(ex.name, 80) || 'Custom Exercise',
+    muscle: cleanText(ex.muscle, 60) || '',
     groups: ex.groups || [],
     equip:  ex.equip  || ['full_gym'],
     requires: ex.requires || [],
     type:   ex.type   || 'compound',
     diff:   ex.diff   || 'int',
-    cues:   ex.cues   || [],
+    cues:   (ex.cues || []).map((c) => cleanText(c, 200)),
   };
   state.customExercises[id] = record;
   upsertExercise(id, record);
@@ -179,6 +221,31 @@ export function toStoredWeight(displayVal) {
   const n = parseFloat(displayVal);
   if (isNaN(n)) return NaN;
   return clampWeight(state.settings?.weightUnit === 'kg' ? n * LBS_PER_KG : n);
+}
+
+// ── FREE TEXT ────────────────────────────────────────────────────────────────
+// Every page in this app builds its markup with template literals and assigns
+// it via innerHTML, across ~93 interpolation sites. Any user string reaching
+// one of those unescaped is an injection: a profile name of
+// `<img src=x onerror=…>` executed on every page that greets you by name.
+//
+// That is not merely self-inflicted — the app imports JSON backups and
+// third-party CSV (Strong / Hevy / FitNotes), so a tampered file would run
+// script in this origin with access to every workout, measurement and note
+// the user has stored.
+//
+// Escaping at 93 output sites is easy to regress the moment someone adds the
+// 94th. Instead the handful of free-text fields are cleaned once, here, at the
+// only doors they can enter through. Angle brackets cannot start a tag and
+// double quotes cannot break out of an attribute; apostrophes, accents and
+// everything else a real gym or exercise name needs are preserved.
+export function cleanText(v, max = 200) {
+  if (v == null) return v;
+  return String(v)
+    .replace(/[<>]/g, '')        // no tag can be formed
+    .replace(/"/g, '\u2033')     // double prime — looks right, cannot close an attribute
+    .replace(/\u0000/g, '')
+    .slice(0, max);
 }
 
 // ── SANITISERS ───────────────────────────────────────────────────────────────
@@ -231,6 +298,7 @@ export function weightInputStep() {
 // ── EXISTING FUNCTIONS ──
 
 export function setProfile(profile) {
+  if (profile && typeof profile === 'object') profile.name = cleanText(profile.name, 60);
   state.profile = profile;
   save();
 }
@@ -254,6 +322,11 @@ export function setWeek(n) {
 }
 
 export function logWorkout(entry) {
+  if (entry && typeof entry === 'object') {
+    if (entry.notes != null) entry.notes = cleanText(entry.notes, 2000);
+    if (entry.label != null) entry.label = cleanText(entry.label, 120);
+    if (entry.type  != null) entry.type  = cleanText(entry.type, 60);
+  }
   state.workoutLog.unshift({ id: Date.now(), ...entry });
   if (state.workoutLog.length > 500) state.workoutLog.length = 500;
   save();
@@ -303,7 +376,8 @@ export function getOwnedItems() {
 
 export function saveGymProfile(name, items) {
   const id = Date.now();
-  state.gymProfiles.push({ id, name: name || `Setup ${state.gymProfiles.length + 1}`, items: items.slice() });
+  const label = cleanText(name, 40) || `Setup ${state.gymProfiles.length + 1}`;
+  state.gymProfiles.push({ id, name: label, items: items.slice() });
   state.activeGymId = id;
   save();
   return id;
@@ -337,19 +411,25 @@ export function advanceOverloadVariant() {
 // Returns false if the session did not reach storage, so the caller can say so
 // instead of showing a success summary for data that was dropped.
 export function logSession(session) {
-  state.sessions.unshift({ id: Date.now(), ...session });
+  const safe = {
+    ...session,
+    workoutLabel: cleanText(session.workoutLabel, 120),
+    notes: cleanText(session.notes, 2000),
+    exercises: (session.exercises || []).map((e) => ({ ...e, exName: cleanText(e.exName, 120) })),
+  };
+  state.sessions.unshift({ id: Date.now(), ...safe });
   if (state.sessions.length > 200) state.sessions.length = 200;
   // Also create a workoutLog entry
   logWorkout({
     date: session.date,
-    label: session.workoutLabel,
+    label: safe.workoutLabel,
     type: session.workoutType || 'strength',
     phase: state.currentPhase,
     week: state.currentWeek,
     sessionId: session.id,
     totalVolume: session.totalVolume,
     duration: session.durationMinutes,
-    notes: session.notes || '',
+    notes: cleanText(session.notes, 2000) || '',
   });
   save();
 }
@@ -377,7 +457,18 @@ function todayStr() {
 
 export function getTodayNutrition() {
   const today = todayStr();
-  let day = state.nutritionLog.find(d => d.date === today);
+  if (!Array.isArray(state.nutritionLog)) state.nutritionLog = [];
+  let day = state.nutritionLog.find(d => d?.date === today);
+  // A day that came from an older save or a restored backup may be missing
+  // fields the page reads unguarded — `today.entries.length` threw and blanked
+  // the whole Nutrition page. Normalise whatever we found, not just new days.
+  if (day) {
+    if (!Array.isArray(day.entries)) day.entries = [];
+    for (const k of ['calories', 'protein', 'carbs', 'fat', 'water']) {
+      if (!Number.isFinite(day[k])) day[k] = 0;
+    }
+    if (!day.target) day.target = _calcNutritionTarget();
+  }
   if (!day) {
     day = {
       date: today,
@@ -441,6 +532,11 @@ export function logWater(glasses) {
 // ── NEW: BODY LOG ──
 
 export function addBodyCheckIn(entry) {
+  if (entry && typeof entry === 'object') {
+    if (entry.notes != null) entry.notes = cleanText(entry.notes, 2000);
+    if (entry.label != null) entry.label = cleanText(entry.label, 120);
+    if (entry.type  != null) entry.type  = cleanText(entry.type, 60);
+  }
   state.bodyLog.unshift({ id: Date.now(), ...entry });
   if (state.bodyLog.length > 365) state.bodyLog.length = 365;
   save();
@@ -540,6 +636,11 @@ export function getActiveFast() {
 // ── SLEEP ──
 
 export function addSleepEntry(entry) {
+  if (entry && typeof entry === 'object') {
+    if (entry.notes != null) entry.notes = cleanText(entry.notes, 2000);
+    if (entry.label != null) entry.label = cleanText(entry.label, 120);
+    if (entry.type  != null) entry.type  = cleanText(entry.type, 60);
+  }
   const dur   = _calcSleepDuration(entry.bedtime, entry.wakeTime);
   const score = _calcSleepScore(dur, entry.quality);
   const full  = { id: Date.now(), ...entry, durationHours: dur, score };
@@ -591,6 +692,11 @@ const _MET_VALUES = {
 const _INTENSITY_MUL = { Low: 0.8, Moderate: 1.0, High: 1.2, Max: 1.4 };
 
 export function addActivityEntry(entry) {
+  if (entry && typeof entry === 'object') {
+    if (entry.notes != null) entry.notes = cleanText(entry.notes, 2000);
+    if (entry.label != null) entry.label = cleanText(entry.label, 120);
+    if (entry.type  != null) entry.type  = cleanText(entry.type, 60);
+  }
   const calories = entry.calories != null && entry.calories !== '' ? Number(entry.calories) : _calcActivityCalories(entry);
   const full = { id: Date.now(), ...entry, calories };
   state.activityLog.unshift(full);
