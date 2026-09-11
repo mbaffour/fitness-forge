@@ -485,8 +485,10 @@ function roundToNearest(val, nearest) {
  * Epley formula for estimated 1-rep max
  */
 export function estimateOneRepMax(weight, reps) {
-  if (reps === 1) return weight;
-  return Math.round(weight * (1 + reps / 30));
+  const w = Number(weight), r = Number(reps);
+  if (!Number.isFinite(w) || !Number.isFinite(r) || w <= 0 || r < 1) return 0;
+  const e1rm = r === 1 ? w : Math.round(w * (1 + r / 30));
+  return Number.isFinite(e1rm) ? e1rm : 0;
 }
 
 /**
@@ -495,6 +497,13 @@ export function estimateOneRepMax(weight, reps) {
  */
 export function detectPR(exId, weight, reps, prs) {
   const e1rm = estimateOneRepMax(weight, reps);
+  // A bogus lift must never become a PR: one 1e308 entry set a record nothing
+  // could ever beat, freezing progression for that exercise permanently.
+  // Epley also stops meaning anything much past ~20 reps, so a 1000-rep entry
+  // is a typo, not a record.
+  if (!e1rm || Number(reps) > 30) {
+    return { isPR: false, previous: prs?.[exId] || null, improvement: null };
+  }
   const prev = prs?.[exId];
   if (!prev) return { isPR: true, previous: null, improvement: null };
   if (e1rm > prev.e1rm) {
@@ -512,10 +521,13 @@ export function computeSessionVolume(session) {
     for (const set of ex.sets || []) {
       // Warm-up sets are excluded from tonnage; unilateral sets logged per-side
       // count both limbs.
-      if (set.completed && !set.warmup && set.weight && set.reps) {
-        total += set.weight * set.reps * (set.perSide ? 2 : 1);
+      if (set.completed && !set.warmup && set.weight > 0 && set.reps > 0) {
+        const add = set.weight * set.reps * (set.perSide ? 2 : 1);
+        if (Number.isFinite(add)) total += add;
       }
     }
   }
-  return total;
+  // Never hand back a value JSON cannot represent — Infinity and NaN both
+  // serialise to null, which would wipe the session's recorded volume.
+  return Number.isFinite(total) && total >= 0 ? total : 0;
 }

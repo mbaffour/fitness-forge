@@ -178,7 +178,39 @@ export function formatWeight(lbs, withLabel = true) {
 export function toStoredWeight(displayVal) {
   const n = parseFloat(displayVal);
   if (isNaN(n)) return NaN;
-  return state.settings?.weightUnit === 'kg' ? n * LBS_PER_KG : n;
+  return clampWeight(state.settings?.weightUnit === 'kg' ? n * LBS_PER_KG : n);
+}
+
+// ── SANITISERS ───────────────────────────────────────────────────────────────
+// A number input is not validation: `min="0"` does not stop a typed or pasted
+// "-500", and nothing stopped "1e308". Both reached storage. The negative one
+// produced negative volume; the huge one made session volume Infinity, which
+// JSON.stringify writes as null — so the session's total volume was gone for
+// good — and it registered a 1e308 PR that no future set could ever beat,
+// permanently freezing progression for that lift.
+//
+// Every path that records a set funnels through these, so the logger, the
+// edit-set form and the CSV importer are all covered.
+const MAX_WEIGHT_LB = 5000;    // ~2.3x the heaviest ratified deadlift
+const MAX_REPS      = 300;     // a very high bodyweight set; beyond this it is a typo
+const MAX_SECONDS   = 24 * 3600;
+
+export function clampWeight(lbs) {
+  const n = Number(lbs);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Math.min(n, MAX_WEIGHT_LB);
+}
+
+export function clampReps(reps) {
+  const n = Math.round(Number(reps));
+  if (!Number.isFinite(n) || n < 1) return 0;   // 0 = reject, caller re-prompts
+  return Math.min(n, MAX_REPS);
+}
+
+export function clampSeconds(sec) {
+  const n = Math.round(Number(sec));
+  if (!Number.isFinite(n) || n < 1) return 0;
+  return Math.min(n, MAX_SECONDS);
 }
 
 // Convert a stored lbs value into a number to PREFILL a display-unit input with

@@ -66,7 +66,7 @@ ${(() => {
   <div class="hero-meta">
     <div><span class="k">Focus</span><span class="v">${focus}</span></div>
     <div><span class="k">Program</span><span class="v">${pct}% done</span></div>
-    <div><span class="k">Streak</span><span class="v">${streak.current} 🔥</span></div>
+    <div><span class="k">Streak</span><span class="v">${streak.current} <span class="streak-flame">🔥</span></span></div>
     <div><span class="k">Sessions</span><span class="v">${totalSessions}</span></div>
   </div>
   ${cta}

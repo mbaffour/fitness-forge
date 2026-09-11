@@ -9,6 +9,7 @@ import { state, getOwnedItems, formatWeight, save } from '../store.js';
 import { MUSCLE_GROUPS, EXERCISES, getExercisesForItems, isStrengthExercise, stapleRank } from '../data/exercises.js';
 import { renderBodyFigures, muscleLoadData } from './analytics.js';
 import { suggestNextSet } from '../engine/overload.js';
+import { cue } from './feedback.js';
 import { toast } from './ui.js';
 import { exThumbHTML } from './modal.js';
 
@@ -243,6 +244,13 @@ function rerender() {
 // ── HANDLERS ─────────────────────────────────────────────────────────────────
 // Tap toggles a muscle in/out of the target set (multi-select).
 window.bodyMapTap = (groupId) => {
+  cue('select');
+  // Pulse the tapped region before the panel below re-renders, so the tap is
+  // acknowledged immediately even on a slow list build.
+  document.querySelectorAll(`.mm-tap[data-group="${groupId}"]`).forEach((el) => {
+    el.classList.add('just-sel');
+    setTimeout(() => el.classList.remove('just-sel'), 430);
+  });
   const list = sel();
   const i = list.indexOf(groupId);
   if (i >= 0) list.splice(i, 1); else list.push(groupId);

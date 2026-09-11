@@ -264,6 +264,27 @@ const navHistory = [];
 // (e.g. …/#library), and the browser back/forward buttons navigate the app.
 let _suppressHashEvent = false;
 
+// Membership test that ignores inherited keys. `PAGES['__proto__']` and
+// `PAGES['constructor']` are truthy on any plain object, so a crafted hash
+// walked straight past `if (PAGES[p])`, deactivated every page and rendered
+// nothing — the app went blank with no error to show for it.
+// Flare the dashboard flame on the first render after the streak grows — the
+// one number in the app that rewards simply turning up.
+let _seenStreak = null;
+function maybeFlareStreak() {
+  const cur = state.streak?.current ?? 0;
+  if (_seenStreak != null && cur > _seenStreak) {
+    document.querySelectorAll('.streak-flame').forEach((el) => {
+      el.classList.add('streak-flare');
+      setTimeout(() => el.classList.remove('streak-flare'), 950);
+    });
+  }
+  _seenStreak = cur;
+}
+
+const isPage = (id) => Object.prototype.hasOwnProperty.call(PAGES, id);
+const chartFor = (id) => (Object.prototype.hasOwnProperty.call(CHART_PAGES, id) ? CHART_PAGES[id] : null);
+
 function syncHash(pageId) {
   if (location.hash === `#${pageId}`) return;
   _suppressHashEvent = true;           // our own assignment — don't re-navigate
@@ -273,13 +294,13 @@ function syncHash(pageId) {
 window.addEventListener('hashchange', () => {
   if (_suppressHashEvent) { _suppressHashEvent = false; return; }
   const p = location.hash.slice(1);
-  if (PAGES[p] && p !== currentPage) navigate(p, false);
+  if (isPage(p) && p !== currentPage) navigate(p, false);
 });
 
 // Initial page from the URL (only honored once onboarded, in boot()).
 function pageFromHash() {
   const p = location.hash.slice(1);
-  return PAGES[p] ? p : 'dashboard';
+  return isPage(p) ? p : 'dashboard';
 }
 
 const PAGE_LABELS = {
@@ -409,7 +430,7 @@ function buildShell() {
 ${tabbarHTML(currentPage)}
   `;
 
-  if (CHART_PAGES[currentPage]) CHART_PAGES[currentPage]();
+  chartFor(currentPage)?.();
 }
 
 // ── NAVIGATE ──
@@ -430,7 +451,7 @@ function navigate(pageId, pushHistory = true) {
     renderBuilder(() => { currentPage = 'dashboard'; navHistory.length = 0; buildShell(); });
     return;
   }
-  if (!PAGES[pageId] || pageId === currentPage) return;
+  if (!isPage(pageId) || pageId === currentPage) return;
 
   if (pushHistory) {
     navHistory.push(currentPage);
@@ -459,7 +480,8 @@ function navigate(pageId, pushHistory = true) {
   if (el) {
     el.innerHTML = PAGES[pageId].render();
     el.classList.add('active');
-    if (CHART_PAGES[pageId]) CHART_PAGES[pageId]();
+    if (pageId === 'dashboard') maybeFlareStreak();
+    chartFor(pageId)?.();
   }
 
   document.getElementById('main-area')?.scrollTo(0, 0);
@@ -519,9 +541,10 @@ window.navigate = navigate;
 // would otherwise keep showing the pre-workout numbers until you navigated away.
 function refreshCurrentPage() {
   const el = document.getElementById(`page-${currentPage}`);
-  if (!el || !PAGES[currentPage]) return;
+  if (!el || !isPage(currentPage)) return;
   el.innerHTML = PAGES[currentPage].render();
-  if (CHART_PAGES[currentPage]) CHART_PAGES[currentPage]();
+  chartFor(currentPage)?.();
+  if (currentPage === 'dashboard') maybeFlareStreak();
 }
 window.refreshCurrentPage = refreshCurrentPage;
 

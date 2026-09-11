@@ -1000,6 +1000,78 @@ select.input { cursor: pointer; }
   .storage-banner { bottom: 68px; flex-wrap: wrap; }   /* clear the mobile tab bar */
 }
 
+/* ══ MOTION — v3.29 ══
+   Forge-flavoured feedback: sparks off the anvil, a flame that flares when the
+   streak grows, a stamp when a challenge day is claimed. Everything here is
+   decorative, so everything here is switched off under prefers-reduced-motion
+   at the bottom of this block. */
+
+/* Spark burst — fired from feedback.js sparkBurst() when a set lands. */
+.spark-host { position: fixed; width: 0; height: 0; pointer-events: none; z-index: 99999; }
+.spark-host i {
+  position: absolute; width: 4px; height: 4px; border-radius: 50%;
+  background: var(--fire); box-shadow: 0 0 6px var(--fire);
+  animation: sparkFly 560ms cubic-bezier(.2,.7,.3,1) forwards;
+}
+@keyframes sparkFly {
+  0%   { transform: translate(0, 0) scale(1);    opacity: 1; }
+  70%  { opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(0.2); opacity: 0; }
+}
+
+/* The logged set row arrives with a struck-metal flash. */
+.set-row.is-new { animation: setLand 460ms ease-out; }
+@keyframes setLand {
+  0%   { background: var(--fire-dim); transform: translateX(-6px); opacity: 0; }
+  40%  { opacity: 1; }
+  100% { background: transparent; transform: none; opacity: 1; }
+}
+
+/* Streak flame flares on the day it grows. */
+.streak-flare { animation: streakFlare 900ms ease-out; transform-origin: 50% 80%; }
+@keyframes streakFlare {
+  0%   { transform: scale(1); filter: none; }
+  25%  { transform: scale(1.35) rotate(-4deg); filter: drop-shadow(0 0 10px var(--fire)); }
+  55%  { transform: scale(1.12) rotate(3deg);  filter: drop-shadow(0 0 16px var(--fire)); }
+  100% { transform: scale(1); filter: none; }
+}
+
+/* Challenge day-dot gets stamped rather than just turning on. */
+.ch-dot.just-done { animation: dotStamp 420ms cubic-bezier(.2,1.4,.4,1); }
+@keyframes dotStamp {
+  0%   { transform: scale(2.2); opacity: 0.2; }
+  60%  { transform: scale(0.88); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+/* Selecting a muscle on the Body Map pulses it once, so the tap registers
+   even before the exercise list below has rendered. */
+.mm-tap.just-sel { animation: musclePulse 420ms ease-out; }
+@keyframes musclePulse {
+  0%   { filter: brightness(2.1) drop-shadow(0 0 6px var(--fire)); }
+  100% { filter: none; }
+}
+
+/* Primary actions take a strike: press down, spring back. */
+.btn-fire:active:not(:disabled),
+.btn-primary:active:not(:disabled) { transform: scale(0.965); }
+.btn-fire, .btn-primary { transition: transform 90ms ease-out; }
+
+/* A rejected input shakes and flashes red (pairs with the cue('error') buzz). */
+.input-error { animation: shake 380ms ease-in-out; border-color: var(--danger) !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  .spark-host { display: none; }
+  .set-row.is-new,
+  .streak-flare,
+  .ch-dot.just-done,
+  .mm-tap.just-sel,
+  .input-error { animation: none; }
+  .btn-fire, .btn-primary { transition: none; }
+  .btn-fire:active:not(:disabled),
+  .btn-primary:active:not(:disabled) { transform: none; }
+}
+
 /* ══ FREESTYLE PAGE ══ */
 .muscle-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px;
