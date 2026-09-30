@@ -18,7 +18,7 @@ function _wgAnim(ex, cls, name) {
   if (!wg) return '';
   const frames = [1, 2, 3].slice(0, wg.frames || 3).map((i) =>
     `<img class="wf wf${i}" src="${WG_BASE}${wg.slug}/frame-${i}.svg" alt="${name} — frame ${i}" loading="lazy"
-       ${i === 1 ? `onerror="const w=this.closest('.ex-gif-wrap');const f=w.nextElementSibling;if(f&&f.classList.contains('ex-gif-fallback'))f.style.display='';w.remove()"` : ''}>`
+       onerror="exDemoFailed(this)">`
   ).join('');
   return `<div class="${cls} wg-anim wg-f${wg.frames || 3}">${frames}</div>`;
 }
@@ -61,7 +61,17 @@ export function exPreviewHTML(ex, { variant = 'full' } = {}) {
   const wg = variant === 'full' && ex?.id ? EXERCISE_ANIM[ex.id] : null;
   if (wg) {
     const fallback = (EXERCISE_GIFS[ex.id] || ex.imgKey || ex.youtubeId) ? _staticPreview(ex, cls, name) : '';
-    return `${_wgAnim(ex, cls, name)}${fallback ? `<div class="ex-gif-fallback" style="display:none">${fallback}</div>` : ''}`;
+    const paused = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches || false;
+    return `<div class="ex-demo-player ${paused ? 'is-paused' : 'is-playing'}">
+      ${_wgAnim(ex, cls, name)}${fallback ? `<div class="ex-gif-fallback" style="display:none">${fallback}</div>` : ''}
+      <div class="ex-demo-controls">
+        <button class="btn btn-secondary btn-sm" onclick="exDemoToggle(this)" aria-label="${paused ? 'Play' : 'Pause'} exercise animation" aria-pressed="${paused}">${paused ? '▶ Play' : 'Ⅱ Pause'}</button>
+        <label>Playback <select aria-label="Animation playback speed" onchange="exDemoSpeed(this)">
+          <option value="2.4">Normal</option><option value="4.8">Slow</option>
+        </select></label>
+        <span class="ex-demo-status" role="status">${paused ? 'Paused' : 'Start → movement → return'}</span>
+      </div>
+    </div>`;
   }
   const gif = variant === 'full' && ex?.id ? EXERCISE_GIFS[ex.id] : null;
   if (gif) {
@@ -314,3 +324,30 @@ window.loadVideo    = loadVideo;
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeExModal();
 });
+
+// Playback controls affect only their own exercise illustration.
+window.exDemoToggle = button => {
+  const player = button.closest('.ex-demo-player');
+  const paused = !player.classList.contains('is-paused');
+  player.classList.toggle('is-paused', paused);
+  player.classList.toggle('is-playing', !paused);
+  button.textContent = paused ? '▶ Play' : 'Ⅱ Pause';
+  button.setAttribute('aria-pressed', String(paused));
+  button.setAttribute('aria-label', `${paused ? 'Play' : 'Pause'} exercise animation`);
+  player.querySelector('.ex-demo-status').textContent = paused ? 'Paused' : 'Start → movement → return';
+};
+window.exDemoSpeed = select => {
+  select.closest('.ex-demo-player').style.setProperty('--demo-cycle', `${select.value}s`);
+};
+window.exDemoFailed = img => {
+  const wrap = img.closest('.ex-gif-wrap');
+  if (!wrap) return;
+  const fallback = wrap.nextElementSibling;
+  if (fallback?.classList.contains('ex-gif-fallback')) fallback.style.display = '';
+  const player = wrap.closest('.ex-demo-player');
+  if (player) {
+    player.querySelector('.ex-demo-controls')?.remove();
+    if (!fallback) player.insertAdjacentHTML('beforeend', '<div class="pg-note">Illustration unavailable. Use the written steps and video tutorial below.</div>');
+  }
+  wrap.remove();
+};

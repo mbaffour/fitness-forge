@@ -1,4 +1,7 @@
 import { exThumbHTML } from './modal.js';
+import { getProgram } from '../data/programs.js';
+import { completedProgramKey } from './program-tools.js';
+import { programSuggestion, programProfile } from './program-coach.js';
 // ═══════════════════════════════════════════
 //   FITNESS FORGE — Active Workout Logger
 //   Live set-by-set session overlay
@@ -143,7 +146,7 @@ window.skipRest = () => stopRestTimer();
  * @param {Array}  exercises    - [{ id, name, sets (str), reps (str), ... }]
  * @param {string} [workoutType] - optional type tag e.g. 'calisthenics'
  */
-export function startActiveWorkout(workoutId, workoutLabel, exercises, workoutType) {
+export function startActiveWorkout(workoutId, workoutLabel, exercises, workoutType, programContext = null) {
   if (!exercises?.length) {
     alert('No exercises to log for this session.');
     return;
@@ -154,6 +157,7 @@ export function startActiveWorkout(workoutId, workoutLabel, exercises, workoutTy
   sessionState = {
     workoutId,
     workoutLabel,
+    ...(programContext || {}),
     workoutType: workoutType || 'strength',
     date: new Date().toISOString(),
     exercises: exercises.map(ex => {
@@ -257,7 +261,10 @@ function buildOverlayHTML() {
 }
 
 function renderExerciseBlock(ex, exIdx) {
-  const suggestion = suggestNextSet(ex.exId, ex.targetReps, state.sessions, state.profile, state.settings?.progression || 'double');
+  const suggestion = programSuggestion(ex.exId, ex.targetReps, state.sessions,
+    programProfile(state.profile || {}, state.bodyLog || []),
+    sessionState.programProgression ? { ...sessionState, targetSets: ex.targetSets } : null,
+    state.settings?.progression || 'double');
   const pr = state.prs[ex.exId];
   const isBodyweight = suggestion.isBodyweight;
   const exData = EXERCISES[ex.exId];
@@ -543,7 +550,7 @@ window.logSet = (exIdx) => {
     cue('go');
     scrollToExercise(ss);
   } else {
-    const restSecs = state.settings?.restSeconds ?? 90;
+    const restSecs = sessionState?.programRestSeconds ?? state.settings?.restSeconds ?? 90;
     startRestTimer(restSecs, _nextUpLabel(exIdx));
   }
 };
@@ -567,7 +574,7 @@ window.logRemainingSets = (exIdx) => {
   } while (remaining() > 0 && ex.sets.length > before && guard-- > 0);
   _quickLog = false;
   cue('setDone');
-  const restSecs = state.settings?.restSeconds ?? 90;
+  const restSecs = sessionState?.programRestSeconds ?? state.settings?.restSeconds ?? 90;
   startRestTimer(restSecs, _nextUpLabel(exIdx));
 };
 
@@ -676,8 +683,14 @@ window.finishActiveWorkout = () => {
   const sessionId = Date.now();
   sessionState.id = sessionId;
 
+  const gp = state.goalProgram;
+  const key = completedProgramKey(sessionState, gp, gp && getProgram(gp.id));
+  const previousDone = Array.isArray(gp?.done) ? gp.done : [];
+  if (key) gp.done = [...new Set([...previousDone, key])];
+  // Persist the workout and program progress together; restore progress on failure.
   logSession({ ...sessionState });
   const persisted = saveOk();
+  if (!persisted && key) gp.done = previousDone;
   updateStreak();
   checkFirstSession();
 

@@ -1,3 +1,5 @@
+import { EXTRA_PROGRAMS } from './programs-extra.js';
+
 // ═══════════════════════════════════════════
 //   FITNESS FORGE — Goal Programs
 //   Curated, finite training plans for a specific target: a skill, a lift, a
@@ -8,6 +10,7 @@
 // ═══════════════════════════════════════════
 
 export const PROGRAM_CATEGORIES = [
+  { id: 'routine', label: 'Routines', icon: '⚙', blurb: 'Repeatable weekly splits with progressive overload' },
   { id: 'skill',    label: 'Skills',        icon: '🤸', blurb: 'Unlock a movement you can\'t do yet' },
   { id: 'strength', label: 'Strength',      icon: '🏋', blurb: 'Add weight to the big lifts' },
   { id: 'physique', label: 'Physique',      icon: '💪', blurb: 'Target how you look' },
@@ -18,6 +21,7 @@ export const PROGRAM_CATEGORIES = [
 const P = (id, sets, reps) => ({ id, sets, reps });
 
 export const PROGRAMS = [
+  ...EXTRA_PROGRAMS,
   // ── SKILLS ────────────────────────────────────────────────────────────────
   {
     id: 'first_pullup', name: 'First Pull-Up', cat: 'skill', icon: '🎯',

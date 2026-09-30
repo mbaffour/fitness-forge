@@ -472,8 +472,8 @@ export function suggestNextSet(exId, targetRepsStr, sessions, profile, scheme = 
 }
 
 function classifySignal(avgReps, avgRIR, targetMin, targetMax) {
-  if (avgReps >= targetMax && (avgRIR == null || avgRIR <= 2)) return 'HIT_UPPER';
-  if (avgReps >= targetMin && (avgRIR == null || avgRIR <= 3)) return 'HIT_LOWER';
+  if (avgReps >= targetMax && (avgRIR == null || avgRIR >= 1)) return 'HIT_UPPER';
+  if (avgReps >= targetMin) return 'HIT_LOWER';
   return 'MISS';
 }
 

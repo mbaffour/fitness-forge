@@ -1,0 +1,96 @@
+/* Program discovery and controlled exercise playback; colors follow theme tokens. */
+.pg-header { border-left: 3px solid var(--fire); padding-left: 18px; }
+.pg-toolbar {
+  display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 12px;
+  padding: 16px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); margin-bottom: 12px;
+}
+.pg-toolbar label { color: var(--text-2); font-size: .7rem; letter-spacing: .06em; }
+.pg-toolbar .lib-search { width: 100%; box-sizing: border-box; margin: 6px 0 0; font-size: .8rem; }
+.pg-toolbar select, .ex-demo-controls select {
+  background: var(--bg-2); border: 1px solid var(--border-hi); color: var(--text);
+  border-radius: var(--r-md); font: inherit; min-height: 44px; padding: 8px;
+}
+.pg-toolbar select { display: block; width: 100%; margin-top: 6px; }
+.pg-equipment-label { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; min-height: 32px; }
+.pg-equipment-label input { accent-color: var(--fire); width: 18px; height: 18px; }
+.pg-result-count { color: var(--text-2); font-size: .7rem; margin: 12px 0; }
+.pg-art-wrap { width: 72px; flex-shrink: 0; color: var(--text-2); }
+.pg-art { width: 100%; display: block; }
+.pg-art-grid { stroke: var(--border); stroke-width: 1; }
+.pg-art-accent { stroke: var(--fire); }
+.pg-card { transition: border-color .2s, transform .2s; }
+.pg-card:hover { border-color: var(--border-hi); }
+.pg-card-head { align-items: center; min-height: 112px; }
+.pg-card-name { text-transform: uppercase; line-height: 1.4; }
+.pg-card-meta { line-height: 1.6; }
+.pg-ready { color: var(--green); font-size: .65rem; margin-top: 8px; }
+.pg-card-head:focus-visible, .pg-week:focus-visible, .pg-toolbar :focus-visible,
+.ex-demo-controls :focus-visible { outline: 2px solid var(--fire); outline-offset: 3px; }
+.pg-detail { animation: forgeDetailIn .22s ease-out; }
+.pg-detail .pg-note { margin: 0 0 14px; }
+.pg-detail .pg-sess-name { color: var(--text-2); }
+.pg-sess-ex { align-items: center; }
+.pg-sess-ex > .pg-sess-name { font-size: .7rem; line-height: 1.5; letter-spacing: .03em; margin: 0; }
+.pg-empty { color: var(--text-2); line-height: 1.6; }
+.pg-empty .btn { display: block; margin-top: 12px; }
+.pg-week-strip { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 16px; }
+.pg-week {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  min-width: 44px; min-height: 48px; padding: 6px; border: 1px solid var(--border);
+  border-radius: var(--r-sm); background: var(--bg-2); color: var(--text); font: inherit; cursor: pointer;
+}
+.pg-week span { font-size: .55rem; letter-spacing: .08em; color: var(--text-2); }
+.pg-week.is-complete { color: var(--green); }
+.pg-week.is-current { border-color: var(--fire); border-bottom-width: 3px; }
+.pg-week:disabled { opacity: .45; cursor: default; }
+.pg-coach { margin: 14px 0; padding: 14px; border: 1px solid var(--border-hi); border-left: 3px solid var(--fire); border-radius: var(--r-md); background: var(--bg-2); }
+.pg-coach-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.pg-coach-head b { text-transform: uppercase; font-size: .75rem; letter-spacing: .05em; }
+.pg-coach p { color: var(--text-2); font-size: .75rem; line-height: 1.6; margin: 10px 0 0; }
+.pg-cycle { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+.pg-cycle span { border: 1px solid var(--border); padding: 10px; font-size: .65rem; color: var(--text-2); line-height: 1.5; }
+.ex-demo-player { --demo-cycle: 2.4s; margin-bottom: 12px; }
+.ex-demo-player .wg-anim { aspect-ratio: 16 / 11; }
+.ex-demo-player .wg-anim .wf { object-fit: contain; padding: 12px; box-sizing: border-box; }
+.ex-demo-player .wg-f3 .wf1 { animation: forgeFrameStart var(--demo-cycle) steps(1, end) infinite; }
+.ex-demo-player .wg-f3 .wf2 { animation: forgeFrameMiddle var(--demo-cycle) steps(1, end) infinite; }
+.ex-demo-player .wg-f3 .wf3 { animation: forgeFrameEnd var(--demo-cycle) steps(1, end) infinite; }
+.ex-demo-player.is-paused .wf { animation-play-state: paused; }
+.ex-demo-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 0; }
+.ex-demo-controls .btn { min-height: 44px; }
+.ex-demo-controls label { font-size: .65rem; color: var(--text-2); }
+.ex-demo-controls select { margin-left: 4px; font-size: .7rem; }
+.ex-demo-status { font-size: .65rem; color: var(--text-2); }
+@keyframes forgeDetailIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+@keyframes forgeFrameStart { 0%, 24.99% { opacity: 1; } 25%, 100% { opacity: 0; } }
+@keyframes forgeFrameMiddle { 0%, 24.99% { opacity: 0; } 25%, 49.99% { opacity: 1; } 50%, 74.99% { opacity: 0; } 75%, 100% { opacity: 1; } }
+@keyframes forgeFrameEnd { 0%, 49.99% { opacity: 0; } 50%, 74.99% { opacity: 1; } 75%, 100% { opacity: 0; } }
+@media (min-width: 1100px) {
+  #pg-results .pg-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+  #pg-results .pg-card.is-open { grid-column: 1 / -1; }
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  #pg-results .pg-card:hover { transform: translateY(-2px); }
+}
+@media (max-width: 480px) {
+  .pg-art-wrap { width: 52px; }
+  .pg-card-head { gap: 10px; padding: 14px; }
+  .pg-toolbar { grid-template-columns: minmax(0, 1fr) 90px; padding: 12px; }
+  .pg-sess-ex { flex-wrap: wrap; gap: 6px; }
+  .pg-sess-right { margin-left: auto; }
+  .pg-stats { font-size: .6rem; letter-spacing: .02em; }
+  .pg-active-name { font-size: 1rem; overflow-wrap: anywhere; }
+  .pg-cycle { grid-template-columns: 1fr; gap: 4px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pg-card, .pg-detail, .pg-bar i, .tut-frame { animation: none; transition: none; }
+  .ex-demo-player.is-paused .wf { animation: none !important; opacity: 0; }
+  .ex-demo-player.is-paused .wf1 { opacity: 1; }
+  /* Illustrations start only after an explicit Play request. */
+  .ex-demo-player.is-playing .wg-f3 .wf1 { animation: forgeFrameStart var(--demo-cycle) steps(1, end) infinite !important; }
+  .ex-demo-player.is-playing .wg-f3 .wf2 { animation: forgeFrameMiddle var(--demo-cycle) steps(1, end) infinite !important; }
+  .ex-demo-player.is-playing .wg-f3 .wf3 { animation: forgeFrameEnd var(--demo-cycle) steps(1, end) infinite !important; }
+}
+/* Preserve the complete exercise and equipment in the demo. */
+.ex-gif-wrap img { object-fit: contain; }
