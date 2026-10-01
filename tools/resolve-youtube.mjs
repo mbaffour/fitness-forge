@@ -115,19 +115,23 @@ async function verifyCandidate(video) {
     const response = await fetch('https://www.youtube.com/oembed?url=' +
       encodeURIComponent('https://www.youtube.com/watch?v=' + video.id) + '&format=json',
       { headers: UA, signal: AbortSignal.timeout(15000) });
+    console.log('VERIFY ' + video.id + ' oEmbed HTTP ' + response.status);
     if (!response.ok) return false;
     const info = await response.json();
+    console.log('TITLE ' + JSON.stringify(info.title));
     if (!info.title) return false;
     const watch = await fetch('https://www.youtube.com/watch?v=' + video.id,
       { headers: UA, signal: AbortSignal.timeout(15000) });
+    console.log('WATCH HTTP ' + watch.status);
     if (!watch.ok) return false;
     const html = await watch.text();
     const data = html.match(/var ytInitialPlayerResponse = (\\{.*?\\});/s);
-    if (!data) return false;
+    if (!data) { console.log('WATCH no player response'); return false; }
     const player = JSON.parse(data[1]);
+    console.log('PLAYABILITY ' + JSON.stringify(player.playabilityStatus));
     return player.playabilityStatus?.status === 'OK' &&
       player.playabilityStatus?.playableInEmbed === true;
-  } catch { return false; }
+  } catch (error) { console.log('VERIFY error ' + error.message); return false; }
 }
 
 // ── which exercises to resolve ──────────────────────────────────────────────
