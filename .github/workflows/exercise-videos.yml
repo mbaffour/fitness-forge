@@ -1,0 +1,28 @@
+name: Resolve missing exercise tutorials
+on:
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/exercise-videos.yml'
+      - 'tools/resolve-youtube.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Find relevant tutorials
+        run: node --experimental-default-type=module tools/resolve-youtube.mjs
+      - name: Publish resolved IDs for review
+        run: |
+          node --experimental-default-type=module --input-type=module -e "import { EXERCISE_VIDEOS } from './src/data/exercise-videos.js'; console.log('VIDEO_MAP_JSON:' + JSON.stringify(EXERCISE_VIDEOS));"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: exercise-tutorial-ids
+          path: src/data/exercise-videos.js

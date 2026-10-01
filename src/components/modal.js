@@ -7,6 +7,8 @@
 import { GIF_BASE, EXERCISE_GIFS, GIF_ATTRIBUTION } from '../data/exercise-gifs.js';
 import { WG_BASE, WG_ATTRIBUTION, WG_ATTRIBUTION_URL, EXERCISE_ANIM } from '../data/exercise-anim.js';
 import { EXERCISE_VIDEOS } from '../data/exercise-videos.js';
+import { exerciseVideoHTML, mountExerciseVideo } from './exercise-video.js';
+let disposeExerciseVideo = () => {};
 
 import { movementDiagram } from './movement-patterns.js';
 
@@ -162,6 +164,7 @@ export function exThumbHTML(ex) {
 
 export function showExerciseModal(ex) {
   // Remove any existing modal
+  disposeExerciseVideo();
   document.getElementById('ex-modal')?.remove();
 
   const mf          = ex.musclesFull || {};
@@ -170,7 +173,7 @@ export function showExerciseModal(ex) {
   const stabilizers = mf.stabilizers || [];
   const isCali      = ex.tags?.includes('calisthenics');
   const wgAnim      = ex.id ? EXERCISE_ANIM[ex.id] : null;
-  const videoId     = (ex.youtubeId && ex.youtubeId.trim()) || (ex.id ? EXERCISE_VIDEOS[ex.id] : '') || '';
+
   _tut = {
     id: ex.id,
     ex,
@@ -265,29 +268,7 @@ export function showExerciseModal(ex) {
     </div>
     ` : ''}
 
-    <!-- ── VIDEO DEMO (embedded inline) ── -->
-    ${videoId ? `
-    <div class="sec-head" style="margin-bottom:12px">Video Tutorial</div>
-    <div class="video-embed" id="video-wrap-${ex.id || 'ex'}">
-      <iframe src="https://www.youtube-nocookie.com/embed/${videoId}?rel=0&modestbranding=1&playsinline=1"
-        title="${(ex.name || 'Exercise').replace(/"/g, '')} — video tutorial" loading="lazy"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
-    </div>
-    <a class="vid-out" href="https://www.youtube.com/watch?v=${videoId}" target="_blank" rel="noopener">
-      Won't play here? Open on YouTube ↗</a>
-    ` : `
-    <!-- No embedded demo → prominent link out to real tutorials -->
-    <div class="sec-head" style="margin-bottom:12px">Video Tutorial</div>
-    <a class="vid-search" target="_blank" rel="noopener"
-       href="https://www.youtube.com/results?search_query=${encodeURIComponent((ex.name || 'exercise') + ' proper form technique how to')}">
-      <span class="vid-search-play">▶</span>
-      <span>
-        <b>Watch a tutorial for ${(ex.name || 'this exercise').replace(/"/g, '')}</b>
-        <i>Opens YouTube results for this exact movement ↗</i>
-      </span>
-    </a>
-    `}
+    ${exerciseVideoHTML(ex)}
 
     <!-- ── EXRX REFERENCE ─────────────── -->
     ${ex.exrxSlug ? `
@@ -305,6 +286,7 @@ export function showExerciseModal(ex) {
 
   overlay.addEventListener('click', () => closeExModal());
   document.body.appendChild(overlay);
+  disposeExerciseVideo = mountExerciseVideo(overlay, ex);
   document.body.style.overflow = 'hidden';
 }
 
@@ -314,14 +296,15 @@ export function closeExModal() {
 }
 
 export function loadVideo(youtubeId, exId) {
-  const wrap = document.getElementById(`video-wrap-${exId}`);
-  if (!wrap) return;
-  wrap.innerHTML = `
-    <iframe
-      src="https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&rel=0"
-      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope"
-      allowfullscreen>
-    </iframe>`;
+  const overlay = document.getElementById('ex-modal');
+  if (!overlay) return;
+  const previous = overlay.querySelector('.exercise-video');
+  if (!previous) return;
+  disposeExerciseVideo();
+  const wrapper = document.createElement('div');
+  wrapper.innerHTML = exerciseVideoHTML({id:exId, youtubeId});
+  previous.replaceWith(wrapper.firstElementChild);
+  disposeExerciseVideo = mountExerciseVideo(overlay, {id:exId, youtubeId});
 }
 
 // Attach to window

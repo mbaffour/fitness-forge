@@ -161,3 +161,13 @@
 @media (max-width: 480px) {
   .feature-gallery .lib-grid { grid-template-columns: 1fr; }
 }
+
+/* The YouTube API inserts a real iframe into the shared video stage. */
+.exercise-video-stage .video-embed > div,
+.exercise-video-stage .video-embed > iframe { position: absolute; inset: 0; width: 100%; height: 100%; }
+.exercise-video-status { color: var(--text-2); font-size: .8rem; line-height: 1.6; }
+.exercise-video-replace { margin: 12px 0; }
+.exercise-video-replace summary { cursor: pointer; color: var(--fire); padding: 10px 0; }
+.exercise-video-replace label { display: block; margin: 12px 0 6px; }
+.exercise-video-replace input { width: 100%; box-sizing: border-box; margin-bottom: 8px; padding: 12px; }
+.exercise-video-replace [role="status"] { color: var(--text-2); font-size: .75rem; }

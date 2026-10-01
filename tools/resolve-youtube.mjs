@@ -82,7 +82,7 @@ async function searchYouTube(query, tries = 3) {
             + '&sp=EgIQAQ%253D%253D';   // filter: videos only
   for (let a = 0; a < tries; a++) {
     try {
-      const r = await fetch(url, { headers: UA });
+      const r = await fetch(url, { headers: UA, signal: AbortSignal.timeout(15000) });
       if (!r.ok) throw new Error('HTTP ' + r.status);
       const html = await r.text();
       const m = html.match(/var ytInitialData = (\{.*?\});<\/script>/s);
@@ -110,6 +110,26 @@ async function searchYouTube(query, tries = 3) {
   }
 }
 
+async function verifyCandidate(video) {
+  try {
+    const response = await fetch('https://www.youtube.com/oembed?url=' +
+      encodeURIComponent('https://www.youtube.com/watch?v=' + video.id) + '&format=json',
+      { headers: UA, signal: AbortSignal.timeout(15000) });
+    if (!response.ok) return false;
+    const info = await response.json();
+    if (!info.title) return false;
+    const watch = await fetch('https://www.youtube.com/watch?v=' + video.id,
+      { headers: UA, signal: AbortSignal.timeout(15000) });
+    if (!watch.ok) return false;
+    const html = await watch.text();
+    const data = html.match(/var ytInitialPlayerResponse = (\\{.*?\\});/s);
+    if (!data) return false;
+    const player = JSON.parse(data[1]);
+    return player.playabilityStatus?.status === 'OK' &&
+      player.playabilityStatus?.playableInEmbed === true;
+  } catch { return false; }
+}
+
 // ── which exercises to resolve ──────────────────────────────────────────────
 const programRefs = new Set();
 JSON.stringify(PROGRAMS).replace(/"(?:ex|id)":"([a-zA-Z0-9_]+)"/g, (m, g) => { programRefs.add(g); return m; });
@@ -135,10 +155,15 @@ for (let i = 0; i < todo.length; i++) {
   const ranked = res.map(v => ({ v, s: score(ex, v) })).filter(x => x.s > 0).sort((a, b) => b.s - a.s);
   if (!ranked.length) { rejected++; console.log(`  – ${id} (${ex.name}) — no result passed the relevance gate`); }
   else {
-    const best = ranked[0].v;
-    found[id] = best.id;
-    ok++;
-    console.log(`  ✓ ${id.padEnd(34)} ${best.id}  "${best.title.slice(0, 58)}" · ${best.ch}`);
+    let best;
+    for (const candidate of ranked.slice(0, 3)) {
+      if (await verifyCandidate(candidate.v)) { best = candidate.v; break; }
+    }
+    if (best) {
+      found[id] = best.id;
+      ok++;
+      console.log(`  ✓ ${id.padEnd(34)} ${best.id}  "${best.title.slice(0, 58)}" · ${best.ch}`);
+    } else { rejected++; console.log(`  – ${id} — no candidate confirmed embeddable`); }
   }
   if ((i + 1) % 25 === 0) {
     console.log(`  … ${i + 1}/${todo.length} (matched ${ok}, rejected ${rejected}, errors ${errored})`);
