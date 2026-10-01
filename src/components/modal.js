@@ -8,6 +8,8 @@ import { GIF_BASE, EXERCISE_GIFS, GIF_ATTRIBUTION } from '../data/exercise-gifs.
 import { WG_BASE, WG_ATTRIBUTION, WG_ATTRIBUTION_URL, EXERCISE_ANIM } from '../data/exercise-anim.js';
 import { EXERCISE_VIDEOS } from '../data/exercise-videos.js';
 
+import { movementDiagram } from './movement-patterns.js';
+
 const GIF_CDN = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises';
 
 // Openly-licensed 3-frame animated illustration (workout-guide, CC BY-SA 4.0).
@@ -56,6 +58,11 @@ function _staticPreview(ex, cls, name) {
 export function exPreviewHTML(ex, { variant = 'full' } = {}) {
   const cls = variant === 'thumb' ? 'ex-gif-wrap ex-gif-thumb' : 'ex-gif-wrap';
   const name = ex?.name || 'exercise';
+  if (ex?.coached) return `<div class="${cls} ex-pattern-preview">${movementDiagram(ex)}</div>`;
+  if (variant === 'thumb' && ex?.id && EXERCISE_ANIM[ex.id]) {
+    const art = EXERCISE_ANIM[ex.id];
+    return `<div class="${cls} wg-anim"><img class="wf" style="opacity:1" src="${WG_BASE}${art.slug}/frame-1.svg" alt="${name} — start position" loading="lazy" onerror="this.closest('.ex-gif-wrap').style.display='none'"></div>`;
+  }
   // Prefer the openly-licensed workout-guide animation (CC BY-SA 4.0) when matched;
   // it errors → the licensed GIF or static crossfade shows as the next fallback.
   const wg = variant === 'full' && ex?.id ? EXERCISE_ANIM[ex.id] : null;
@@ -142,6 +149,7 @@ window.tutStep = (d) => {
 // poster, then the free-exercise-db still.
 export function exThumbHTML(ex) {
   if (!ex?.id) return '';
+  if (ex.coached) return `<span class="ex-thumb is-pattern">${movementDiagram(ex, true)}</span>`;
   const wg = EXERCISE_ANIM[ex.id];
   let src = '';
   if (wg) src = `${WG_BASE}${wg.slug}/frame-1.svg`;
@@ -196,10 +204,10 @@ export function showExerciseModal(ex) {
   <div class="modal-body">
 
     <!-- ── ANIMATED EXERCISE PREVIEW ─────── -->
-    ${(ex.id && (EXERCISE_ANIM[ex.id] || EXERCISE_GIFS[ex.id])) || ex.imgKey ? `
+    ${(ex.id && (EXERCISE_ANIM[ex.id] || EXERCISE_GIFS[ex.id])) || ex.imgKey || ex.coached ? `
     ${exPreviewHTML(ex)}
     <div class="ex-gif-source">${
-      ex.id && EXERCISE_ANIM[ex.id]
+      ex.coached ? 'Original Fitness Forge pattern diagram · use the technique steps below' : ex.id && EXERCISE_ANIM[ex.id]
         ? `Animation <a href="${WG_ATTRIBUTION_URL}" target="_blank" rel="noopener" style="color:inherit">${WG_ATTRIBUTION} ↗</a>`
         : ex.id && EXERCISE_GIFS[ex.id] ? `Animation ${GIF_ATTRIBUTION}` : 'Images: free-exercise-db · public domain'
     }</div>

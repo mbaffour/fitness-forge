@@ -94,3 +94,42 @@
 }
 /* Preserve the complete exercise and equipment in the demo. */
 .ex-gif-wrap img { object-fit: contain; }
+
+/* Planned workload charts and movement-category graphics. */
+.pg-viz { margin: 16px 0; padding: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); }
+.pg-viz-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; font-size: .7rem; color: var(--text-2); }
+.pg-viz-head b { text-transform: uppercase; letter-spacing: .08em; color: var(--text); }
+.pg-viz-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 16px; }
+.pg-viz-stats > div { border: 1px solid var(--border); background: var(--bg-2); padding: 10px; border-radius: var(--r-sm); }
+.pg-viz-stats strong { display: block; font-size: 1.3rem; color: var(--text); }
+.pg-viz-stats span { display: block; font-size: .58rem; text-transform: uppercase; letter-spacing: .04em; color: var(--text-2); margin-top: 3px; line-height: 1.5; }
+.pg-viz-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.pg-viz-grid .label { color: var(--text-2); margin-bottom: 8px; }
+.pg-muscle-row { display: grid; grid-template-columns: 90px minmax(0, 1fr) 25px; align-items: center; gap: 8px; min-height: 25px; font-size: .65rem; color: var(--text-2); }
+.pg-muscle-row b { text-align: right; color: var(--text); font-weight: 500; }
+.pg-muscle-row progress { width: 100%; height: 8px; border: 0; border-radius: var(--r-sm); overflow: hidden; appearance: none; background: var(--bg-3); }
+.pg-muscle-row progress::-webkit-progress-bar { background: var(--bg-3); }
+.pg-muscle-row progress::-webkit-progress-value { background: var(--steel); }
+.pg-muscle-row progress::-moz-progress-bar { background: var(--steel); }
+.pg-forecast { display: flex; gap: 5px; overflow-x: auto; padding-bottom: 4px; }
+.pg-forecast-col { flex: 1; min-width: 18px; font-size: .55rem; text-align: center; color: var(--text-2); }
+.pg-forecast-value { display: block; margin-bottom: 4px; color: var(--text); }
+.pg-forecast-track { height: 70px; display: flex; align-items: flex-end; background: var(--bg-3); border: 1px solid var(--border); border-radius: var(--r-sm); margin-bottom: 5px; overflow: hidden; }
+.pg-forecast-track i { display: block; width: 100%; background: var(--steel); }
+.pg-forecast-col.is-current .pg-forecast-track { border-color: var(--fire); }
+.pg-forecast-col.is-current .pg-forecast-track i { background: var(--fire); }
+.pg-forecast-col.is-recovery .pg-forecast-track { border-color: var(--steel); border-style: dashed; }
+.pg-viz-note { font-size: .62rem; line-height: 1.6; color: var(--text-2); margin: 10px 0 0; }
+.movement-diagram { height: 100%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: var(--text-2); padding: 14px; box-sizing: border-box; background: var(--bg-2); }
+.movement-diagram svg { width: min(140px, 80%); height: min(140px, 80%); flex-shrink: 1; }
+.movement-diagram span { font-size: .65rem; text-transform: uppercase; letter-spacing: .08em; }
+.movement-arc { stroke: var(--steel); }
+.movement-diagram.is-compact { padding: 2px; }
+.movement-diagram.is-compact svg { width: 100%; height: 100%; }
+.ex-pattern-preview { display: flex; justify-content: center; align-items: center; }
+.ex-thumb.is-pattern { background: var(--bg-2); }
+.lib-pattern-seg { flex-wrap: wrap; }
+.lib-load-more { width: 100%; margin-top: 16px; min-height: 44px; }
+.lib-card:focus-visible { outline: 2px solid var(--fire); outline-offset: 3px; }
+@media (max-width: 620px) { .pg-viz-grid { grid-template-columns: 1fr; gap: 14px; } }
+@media (max-width: 380px) { .pg-viz-stats strong { font-size: 1.1rem; } .pg-viz-stats > div { padding: 8px; } }

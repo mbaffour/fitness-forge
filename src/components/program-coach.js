@@ -1,3 +1,4 @@
+import { EXERCISES } from '../data/exercises.js';
 // Bodyweight informs the first estimate; recorded working sets drive progression.
 import { suggestNextSet } from '../engine/overload.js';
 export function programProfile(profile = {}, bodyLog = []) {
@@ -17,6 +18,11 @@ export function programSuggestion(exId, reps, sessions, profile, context = null,
   const suggestion = suggestNextSet(exId, reps, history, profile, context.programProgression || fallbackMode);
   const last = history[0]?.exercises.find(e => e.exId === exId);
   const lastLoad = last?.sets.length ? Math.max(...last.sets.map(s => s.weight || 0)) : null;
+  if (EXERCISES[exId]?.timed && !context.programDeload) return {
+    ...suggestion, weight: suggestion.isBodyweight ? null : lastLoad ?? suggestion.weight,
+    reps: parseInt(reps) || suggestion.reps,
+    rationale: 'Timed hold or carry — build control at the prescribed duration before choosing a heavier load.',
+  };
   if (context.programDeload) return {
     ...suggestion, weight: suggestion.isBodyweight ? null : lastLoad ?? suggestion.weight,
     reps: parseInt(reps) || suggestion.reps,

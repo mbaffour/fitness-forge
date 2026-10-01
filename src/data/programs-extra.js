@@ -1,5 +1,931 @@
 // Curated foundation and progressive routines. Prescriptions adapt in program-tools.js.
 export const EXTRA_PROGRAMS = [
+{
+  "id": "bands_fullbody",
+  "name": "Resistance Band Starter",
+  "weeks": 8,
+  "days": 3,
+  "blurb": "A complete band routine with repeatable reps and simple full-body sessions.",
+  "goal": "Build a portable three-day strength habit",
+  "sessions": [
+    {
+      "label": "Band A",
+      "exercises": [
+        {
+          "id": "band_squat",
+          "sets": 3,
+          "reps": "10-15"
+        },
+        {
+          "id": "band_press",
+          "sets": 3,
+          "reps": "10-15"
+        },
+        {
+          "id": "band_row",
+          "sets": 3,
+          "reps": "10-15"
+        },
+        {
+          "id": "ff_deadbug_wall_press",
+          "sets": 2,
+          "reps": "8-10"
+        }
+      ]
+    },
+    {
+      "label": "Band B",
+      "exercises": [
+        {
+          "id": "ff_band_good_morning",
+          "sets": 3,
+          "reps": "10-15"
+        },
+        {
+          "id": "band_pulldown",
+          "sets": 3,
+          "reps": "10-15"
+        },
+        {
+          "id": "ff_band_serratus_press",
+          "sets": 2,
+          "reps": "12-15"
+        },
+        {
+          "id": "side_plank",
+          "sets": 2,
+          "reps": "20s"
+        }
+      ]
+    },
+    {
+      "label": "Band C",
+      "exercises": [
+        {
+          "id": "band_squat",
+          "sets": 3,
+          "reps": "10-15"
+        },
+        {
+          "id": "band_row",
+          "sets": 3,
+          "reps": "10-15"
+        },
+        {
+          "id": "band_pull_apart",
+          "sets": 2,
+          "reps": "12-20"
+        },
+        {
+          "id": "ff_bridge_squeeze",
+          "sets": 3,
+          "reps": "10-15"
+        }
+      ]
+    }
+  ],
+  "cat": "routine",
+  "icon": "⚙",
+  "requires": [],
+  "overload": "double",
+  "deloadEvery": 4,
+  "restSeconds": 90,
+  "level": "Beginner / intermediate",
+  "schedule": "Three non-consecutive days, such as Monday, Wednesday and Friday. Use the same reps or time on each side when a movement is unilateral.",
+  "progression": "Start with a comfortable load or supported variation and leave about two reps in reserve. Add reps within the range before increasing load. Holds and carries use the prescribed duration; build control before choosing a heavier load. Every fourth week uses fewer sets. Stop or modify any movement that causes pain.",
+  "milestones": [
+    "Week 2 — repeat the routine with control",
+    "Week 7 — review logged technique and repetitions",
+    "Week 8 — recover and choose your next block"
+  ]
+},
+{
+  "id": "kb_strength_base",
+  "name": "Kettlebell Strength Base",
+  "weeks": 8,
+  "days": 3,
+  "blurb": "Squats, hinges, rows and carries using one light-to-moderate kettlebell.",
+  "goal": "Develop controlled kettlebell movement patterns",
+  "sessions": [
+    {
+      "label": "Squat + Row",
+      "exercises": [
+        {
+          "id": "kb_goblet",
+          "sets": 3,
+          "reps": "8-12"
+        },
+        {
+          "id": "kb_row",
+          "sets": 3,
+          "reps": "8-12"
+        },
+        {
+          "id": "ff_kb_halo",
+          "sets": 2,
+          "reps": "6-8"
+        },
+        {
+          "id": "ff_front_rack_march",
+          "sets": 2,
+          "reps": "20s"
+        }
+      ]
+    },
+    {
+      "label": "Hinge + Core",
+      "exercises": [
+        {
+          "id": "ff_kb_suitcase_deadlift",
+          "sets": 3,
+          "reps": "8-10"
+        },
+        {
+          "id": "pushup",
+          "sets": 3,
+          "reps": "6-12"
+        },
+        {
+          "id": "ff_deadbug_wall_press",
+          "sets": 2,
+          "reps": "8-10"
+        },
+        {
+          "id": "ff_split_squat_hold",
+          "sets": 2,
+          "reps": "20s"
+        }
+      ]
+    },
+    {
+      "label": "Full Body",
+      "exercises": [
+        {
+          "id": "kb_goblet",
+          "sets": 3,
+          "reps": "10-12"
+        },
+        {
+          "id": "kb_row",
+          "sets": 3,
+          "reps": "10-12"
+        },
+        {
+          "id": "ff_kb_suitcase_deadlift",
+          "sets": 3,
+          "reps": "8-10"
+        },
+        {
+          "id": "plank",
+          "sets": 2,
+          "reps": "30s"
+        }
+      ]
+    }
+  ],
+  "cat": "routine",
+  "icon": "⚙",
+  "requires": [],
+  "overload": "double",
+  "deloadEvery": 4,
+  "restSeconds": 90,
+  "level": "Beginner / intermediate",
+  "schedule": "Three non-consecutive days, such as Monday, Wednesday and Friday. Use the same reps or time on each side when a movement is unilateral.",
+  "progression": "Start with a comfortable load or supported variation and leave about two reps in reserve. Add reps within the range before increasing load. Holds and carries use the prescribed duration; build control before choosing a heavier load. Every fourth week uses fewer sets. Stop or modify any movement that causes pain.",
+  "milestones": [
+    "Week 2 — repeat the routine with control",
+    "Week 7 — review logged technique and repetitions",
+    "Week 8 — recover and choose your next block"
+  ]
+},
+{
+  "id": "kb_engine",
+  "name": "Kettlebell Engine",
+  "weeks": 6,
+  "days": 3,
+  "blurb": "Short swing, squat and carry sessions with enough rest to keep technique crisp.",
+  "goal": "Build repeatable conditioning without racing your form",
+  "level": "Intermediate",
+  "sessions": [
+    {
+      "label": "Swing + Squat",
+      "exercises": [
+        {
+          "id": "kb_swing",
+          "sets": 4,
+          "reps": "10-15"
+        },
+        {
+          "id": "kb_goblet",
+          "sets": 3,
+          "reps": "8-10"
+        },
+        {
+          "id": "ff_front_rack_march",
+          "sets": 2,
+          "reps": "25s"
+        }
+      ]
+    },
+    {
+      "label": "Control Day",
+      "exercises": [
+        {
+          "id": "ff_kb_suitcase_deadlift",
+          "sets": 3,
+          "reps": "8-10"
+        },
+        {
+          "id": "kb_row",
+          "sets": 3,
+          "reps": "10-12"
+        },
+        {
+          "id": "ff_kb_halo",
+          "sets": 2,
+          "reps": "6-8"
+        },
+        {
+          "id": "deadbug",
+          "sets": 2,
+          "reps": "8-10"
+        }
+      ]
+    },
+    {
+      "label": "Engine Day",
+      "exercises": [
+        {
+          "id": "kb_swing",
+          "sets": 4,
+          "reps": "12-15"
+        },
+        {
+          "id": "kb_goblet",
+          "sets": 3,
+          "reps": "10-12"
+        },
+        {
+          "id": "pushup",
+          "sets": 3,
+          "reps": "6-12"
+        },
+        {
+          "id": "plank",
+          "sets": 2,
+          "reps": "30s"
+        }
+      ]
+    }
+  ],
+  "cat": "routine",
+  "icon": "⚙",
+  "requires": [],
+  "overload": "double",
+  "deloadEvery": 4,
+  "restSeconds": 90,
+  "schedule": "Three non-consecutive days, such as Monday, Wednesday and Friday. Use the same reps or time on each side when a movement is unilateral.",
+  "progression": "Start with a comfortable load or supported variation and leave about two reps in reserve. Add reps within the range before increasing load. Holds and carries use the prescribed duration; build control before choosing a heavier load. Every fourth week uses fewer sets. Stop or modify any movement that causes pain.",
+  "milestones": [
+    "Week 2 — repeat the routine with control",
+    "Week 5 — review logged technique and repetitions",
+    "Week 6 — recover and choose your next block"
+  ]
+},
+{
+  "id": "lowimpact_floor",
+  "name": "Low-Impact Full Body",
+  "weeks": 6,
+  "days": 3,
+  "blurb": "No jumping: controlled leg, pushing and core work with support as needed.",
+  "goal": "Build confidence through controlled, low-impact sessions",
+  "sessions": [
+    {
+      "label": "Easy A",
+      "exercises": [
+        {
+          "id": "wg_wall_push_up",
+          "sets": 3,
+          "reps": "8-12"
+        },
+        {
+          "id": "ff_frog_squat",
+          "sets": 3,
+          "reps": "8-12"
+        },
+        {
+          "id": "ff_bridge_squeeze",
+          "sets": 3,
+          "reps": "10-15"
+        },
+        {
+          "id": "ff_deadbug_wall_press",
+          "sets": 2,
+          "reps": "8-10"
+        }
+      ]
+    },
+    {
+      "label": "Easy B",
+      "exercises": [
+        {
+          "id": "ff_split_squat_hold",
+          "sets": 2,
+          "reps": "20s"
+        },
+        {
+          "id": "wg_prone_y_raise",
+          "sets": 3,
+          "reps": "8-12"
+        },
+        {
+          "id": "calfr_bw",
+          "sets": 3,
+          "reps": "12-20"
+        },
+        {
+          "id": "ff_seated_hip_lift",
+          "sets": 2,
+          "reps": "8-10"
+        }
+      ]
+    },
+    {
+      "label": "Easy C",
+      "exercises": [
+        {
+          "id": "wg_wall_push_up",
+          "sets": 3,
+          "reps": "10-12"
+        },
+        {
+          "id": "squat_bw",
+          "sets": 3,
+          "reps": "10-15"
+        },
+        {
+          "id": "hipthrust_bw",
+          "sets": 3,
+          "reps": "12-15"
+        },
+        {
+          "id": "side_plank",
+          "sets": 2,
+          "reps": "20s"
+        }
+      ]
+    }
+  ],
+  "cat": "routine",
+  "icon": "⚙",
+  "requires": [],
+  "overload": "double",
+  "deloadEvery": 4,
+  "restSeconds": 90,
+  "level": "Beginner / intermediate",
+  "schedule": "Three non-consecutive days, such as Monday, Wednesday and Friday. Use the same reps or time on each side when a movement is unilateral.",
+  "progression": "Start with a comfortable load or supported variation and leave about two reps in reserve. Add reps within the range before increasing load. Holds and carries use the prescribed duration; build control before choosing a heavier load. Every fourth week uses fewer sets. Stop or modify any movement that causes pain.",
+  "milestones": [
+    "Week 2 — repeat the routine with control",
+    "Week 5 — review logged technique and repetitions",
+    "Week 6 — recover and choose your next block"
+  ]
+},
+{
+  "id": "posterior_db",
+  "name": "Posterior Chain Builder",
+  "weeks": 8,
+  "days": 3,
+  "blurb": "Hinges, glutes and single-leg control with dumbbells and floor work.",
+  "goal": "Build hamstring and glute strength with controlled technique",
+  "sessions": [
+    {
+      "label": "Hinge A",
+      "exercises": [
+        {
+          "id": "rdl_db",
+          "sets": 3,
+          "reps": "8-12"
+        },
+        {
+          "id": "ff_bridge_squeeze",
+          "sets": 3,
+          "reps": "10-15"
+        },
+        {
+          "id": "row_db",
+          "sets": 3,
+          "reps": "8-12"
+        },
+        {
+          "id": "plank",
+          "sets": 2,
+          "reps": "30s"
+        }
+      ]
+    },
+    {
+      "label": "Single Leg",
+      "exercises": [
+        {
+          "id": "ff_kickstand_rdl",
+          "sets": 3,
+          "reps": "8-10"
+        },
+        {
+          "id": "lunge_db",
+          "sets": 3,
+          "reps": "8-10"
+        },
+        {
+          "id": "hipthrust_bw",
+          "sets": 3,
+          "reps": "12-20"
+        },
+        {
+          "id": "ff_deadbug_wall_press",
+          "sets": 2,
+          "reps": "8-10"
+        }
+      ]
+    },
+    {
+      "label": "Hinge B",
+      "exercises": [
+        {
+          "id": "rdl_db",
+          "sets": 3,
+          "reps": "10-12"
+        },
+        {
+          "id": "ff_kickstand_rdl",
+          "sets": 2,
+          "reps": "8-10"
+        },
+        {
+          "id": "ff_bridge_squeeze",
+          "sets": 3,
+          "reps": "12-15"
+        },
+        {
+          "id": "calfr_bw",
+          "sets": 3,
+          "reps": "15-20"
+        }
+      ]
+    }
+  ],
+  "cat": "routine",
+  "icon": "⚙",
+  "requires": [],
+  "overload": "double",
+  "deloadEvery": 4,
+  "restSeconds": 90,
+  "level": "Beginner / intermediate",
+  "schedule": "Three non-consecutive days, such as Monday, Wednesday and Friday. Use the same reps or time on each side when a movement is unilateral.",
+  "progression": "Start with a comfortable load or supported variation and leave about two reps in reserve. Add reps within the range before increasing load. Holds and carries use the prescribed duration; build control before choosing a heavier load. Every fourth week uses fewer sets. Stop or modify any movement that causes pain.",
+  "milestones": [
+    "Week 2 — repeat the routine with control",
+    "Week 7 — review logged technique and repetitions",
+    "Week 8 — recover and choose your next block"
+  ]
+},
+{
+  "id": "core_carry",
+  "name": "Core & Carry Control",
+  "weeks": 6,
+  "days": 3,
+  "blurb": "Build anti-rotation, trunk control and carrying endurance with one dumbbell.",
+  "goal": "Hold a stable trunk while your limbs move",
+  "sessions": [
+    {
+      "label": "Carry A",
+      "exercises": [
+        {
+          "id": "ff_suitcase_march",
+          "sets": 3,
+          "reps": "20s"
+        },
+        {
+          "id": "ff_deadbug_wall_press",
+          "sets": 3,
+          "reps": "8-10"
+        },
+        {
+          "id": "side_plank",
+          "sets": 2,
+          "reps": "20s"
+        }
+      ]
+    },
+    {
+      "label": "Control",
+      "exercises": [
+        {
+          "id": "ff_bear_tap",
+          "sets": 3,
+          "reps": "8-12"
+        },
+        {
+          "id": "ff_seated_hip_lift",
+          "sets": 2,
+          "reps": "8-10"
+        },
+        {
+          "id": "plank",
+          "sets": 3,
+          "reps": "25s"
+        }
+      ]
+    },
+    {
+      "label": "Carry B",
+      "exercises": [
+        {
+          "id": "ff_suitcase_march",
+          "sets": 3,
+          "reps": "25s"
+        },
+        {
+          "id": "ff_deadbug_wall_press",
+          "sets": 3,
+          "reps": "10-12"
+        },
+        {
+          "id": "ff_bridge_squeeze",
+          "sets": 3,
+          "reps": "12-15"
+        }
+      ]
+    }
+  ],
+  "cat": "routine",
+  "icon": "⚙",
+  "requires": [],
+  "overload": "double",
+  "deloadEvery": 4,
+  "restSeconds": 90,
+  "level": "Beginner / intermediate",
+  "schedule": "Three non-consecutive days, such as Monday, Wednesday and Friday. Use the same reps or time on each side when a movement is unilateral.",
+  "progression": "Start with a comfortable load or supported variation and leave about two reps in reserve. Add reps within the range before increasing load. Holds and carries use the prescribed duration; build control before choosing a heavier load. Every fourth week uses fewer sets. Stop or modify any movement that causes pain.",
+  "milestones": [
+    "Week 2 — repeat the routine with control",
+    "Week 5 — review logged technique and repetitions",
+    "Week 6 — recover and choose your next block"
+  ]
+},
+{
+  "id": "mobility_reset",
+  "name": "Daily Mobility Reset",
+  "weeks": 4,
+  "days": 3,
+  "restSeconds": 45,
+  "blurb": "Short, controlled hip, ankle and upper-back practice for comfortable movement.",
+  "goal": "Establish a manageable mobility practice",
+  "sessions": [
+    {
+      "label": "Hips",
+      "exercises": [
+        {
+          "id": "ff_hip_switch",
+          "sets": 2,
+          "reps": "6-8"
+        },
+        {
+          "id": "ff_lateral_step_reach",
+          "sets": 2,
+          "reps": "8-10"
+        },
+        {
+          "id": "ff_bridge_squeeze",
+          "sets": 2,
+          "reps": "10-12"
+        }
+      ]
+    },
+    {
+      "label": "Upper Back",
+      "exercises": [
+        {
+          "id": "ff_open_book",
+          "sets": 2,
+          "reps": "6-8"
+        },
+        {
+          "id": "ff_wall_slide",
+          "sets": 2,
+          "reps": "8-10"
+        },
+        {
+          "id": "ff_prone_swimmer",
+          "sets": 2,
+          "reps": "6-8"
+        }
+      ]
+    },
+    {
+      "label": "Ankles + Control",
+      "exercises": [
+        {
+          "id": "ff_ankle_rock",
+          "sets": 2,
+          "reps": "8-10"
+        },
+        {
+          "id": "ff_tibialis_raise",
+          "sets": 2,
+          "reps": "10-15"
+        },
+        {
+          "id": "ff_hip_switch",
+          "sets": 2,
+          "reps": "6-8"
+        }
+      ]
+    }
+  ],
+  "cat": "routine",
+  "icon": "⚙",
+  "requires": [],
+  "overload": "double",
+  "deloadEvery": 4,
+  "level": "Beginner / intermediate",
+  "schedule": "Three non-consecutive days, such as Monday, Wednesday and Friday. Use the same reps or time on each side when a movement is unilateral.",
+  "progression": "Move gently within a comfortable range and stop before form deteriorates. Add range or control before repetitions. Week 4 reduces set count; keep every repetition unhurried. This is movement practice, not a strength test.",
+  "milestones": [
+    "Week 2 — repeat the routine with control",
+    "Week 3 — review logged technique and repetitions",
+    "Week 4 — recover and choose your next block"
+  ]
+},
+{
+  "id": "balance_floor",
+  "name": "Balance & Single-Leg Basics",
+  "weeks": 6,
+  "days": 3,
+  "blurb": "Floor and wall-supported training to build steadier single-leg movement.",
+  "goal": "Practice controlled movement on each side",
+  "sessions": [
+    {
+      "label": "Support A",
+      "exercises": [
+        {
+          "id": "ff_split_squat_hold",
+          "sets": 3,
+          "reps": "20s"
+        },
+        {
+          "id": "ff_lateral_step_reach",
+          "sets": 2,
+          "reps": "8-10"
+        },
+        {
+          "id": "ff_seated_hip_lift",
+          "sets": 2,
+          "reps": "8-10"
+        }
+      ]
+    },
+    {
+      "label": "Hips + Core",
+      "exercises": [
+        {
+          "id": "ff_hip_switch",
+          "sets": 2,
+          "reps": "6-8"
+        },
+        {
+          "id": "ff_bridge_squeeze",
+          "sets": 3,
+          "reps": "10-15"
+        },
+        {
+          "id": "wg_bird_dog",
+          "sets": 3,
+          "reps": "8-10"
+        }
+      ]
+    },
+    {
+      "label": "Support B",
+      "exercises": [
+        {
+          "id": "lunge_bw",
+          "sets": 3,
+          "reps": "8-10"
+        },
+        {
+          "id": "ff_split_squat_hold",
+          "sets": 2,
+          "reps": "20s"
+        },
+        {
+          "id": "calfr_bw",
+          "sets": 3,
+          "reps": "12-20"
+        },
+        {
+          "id": "ff_deadbug_wall_press",
+          "sets": 2,
+          "reps": "8-10"
+        }
+      ]
+    }
+  ],
+  "cat": "routine",
+  "icon": "⚙",
+  "requires": [],
+  "overload": "double",
+  "deloadEvery": 4,
+  "restSeconds": 90,
+  "level": "Beginner / intermediate",
+  "schedule": "Three non-consecutive days, such as Monday, Wednesday and Friday. Use the same reps or time on each side when a movement is unilateral.",
+  "progression": "Start with a comfortable load or supported variation and leave about two reps in reserve. Add reps within the range before increasing load. Holds and carries use the prescribed duration; build control before choosing a heavier load. Every fourth week uses fewer sets. Stop or modify any movement that causes pain.",
+  "milestones": [
+    "Week 2 — repeat the routine with control",
+    "Week 5 — review logged technique and repetitions",
+    "Week 6 — recover and choose your next block"
+  ]
+},
+{
+  "id": "shoulder_control",
+  "name": "Shoulder & Scapular Control",
+  "weeks": 6,
+  "days": 3,
+  "blurb": "Light band work and controlled wall and floor movements for shoulder awareness.",
+  "goal": "Build comfortable shoulder-blade control",
+  "sessions": [
+    {
+      "label": "Wall + Reach",
+      "exercises": [
+        {
+          "id": "ff_wall_slide",
+          "sets": 3,
+          "reps": "8-10"
+        },
+        {
+          "id": "ff_band_serratus_press",
+          "sets": 3,
+          "reps": "12-15"
+        },
+        {
+          "id": "band_pull_apart",
+          "sets": 2,
+          "reps": "12-20"
+        }
+      ]
+    },
+    {
+      "label": "Back Control",
+      "exercises": [
+        {
+          "id": "ff_prone_swimmer",
+          "sets": 2,
+          "reps": "6-8"
+        },
+        {
+          "id": "band_row",
+          "sets": 3,
+          "reps": "10-15"
+        },
+        {
+          "id": "ff_open_book",
+          "sets": 2,
+          "reps": "6-8"
+        }
+      ]
+    },
+    {
+      "label": "Band + Floor",
+      "exercises": [
+        {
+          "id": "ff_band_serratus_press",
+          "sets": 3,
+          "reps": "12-15"
+        },
+        {
+          "id": "wg_prone_y_raise",
+          "sets": 3,
+          "reps": "8-12"
+        },
+        {
+          "id": "ff_wall_slide",
+          "sets": 2,
+          "reps": "8-10"
+        },
+        {
+          "id": "band_pull_apart",
+          "sets": 2,
+          "reps": "15-20"
+        }
+      ]
+    }
+  ],
+  "cat": "routine",
+  "icon": "⚙",
+  "requires": [],
+  "overload": "double",
+  "deloadEvery": 4,
+  "restSeconds": 90,
+  "level": "Beginner / intermediate",
+  "schedule": "Three non-consecutive days, such as Monday, Wednesday and Friday. Use the same reps or time on each side when a movement is unilateral.",
+  "progression": "Start with a comfortable load or supported variation and leave about two reps in reserve. Add reps within the range before increasing load. Holds and carries use the prescribed duration; build control before choosing a heavier load. Every fourth week uses fewer sets. Stop or modify any movement that causes pain.",
+  "milestones": [
+    "Week 2 — repeat the routine with control",
+    "Week 5 — review logged technique and repetitions",
+    "Week 6 — recover and choose your next block"
+  ]
+},
+{
+  "id": "lower_leg_base",
+  "name": "Lower-Leg Foundation",
+  "weeks": 6,
+  "days": 3,
+  "blurb": "Calf strength, shin control and gentle ankle practice without machines.",
+  "goal": "Build a consistent lower-leg routine",
+  "sessions": [
+    {
+      "label": "Calves + Shins",
+      "exercises": [
+        {
+          "id": "calfr_bw",
+          "sets": 3,
+          "reps": "12-20"
+        },
+        {
+          "id": "ff_tibialis_raise",
+          "sets": 3,
+          "reps": "10-15"
+        },
+        {
+          "id": "ff_ankle_rock",
+          "sets": 2,
+          "reps": "8-10"
+        }
+      ]
+    },
+    {
+      "label": "Supported Legs",
+      "exercises": [
+        {
+          "id": "ff_split_squat_hold",
+          "sets": 2,
+          "reps": "20s"
+        },
+        {
+          "id": "ff_tibialis_raise",
+          "sets": 3,
+          "reps": "12-15"
+        },
+        {
+          "id": "ff_lateral_step_reach",
+          "sets": 2,
+          "reps": "8-10"
+        }
+      ]
+    },
+    {
+      "label": "Lower-Leg Control",
+      "exercises": [
+        {
+          "id": "calfr_bw",
+          "sets": 3,
+          "reps": "15-20"
+        },
+        {
+          "id": "ff_tibialis_raise",
+          "sets": 3,
+          "reps": "12-20"
+        },
+        {
+          "id": "ff_ankle_rock",
+          "sets": 2,
+          "reps": "8-10"
+        },
+        {
+          "id": "ff_frog_squat",
+          "sets": 2,
+          "reps": "8-12"
+        }
+      ]
+    }
+  ],
+  "cat": "routine",
+  "icon": "⚙",
+  "requires": [],
+  "overload": "double",
+  "deloadEvery": 4,
+  "restSeconds": 90,
+  "level": "Beginner / intermediate",
+  "schedule": "Three non-consecutive days, such as Monday, Wednesday and Friday. Use the same reps or time on each side when a movement is unilateral.",
+  "progression": "Start with a comfortable load or supported variation and leave about two reps in reserve. Add reps within the range before increasing load. Holds and carries use the prescribed duration; build control before choosing a heavier load. Every fourth week uses fewer sets. Stop or modify any movement that causes pain.",
+  "milestones": [
+    "Week 2 — repeat the routine with control",
+    "Week 5 — review logged technique and repetitions",
+    "Week 6 — recover and choose your next block"
+  ]
+},
+
   {
     "cat": "routine",
     "weeks": 8,

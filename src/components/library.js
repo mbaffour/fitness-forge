@@ -7,6 +7,7 @@
 
 import { EXERCISES, MUSCLE_GROUPS, EQUIPMENT_OPTIONS } from '../data/exercises.js';
 import { exPreviewHTML } from './modal.js';
+import { MOVEMENT_PATTERNS, movementPattern } from './movement-patterns.js';
 import { pageHeader, sectionHead } from './ui.js';
 import { addCustomExercise, deleteCustomExercise } from '../store.js';
 
@@ -15,6 +16,10 @@ let _q     = '';
 let _grp   = 'all';
 let _equip = 'all';
 let _diff  = 'all';
+let _pattern = 'all';
+let _collection = 'all';
+let _shown = 60;
+const attr = value => String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 
 const DIFF_OPTIONS = [
   { id: 'all', label: 'All Levels' },
@@ -24,6 +29,8 @@ const DIFF_OPTIONS = [
 ];
 
 function _matches(id, ex) {
+  if (_pattern !== 'all' && movementPattern(ex) !== _pattern) return false;
+  if (_collection === 'coached' && !ex.coached) return false;
   if (_grp !== 'all' && !(ex.groups || []).includes(_grp)) return false;
   if (_equip !== 'all' && !(ex.equip || []).includes(_equip)) return false;
   if (_diff !== 'all' && ex.diff !== _diff) return false;
@@ -42,8 +49,8 @@ function _cardHTML(id, ex) {
   const diffLabel = ex.diff === 'beg' ? 'Beginner' : ex.diff === 'int' ? 'Intermediate' : 'Advanced';
   return `
 <div class="lib-card" onclick="openExDetail('${id}')" role="button" tabindex="0"
-     onkeydown="if(event.key==='Enter')openExDetail('${id}')">
-  ${exPreviewHTML(ex, { variant: 'thumb' }) || `<div class="ex-gif-wrap ex-gif-thumb lib-noimg">🏋</div>`}
+     onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openExDetail('${id}')}">
+  ${exPreviewHTML({ ...ex, id }, { variant: 'thumb' }) || `<div class="ex-gif-wrap ex-gif-thumb lib-noimg">🏋</div>`}
   <div class="lib-card-body">
     <div class="lib-card-name">${ex.name}</div>
     <div class="lib-card-muscle">${ex.muscle || ''}</div>
@@ -51,6 +58,7 @@ function _cardHTML(id, ex) {
       <span class="tag ${ex.type === 'compound' ? 't-fire' : 't-steel'}">${ex.type}</span>
       <span class="tag t-dim">${diffLabel}</span>
       ${ex.custom ? `<span class="tag t-green">Custom</span>` : ''}
+      ${ex.coached ? '<span class="tag t-fire">Coached</span>' : ''}
     </div>
   </div>
   ${ex.custom ? `<button class="lib-del-custom" title="Delete custom exercise" onclick="event.stopPropagation();libDeleteCustom('${id}')">🗑</button>` : ''}
@@ -65,12 +73,12 @@ function _resultsHTML() {
     return `<div class="card tc p-6"><div style="font-size:40px;margin-bottom:12px">🔍</div>
       <div class="dim fs13">No exercises match. Try clearing a filter.</div></div>`;
   }
-  const shown = list.slice(0, _CAP);
+  const shown = list.slice(0, _shown);
   const more  = list.length - shown.length;
   return `
-<div class="dim fs12" style="margin-bottom:12px">${list.length} exercise${list.length === 1 ? '' : 's'}${more > 0 ? ` · showing first ${_CAP}` : ''}</div>
+<div class="dim fs12" style="margin-bottom:12px">${list.length} exercise${list.length === 1 ? '' : 's'}${more > 0 ? ` · showing ${shown.length}` : ''}</div>
 <div class="lib-grid">${shown.map(([id, ex]) => _cardHTML(id, ex)).join('')}</div>
-${more > 0 ? `<div class="dim fs12 tc" style="padding:16px">${more} more — search or filter to narrow the list.</div>` : ''}`;
+${more > 0 ? `<button class="btn btn-secondary lib-load-more" onclick="libLoadMore()">Show ${Math.min(_CAP, more)} more · ${more} remaining</button>` : ''}`;
 }
 
 function _refreshResults() {
@@ -79,6 +87,8 @@ function _refreshResults() {
 }
 
 function _refreshChips() {
+  document.querySelectorAll('#lib-pattern-seg .seg-btn').forEach(b => { b.classList.toggle('active', b.dataset.pattern === _pattern); b.setAttribute('aria-pressed', String(b.dataset.pattern === _pattern)); });
+  document.querySelectorAll('#lib-collection-seg .seg-btn').forEach(b => { b.classList.toggle('active', b.dataset.collection === _collection); b.setAttribute('aria-pressed', String(b.dataset.collection === _collection)); });
   document.querySelectorAll('#lib-grp-chips .lib-chip').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.grp === _grp);
   });
@@ -90,11 +100,14 @@ function _refreshChips() {
   });
 }
 
-window.libSetQ = (v) => { _q = (v || '').trim().toLowerCase(); _refreshResults(); };
-window.libSetGrp = (g) => { _grp = g; _refreshChips(); _refreshResults(); };
-window.libSetEquip = (e) => { _equip = e; _refreshChips(); _refreshResults(); };
-window.libSetDiff = (d) => { _diff = d; _refreshChips(); _refreshResults(); };
+window.libSetQ = (v) => { _q = (v || '').trim().toLowerCase(); _shown = _CAP; _refreshResults(); };
+window.libSetGrp = (g) => { _grp = g; _shown = _CAP; _refreshChips(); _refreshResults(); };
+window.libSetEquip = (e) => { _equip = e; _shown = _CAP; _refreshChips(); _refreshResults(); };
+window.libSetDiff = (d) => { _diff = d; _shown = _CAP; _refreshChips(); _refreshResults(); };
 
+window.libSetPattern = p => { _pattern = p; _shown = _CAP; _refreshChips(); _refreshResults(); };
+window.libSetCollection = c => { _collection = c; _shown = _CAP; _refreshChips(); _refreshResults(); };
+window.libLoadMore = () => { _shown += _CAP; _refreshResults(); };
 // ── CREATE / DELETE CUSTOM EXERCISE ──
 const _createGroups = new Set();
 
@@ -121,7 +134,7 @@ window.libSaveCreate = () => {
   _createGroups.clear();
   window.libCloseCreate();
   // surface the new exercise: clear filters and search for it
-  _q = name.toLowerCase(); _grp = 'all'; _equip = 'all'; _diff = 'all';
+  _q = name.toLowerCase(); _grp = 'all'; _equip = 'all'; _diff = 'all'; _pattern = 'all'; _collection = 'all'; _shown = _CAP;
   const page = document.getElementById('page-library');
   if (page) page.innerHTML = renderLibrary();
 };
@@ -187,11 +200,19 @@ ${pageHeader('Exercise Library', { eyebrow: 'Reference', sub: `${total} exercise
 
 <div style="display:flex;gap:8px;align-items:center;margin-bottom:var(--s-4)">
   <input type="search" class="lib-search" style="margin:0;flex:1" placeholder="Search exercises… (press / anywhere)"
-         value="${_q}" oninput="libSetQ(this.value)" aria-label="Search exercises">
+         value="${attr(_q)}" oninput="libSetQ(this.value)" aria-label="Search exercises">
   <button class="btn btn-fire" style="white-space:nowrap" onclick="libOpenCreate()">＋ Create</button>
 </div>
 
 <div class="lib-filters">
+  <div id="lib-collection-seg" class="seg" style="margin-bottom:10px">
+    <button class="seg-btn ${_collection === 'all' ? 'active' : ''}" data-collection="all" onclick="libSetCollection('all')" aria-pressed="${_collection === 'all'}">All exercises</button>
+    <button class="seg-btn ${_collection === 'coached' ? 'active' : ''}" data-collection="coached" onclick="libSetCollection('coached')" aria-pressed="${_collection === 'coached'}">New coached movements · ${Object.values(EXERCISES).filter(e => e.coached).length}</button>
+  </div>
+  <div id="lib-pattern-seg" class="seg lib-pattern-seg" style="margin-bottom:10px">
+    <button class="seg-btn ${_pattern === 'all' ? 'active' : ''}" data-pattern="all" onclick="libSetPattern('all')" aria-pressed="${_pattern === 'all'}">All patterns</button>
+    ${MOVEMENT_PATTERNS.map(p => `<button class="seg-btn ${_pattern === p.id ? 'active' : ''}" data-pattern="${p.id}" onclick="libSetPattern('${p.id}')" aria-pressed="${_pattern === p.id}">${p.label}</button>`).join('')}
+  </div>
   <div id="lib-equip-seg" class="seg" style="margin-bottom:10px">
     <button class="seg-btn ${_equip === 'all' ? 'active' : ''}" data-equip="all" onclick="libSetEquip('all')">All Equipment</button>
     ${EQUIPMENT_OPTIONS.map(o => `
@@ -211,7 +232,7 @@ ${pageHeader('Exercise Library', { eyebrow: 'Reference', sub: `${total} exercise
 <div id="lib-results">${_resultsHTML()}</div>
 
 <div class="dim fs11 tc" style="margin-top:28px;padding-top:14px;border-top:1px solid var(--border)">
-  Exercise data &amp; images: <a href="https://github.com/yuhonas/free-exercise-db" target="_blank" rel="noopener" style="color:var(--text-2)">free-exercise-db</a> (public domain). Tutorials link to YouTube.
+  New coaching notes and pattern diagrams: Fitness Forge. Movement diagrams are schematic labels; use the written technique steps.<br>Imported exercise data &amp; images: <a href="https://github.com/yuhonas/free-exercise-db" target="_blank" rel="noopener" style="color:var(--text-2)">free-exercise-db</a> (public domain). Tutorials link to YouTube.
 </div>
 `;
 }

@@ -12,6 +12,7 @@ import { cue } from './feedback.js';
 import { exThumbHTML } from './modal.js';
 import { programProgress as progress, sessionKey, requiredItems, sessionMinutes, prescribedSession } from './program-tools.js';
 import { programArt } from './program-art.js';
+import { programVisualsHTML } from './program-visuals.js';
 import { programSuggestion, programProfile } from './program-coach.js';
 
 let _tab = 'programs';   // programs | challenges
@@ -99,6 +100,7 @@ function activeHTML() {
       ${prog.personalized ? `<p>${trainingProfile().weight ? `Starting estimates use your latest recorded bodyweight: ${formatWeight(trainingProfile().weight)}. Experience: ${trainingProfile().level}. Calibrate after your first set.` : 'Add your bodyweight in Profile or Body Stats for an initial load estimate. Start with a comfortable load until then.'} Reps follow your training goal and experience.</p>` : ''}
       <p>${prescribedSession(prog, 0, viewWeek, trainingProfile()).deload ? 'About half the normal sets. Keep the last working load and leave 3–4 reps in reserve.' : 'Leave about two reps in reserve. The logger suggests your next target from saved working sets.'}</p>
     </div>` : ''}
+    ${programVisualsHTML(prog, EXERCISES, trainingProfile(), viewWeek)}
     <div class="pg-week-strip" aria-label="Program weeks">
       ${Array.from({ length: prog.weeks }, (_, i) => i + 1).map(w => `<button class="pg-week ${w === viewWeek ? 'is-current' : ''} ${w < p.week || complete ? 'is-complete' : ''}"
         onclick="programViewWeek(${w})" ${w > p.week ? 'disabled' : ''} aria-label="View week ${w}" aria-pressed="${w === viewWeek}">${w < p.week || complete ? '✓' : w}<span>W${w}</span></button>`).join('')}
@@ -123,7 +125,7 @@ function programLoad(e, prog = null) {
   if (sug.weight == null) return '';
   const ex = EXERCISES[e.id];
   const perHand = (ex?.requires || []).some(r => r === 'dumbbells' || r === 'kettlebell')
-    && !/goblet|single[- ]?arm|one[- ]?arm|suitcase|swing/i.test(ex?.name || '');
+    && !/goblet|single[- ]?arm|one[- ]?arm|suitcase|swing|halo/i.test(ex?.name || '');
   return `${formatWeight(sug.weight)}${perHand ? '/hand' : ''}`;
 }
 
@@ -177,6 +179,7 @@ function cardHTML(prog) {
   const isActive = active()?.id === prog.id;
   const detail = open ? `
     <div class="pg-detail" id="pg-detail-${prog.id}">
+      ${programVisualsHTML(prog, EXERCISES, trainingProfile(), 1)}
       ${prog.overload ? `<div class="pg-coach"><div class="pg-coach-head"><b>${prog.overload === 'linear' ? 'Linear progression' : 'Double progression'}</b><span class="tag t-fire">${prog.level}</span></div><p>${prog.schedule}</p><p>Every fourth week: fewer sets, hold the working load and recover.</p></div>` : ''}
       <div class="pg-note">Leave a rest day between demanding sessions. Warm up for five minutes, then use lighter rehearsal sets. Start at the lower end of each rep range and keep two reps in reserve.${prog.foundation ? ' Foundation plans adjust set counts by week.' : ''}</div>
       ${prog.sessions.map((_, index) => prescribedSession(prog, index, 1, trainingProfile())).map(s => `

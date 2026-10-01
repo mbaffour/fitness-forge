@@ -1,3 +1,4 @@
+import { COACHED_EXERCISES } from './exercises-coached.js';
 // ═══════════════════════════════════════════
 //   FITNESS FORGE — Exercise Database v2.4
 //   Muscles trained, coaching cues,
@@ -297,6 +298,11 @@ for (const [k, v] of Object.entries(WG_EXERCISES)) {
   if (!(k in EXERCISES)) EXERCISES[k] = v;
 }
 
+// Original coached movements, guarded against existing ids.
+for (const [id, ex] of Object.entries(COACHED_EXERCISES)) {
+  if (!(id in EXERCISES)) EXERCISES[id] = ex;
+}
+
 // Assign `requires` to every exercise (inline value wins; else map; else []).
 for (const [id, ex] of Object.entries(EXERCISES)) {
   if (!Array.isArray(ex.requires)) ex.requires = REQUIRES[id] || [];
@@ -366,6 +372,7 @@ const NOT_STRENGTH_RE = /elliptical|treadmill|stationary bike|rowing machine|sta
 const CARDIO_GAIT_RE = /^(?:\w+ )?(?:walking|running|jogging|cycling|sprinting|rowing|swimming|hiking|stair climbing|skipping)(?:,.*)?$/i;
 
 export function isStrengthExercise(ex) {
+  if (ex?.trainingType === 'mobility') return false;
   const name = ex?.name || '';
   return !NOT_STRENGTH_RE.test(name) && !CARDIO_GAIT_RE.test(name.trim());
 }
