@@ -133,3 +133,31 @@
 .lib-card:focus-visible { outline: 2px solid var(--fire); outline-offset: 3px; }
 @media (max-width: 620px) { .pg-viz-grid { grid-template-columns: 1fr; gap: 14px; } }
 @media (max-width: 380px) { .pg-viz-stats strong { font-size: 1.1rem; } .pg-viz-stats > div { padding: 8px; } }
+
+/* Library cards need full-width artwork; the shared row thumbnail is only 72px. */
+.lib-card .ex-gif-thumb {
+  width: 100%; height: auto; aspect-ratio: 4 / 3; min-height: 150px;
+}
+.ex-pattern-preview > .movement-diagram {
+  position: absolute; inset: 0; height: auto; width: auto;
+}
+.ex-pattern-preview .movement-diagram svg {
+  width: 110px; height: 110px; max-width: 70%; max-height: 70%;
+}
+.feature-gallery { max-width: 1000px; margin: 0 auto; padding: 24px 16px; }
+.feature-gallery h1 { font-size: 1.5rem; letter-spacing: .06em; }
+.feature-gallery h2 { font-size: 1.1rem; letter-spacing: .04em; margin-top: 28px; }
+.feature-gallery p { color: var(--text-2); line-height: 1.6; }
+.feature-gallery a { color: var(--fire); }
+.feature-gallery label { display: block; margin: 12px 0 6px; }
+.feature-gallery select { width: 100%; padding: 12px; }
+.feature-gallery .lib-card { text-align: left; color: var(--text); font: inherit; padding: 0; }
+.feature-gallery .lib-card:focus-visible { outline: 2px solid var(--fire); }
+.feature-gallery .gallery-session {
+  padding: 12px; border: 1px solid var(--border); border-radius: var(--r-md);
+  background: var(--surface); margin: 8px 0; font-size: .8rem;
+}
+.feature-gallery .gallery-session ul { padding-left: 20px; line-height: 1.8; }
+@media (max-width: 480px) {
+  .feature-gallery .lib-grid { grid-template-columns: 1fr; }
+}

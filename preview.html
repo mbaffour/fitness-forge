@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="forge">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fitness Forge — New Features Gallery</title>
+  <meta name="description" content="View the actual new Fitness Forge program charts and coached exercise diagrams.">
+  <link rel="stylesheet" href="src/style.css">
+  <link rel="stylesheet" href="src/programs-polish.css">
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <main class="feature-gallery">
+    <h1>FITNESS FORGE — NEW FEATURES</h1>
+    <p>These are the app’s actual chart and exercise-card components. No account or setup needed.</p>
+    <p><a href="./#programs">Open Programs →</a> · <a href="./#library">Open Exercise Library →</a></p>
+    <h2>PROGRAM WORKLOAD CHARTS</h2>
+    <p>Compare planned sets, primary muscle groups and lighter recovery weeks. This preview uses the authored starting prescriptions.</p>
+    <label for="gallery-plan">CHOOSE A NEW PROGRAM</label>
+    <select id="gallery-plan"></select>
+    <div id="gallery-program" aria-live="polite"></div>
+    <h2>20 NEW COACHED MOVEMENTS</h2>
+    <p>Original movement-category diagrams, not photographs or technique demonstrations. Open any card for coaching steps, common mistakes and a link to video tutorials.</p>
+    <div id="gallery-exercises" class="lib-grid"></div>
+    <p id="gallery-error" role="alert" hidden></p>
+    <noscript><p>Enable JavaScript to display the app’s charts and diagrams.</p></noscript>
+  </main>
+  <script type="module" src="src/components/feature-gallery.js"></script>
+</body>
+</html>
