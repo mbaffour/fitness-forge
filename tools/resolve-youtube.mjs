@@ -110,28 +110,21 @@ async function searchYouTube(query, tries = 3) {
   }
 }
 
-async function verifyCandidate(video) {
+// oEmbed is YouTube's supported embed-discovery interface. Watch-page markup
+// changes frequently and is not an embedding contract. Playback restrictions
+// that change later are handled by the in-app player, via onError.
+async function verifyCandidate(video, exercise) {
   try {
     const response = await fetch('https://www.youtube.com/oembed?url=' +
       encodeURIComponent('https://www.youtube.com/watch?v=' + video.id) + '&format=json',
       { headers: UA, signal: AbortSignal.timeout(15000) });
-    console.log('VERIFY ' + video.id + ' oEmbed HTTP ' + response.status);
     if (!response.ok) return false;
     const info = await response.json();
-    console.log('TITLE ' + JSON.stringify(info.title));
-    if (!info.title) return false;
-    const watch = await fetch('https://www.youtube.com/watch?v=' + video.id,
-      { headers: UA, signal: AbortSignal.timeout(15000) });
-    console.log('WATCH HTTP ' + watch.status);
-    if (!watch.ok) return false;
-    const html = await watch.text();
-    const data = html.match(/var ytInitialPlayerResponse = (\\{.*?\\});/s);
-    if (!data) { console.log('WATCH no player response'); return false; }
-    const player = JSON.parse(data[1]);
-    console.log('PLAYABILITY ' + JSON.stringify(player.playabilityStatus));
-    return player.playabilityStatus?.status === 'OK' &&
-      player.playabilityStatus?.playableInEmbed === true;
-  } catch (error) { console.log('VERIFY error ' + error.message); return false; }
+    if (!info.title || !info.html?.includes('/embed/' + video.id)) return false;
+    if (score(exercise, {...video, title:info.title}) <= 0) return false;
+    video.title = info.title;
+    return true;
+  } catch { return false; }
 }
 
 // ── which exercises to resolve ──────────────────────────────────────────────
@@ -161,7 +154,7 @@ for (let i = 0; i < todo.length; i++) {
   else {
     let best;
     for (const candidate of ranked.slice(0, 3)) {
-      if (await verifyCandidate(candidate.v)) { best = candidate.v; break; }
+      if (await verifyCandidate(candidate.v, ex)) { best = candidate.v; break; }
     }
     if (best) {
       found[id] = best.id;

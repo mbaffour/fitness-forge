@@ -20,7 +20,7 @@ jobs:
       - name: Verify player behavior
         run: node --experimental-default-type=module tools/verify-video-player.mjs
       - name: Find relevant tutorials
-        run: node --experimental-default-type=module tools/resolve-youtube.mjs --limit 1
+        run: node --experimental-default-type=module tools/resolve-youtube.mjs
       - name: Publish resolved IDs for review
         run: |
           node --experimental-default-type=module --input-type=module -e "import { EXERCISE_VIDEOS } from './src/data/exercise-videos.js'; console.log('VIDEO_MAP_JSON:' + JSON.stringify(EXERCISE_VIDEOS));"
