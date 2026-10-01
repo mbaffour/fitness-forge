@@ -43,12 +43,17 @@ export function mountGallery() {
   renderPlan();
   const cards = document.getElementById('gallery-exercises');
   cards.innerHTML = Object.entries(COACHED_EXERCISES).map(([id, ex]) => galleryExerciseHTML(id, ex)).join('');
+  const quickDemo = document.createElement('p');
+  quickDemo.innerHTML = '<a href="preview.html?exercise=ab_wheel">Try an in-app tutorial video →</a>';
+  cards.before(quickDemo);
   cards.addEventListener('click', event => {
     const button = event.target.closest('[data-exercise]');
     if (!button || !cards.contains(button)) return;
     const id = button.dataset.exercise;
     if (Object.hasOwn(COACHED_EXERCISES, id)) showExerciseModal({...EXERCISES[id], id});
   });
+  const requested = new URLSearchParams(window.location.search).get('exercise');
+  if (requested && Object.hasOwn(EXERCISES, requested)) showExerciseModal({...EXERCISES[requested], id:requested});
 }
 try { mountGallery(); }
 catch (error) {

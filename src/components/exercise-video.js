@@ -23,7 +23,8 @@ export function tutorialId(ex) {
 export function exerciseVideoHTML(ex) {
   const id = tutorialId(ex);
   return `<section class="exercise-video" aria-label="Video tutorial">
-    <div class="sec-head">Video Tutorial</div>
+    <div class="sec-head">${ex?.coached && id ? 'Related Technique Video' : 'Video Tutorial'}</div>
+    ${ex?.coached && id ? '<p class="pg-note">Technique reference: use the written cues for this movement’s exact variation, equipment and hold duration.</p>' : ''}
     <div class="exercise-video-stage">${id ? '<div class="video-embed"><div id="exercise-youtube-player"></div></div>' : ''}</div>
     <p class="exercise-video-status" role="status">${id ? 'Loading the in-app video player…' : 'A tutorial has not been matched for this movement yet. Paste a YouTube link below to play it here.'}</p>
     <button type="button" class="btn btn-secondary exercise-video-retry" hidden>Retry video</button>
