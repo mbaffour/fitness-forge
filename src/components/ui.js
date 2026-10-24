@@ -21,6 +21,17 @@ export function pageHeader(title, { eyebrow = '', sub = '' } = {}) {
 }
 
 // Section header with the design-system underline rule (::after draws the line).
+// A photographic backdrop layer. Absolutely positioned, so the element it is
+// dropped into MUST be `position: relative` — without that every layer escapes
+// to the page box and they stack over the whole screen. `onerror` strips the
+// layer so an offline load or a blocked host falls back to the flat surface
+// rather than a broken image.
+export function photoLayer(src, alt = '') {
+  if (!src) return '';
+  return `<span class="fx-photo"><img src="${esc(src)}" alt="${esc(alt)}" loading="lazy"
+    decoding="async" onerror="this.closest('.fx-photo')?.remove()"></span>`;
+}
+
 export function sectionHead(label, note = '') {
   return `<div class="sec-head">${esc(label)}${note ? `<i class="sec-note">${esc(note)}</i>` : ''}</div>`;
 }

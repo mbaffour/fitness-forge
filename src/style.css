@@ -1076,6 +1076,10 @@ select.input { cursor: pointer; }
    Pick one tool, work through its movements. Card grid → station detail. */
 .st-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 .st-card {
+  /* `position: relative` is load-bearing: .fx-photo is absolutely positioned
+     with inset:0, so without a positioned ancestor every card's photo escapes
+     to the page box and they stack over the whole screen. */
+  position: relative; overflow: hidden; isolation: isolate;
   display: flex; align-items: flex-start; gap: 12px; text-align: left; width: 100%;
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg);
   padding: 14px 16px; cursor: pointer; font-family: var(--ff-mono, monospace);
@@ -1083,11 +1087,11 @@ select.input { cursor: pointer; }
 }
 .st-card:hover { border-color: var(--fire); }
 .st-card:active { transform: scale(0.985); }
-.st-ic { font-size: 26px; flex-shrink: 0; line-height: 1.1; }
+.st-ic { position: relative; z-index: 1; font-size: 26px; flex-shrink: 0; line-height: 1.1; }
 /* Name and counts share the top line so the blurb gets the card's full width
    — squeezed beside the counts it wrapped to four lines on a two-up grid. */
 .st-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-.st-body { flex: 1; min-width: 0; display: block; }
+.st-body { position: relative; z-index: 1; flex: 1; min-width: 0; display: block; }
 .st-name {
   display: block; font-size: 0.9rem; font-weight: 600; color: var(--text);
   letter-spacing: 0.02em; margin-bottom: 4px;
@@ -1139,6 +1143,120 @@ select.input { cursor: pointer; }
 
 .sec-note { font-style: normal; font-weight: 400; color: var(--text-3);
   letter-spacing: 0.04em; text-transform: none; margin-left: var(--s-2); }
+
+/* ══ PHOTOGRAPHIC COVER TREATMENT ══
+   free-exercise-db ships real gym photography (850x567, public domain), but
+   it is shot bright — red walls, pale maple floor — and dropping that raw into
+   a near-black machinist panel looks like a stock-photo advert bolted on.
+   These tokens carry it the other way: desaturated, warmed toward the forge
+   accent, dimmed, then covered with a scrim that fades to the card's own
+   surface so text sits on solid colour rather than on someone's shoulder.
+   Light themes need far less of all of it, so both are tokens. */
+:root {
+  --photo-filter: grayscale(0.46) contrast(1.12) brightness(0.56) sepia(0.32)
+                  hue-rotate(-12deg) saturate(1.45);
+  --photo-scrim: linear-gradient(100deg, var(--surface) 26%,
+                 color-mix(in srgb, var(--surface) 72%, transparent) 58%,
+                 color-mix(in srgb, var(--surface) 30%, transparent) 100%);
+}
+html[data-theme="day"], html[data-theme="vivid"] {
+  --photo-filter: grayscale(0.2) contrast(1.04) brightness(1.02) saturate(1.05);
+  --photo-scrim: linear-gradient(100deg, var(--surface) 24%,
+                 color-mix(in srgb, var(--surface) 68%, transparent) 60%,
+                 color-mix(in srgb, var(--surface) 22%, transparent) 100%);
+}
+
+.fx-photo { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+.fx-photo img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+  filter: var(--photo-filter);
+  transform: scale(1.04);
+  transition: transform 900ms cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.fx-photo::after { content: ''; position: absolute; inset: 0; background: var(--photo-scrim); }
+.st-card.has-photo { border-color: var(--border-hi); }
+/* A slow drift on hover — the only motion a still photograph can honestly
+   have. Switched off wholesale under prefers-reduced-motion below. */
+.st-card:hover .fx-photo img { transform: scale(1.1); }
+
+/* ══ MOTION ══
+   A slow drift across the hero photograph (Ken Burns): the image is already
+   scaled past the frame, so this costs no extra request and nothing reflows —
+   it is a compositor-only transform. Entrance stagger gives a list of cards
+   somewhere to come from. Both are decorative and both are switched off
+   wholesale by the prefers-reduced-motion block. */
+@keyframes fx-drift {
+  from { transform: scale(1.06) translate3d(0, 0, 0); }
+  to   { transform: scale(1.14) translate3d(-1.5%, -1.5%, 0); }
+}
+.st-hero .fx-photo img { animation: fx-drift 26s ease-in-out infinite alternate; }
+
+@keyframes fx-rise {
+  from { opacity: 0; transform: translate3d(0, 10px, 0); }
+  to   { opacity: 1; transform: none; }
+}
+.st-grid .st-card { animation: fx-rise 320ms cubic-bezier(0.22, 0.61, 0.36, 1) backwards; }
+.st-grid .st-card:nth-child(1) { animation-delay: 0ms; }
+.st-grid .st-card:nth-child(2) { animation-delay: 40ms; }
+.st-grid .st-card:nth-child(3) { animation-delay: 80ms; }
+.st-grid .st-card:nth-child(4) { animation-delay: 120ms; }
+.st-grid .st-card:nth-child(5) { animation-delay: 160ms; }
+.st-grid .st-card:nth-child(n+6) { animation-delay: 200ms; }
+
+/* Hover cycles a demo thumbnail to its next frame. The second frame is only
+   fetched on hover (see main.js) — eagerly loading a second image for every
+   row would add ~10 MB to a 153-row station. */
+.ex-thumb.is-cycling img.f2 {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain;
+  animation: fx-fade 760ms ease-in-out infinite alternate;
+}
+.ex-thumb { position: relative; }
+@keyframes fx-fade { from { opacity: 0; } 55% { opacity: 1; } to { opacity: 1; } }
+
+/* Photographic motion is decoration over media that is perfectly legible
+   standing still, so none of it survives a reduced-motion preference. This
+   block sits AFTER the animations it cancels on purpose: the main
+   prefers-reduced-motion block is earlier in the file, and at equal
+   specificity the later rule wins — placed up there these were being
+   overridden by the very animations they were meant to switch off. */
+@media (prefers-reduced-motion: reduce) {
+  .st-hero .fx-photo img,
+  .st-grid .st-card,
+  .ex-thumb.is-cycling img.f2 { animation: none; }
+  .fx-photo img { transition: none; transform: scale(1.04); }
+  .st-card:hover .fx-photo img { transform: scale(1.04); }
+}
+
+/* Station detail hero — the photograph carries the page, the scrim keeps the
+   type legible over it. 180px is enough to read as an image without pushing
+   the movement list below the fold on a phone. */
+.st-hero {
+  position: relative; overflow: hidden; border-radius: var(--r-lg);
+  border: 1px solid var(--border); background: var(--surface);
+  min-height: 180px; display: flex; align-items: flex-end;
+  margin-bottom: var(--s-4);
+}
+.st-hero .fx-photo::after {
+  background: linear-gradient(0deg, var(--surface) 4%,
+              color-mix(in srgb, var(--surface) 62%, transparent) 52%,
+              color-mix(in srgb, var(--surface) 18%, transparent) 100%);
+}
+.st-hero-text { position: relative; z-index: 1; padding: var(--s-4) var(--s-5); width: 100%; }
+.st-hero-eyebrow {
+  display: block; font-size: 0.65rem; font-weight: 600; color: var(--fire);
+  letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 4px;
+}
+.st-hero-title {
+  font-size: 1.5rem; font-weight: 700; color: var(--text); margin: 0 0 4px;
+  letter-spacing: 0.06em; text-transform: uppercase; line-height: 1.1;
+}
+.st-hero-sub { font-size: 0.8rem; color: var(--text-2); margin: 0 0 8px; line-height: 1.5; }
+.st-hero-stats { font-size: 0.72rem; color: var(--text-3); letter-spacing: 0.06em; }
+.st-hero-stats b { color: var(--fire); }
+@media (max-width: 768px) {
+  .st-hero { min-height: 150px; }
+  .st-hero-title { font-size: 1.2rem; }
+}
 
 .st-intro { font-size: 0.8rem; color: var(--text-2); letter-spacing: 0.04em;
   margin: calc(-1 * var(--s-2)) 0 var(--s-5); }
@@ -1381,6 +1499,9 @@ select.form-input option { background: var(--bg-3); }
 
 /* ── ACHIEVEMENTS PAGE ── */
 .streak-flame { font-size: 56px; line-height: 1; }
+/* The same class is reused inline inside the dashboard hero's 4-up metric row,
+   where 56px overlapped the neighbouring stat. Size it to the text there. */
+.hero-meta .streak-flame { font-size: 1.05rem; line-height: inherit; vertical-align: baseline; }
 .achievement-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr));
   gap: 12px; margin-bottom: 24px;
@@ -2350,6 +2471,16 @@ body.session-active .sidebar { display: none !important; }
   border-left: 3px solid var(--fire);
   border-radius: var(--r-lg);
   padding: var(--s-6);
+}
+/* With a photo behind it, every non-positioned child would paint UNDER the
+   positioned .fx-photo layer — positioned elements paint above static ones in
+   the same stacking context. Lift the content, and deepen the scrim on the
+   left where the type sits. */
+.hero-card.has-photo > *:not(.fx-photo) { position: relative; z-index: 1; }
+.hero-card.has-photo .fx-photo::after {
+  background: linear-gradient(95deg, var(--surface) 30%,
+              color-mix(in srgb, var(--surface) 78%, transparent) 62%,
+              color-mix(in srgb, var(--surface) 34%, transparent) 100%);
 }
 .hero-card::after {
   content: ''; position: absolute; top: -40%; right: -10%;
