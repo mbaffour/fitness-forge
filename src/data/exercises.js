@@ -554,6 +554,33 @@ const DB_COACHING = {
   },
 };
 
+// ── TYPE CORRECTIONS ─────────────────────────────────────────────────────────
+// The workout-guide importer decides compound-vs-isolation with
+// ISO_RE = /curl|raise|extension|fly|kickback|pushdown|shrug/i, which does not
+// match "adduction", "pec deck", "crunch" or "sit-up" — so those generated
+// entries defaulted to `compound`. Every generator prefers compounds, so a
+// mistyped hip-adduction machine could displace a squat: a cable session
+// opened with Cable Standing Hip Adduction while the lat pulldown missed out.
+//
+// Listed explicitly rather than matched by pattern, because the obvious regex
+// also catches hip thrusts, glute bridges and lateral lunges — those really
+// are primary movements and demoting them would make the picks worse, not
+// better. ISO_RE in the generator is widened to match, so a re-run agrees.
+const TYPE_FIXES = {
+  isolation: [
+    'wg_pec_deck',
+    'wg_hip_abduction_machine', 'wg_hip_adduction_machine',
+    'wg_cable_standing_hip_abduction', 'wg_cable_standing_hip_adduction',
+    'wg_side_lying_hip_abduction', 'wg_banded_standing_hip_abduction',
+    'wg_banded_seated_hip_abduction', 'wg_clamshell', 'wg_banded_clamshell',
+    'wg_bicycle_crunch', 'wg_decline_sit_up', 'wg_weighted_russian_twist',
+    'wg_banded_face_pull',
+  ],
+};
+for (const [type, ids] of Object.entries(TYPE_FIXES)) {
+  for (const id of ids) if (EXERCISES[id]) EXERCISES[id].type = type;
+}
+
 // Apply coaching + staple promotion to entries that already exist. Never
 // creates an exercise: if an id is gone the entry is simply skipped.
 for (const [id, patch] of Object.entries(DB_COACHING)) {

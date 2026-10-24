@@ -1072,6 +1072,68 @@ select.input { cursor: pointer; }
   .btn-primary:active:not(:disabled) { transform: none; }
 }
 
+/* ══ STATIONS ══
+   Pick one tool, work through its movements. Card grid → station detail. */
+.st-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.st-card {
+  display: flex; align-items: center; gap: 12px; text-align: left; width: 100%;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg);
+  padding: 14px 16px; cursor: pointer; font-family: var(--ff-mono, monospace);
+  transition: border-color 0.15s, transform 90ms ease-out;
+}
+.st-card:hover { border-color: var(--fire); }
+.st-card:active { transform: scale(0.985); }
+.st-ic { font-size: 26px; flex-shrink: 0; line-height: 1; }
+.st-body { flex: 1; min-width: 0; display: block; }
+.st-name {
+  display: block; font-size: 0.9rem; font-weight: 600; color: var(--text);
+  letter-spacing: 0.02em; margin-bottom: 3px;
+}
+.st-blurb { display: block; font-size: 0.68rem; color: var(--text-2); line-height: 1.45; }
+.st-meta { display: flex; gap: 14px; flex-shrink: 0; text-align: right; }
+.st-meta b { display: block; font-size: 0.95rem; color: var(--fire); font-weight: 600; }
+.st-meta i {
+  display: block; font-style: normal; font-size: 0.58rem; color: var(--text-3);
+  letter-spacing: 0.1em; text-transform: uppercase; margin-top: 1px;
+}
+
+.st-bar { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+.st-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 22px; }
+.st-chip {
+  font-family: var(--ff-mono, monospace); font-size: 0.66rem; letter-spacing: 0.04em;
+  background: var(--bg-2); color: var(--text-2);
+  border: 1px solid var(--border); border-radius: var(--r-sm);
+  padding: 5px 9px; cursor: pointer; transition: border-color 0.15s, color 0.15s;
+}
+.st-chip:hover { border-color: var(--border-hi); color: var(--text); }
+.st-chip.on { border-color: var(--fire); color: var(--fire); background: var(--fire-dim); }
+
+.st-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 22px; }
+.st-row {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-md); padding: 10px 12px;
+}
+.st-row-main { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+.st-row-text { min-width: 0; }
+.st-row-name {
+  display: block; font-family: var(--ff-mono, monospace); font-size: 0.8rem;
+  color: var(--text); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.st-row-sub {
+  display: block; font-family: var(--ff-mono, monospace); font-size: 0.6rem;
+  color: var(--text-3); letter-spacing: 0.08em; text-transform: uppercase; margin-top: 2px;
+}
+.st-row-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.st-load {
+  font-family: var(--ff-mono, monospace); font-size: 0.72rem; color: var(--fire); white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .st-grid { grid-template-columns: 1fr; }
+  .st-meta { gap: 10px; }
+}
+
 /* ══ FREESTYLE PAGE ══ */
 .muscle-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px;

@@ -43,7 +43,12 @@ const EQ = {
 };
 const HOME_ITEMS = new Set(['dumbbells', 'kettlebell', 'resistance_bands', 'pull_up_bar', 'bench']);
 const ISO_MUS = new Set(['Biceps', 'Triceps', 'Calves', 'Forearms', 'Rear Delts']);
-const ISO_RE = /curl|raise|extension|fly|kickback|pushdown|shrug/i;
+// Single-joint movements. "adduction", "pec deck", "crunch", "sit-up" and
+// "twist" were missing, so those entries were typed compound and competed with
+// squats and presses for a generator's compound slot. Hip thrusts, glute
+// bridges and lateral lunges are deliberately NOT here — they are primary
+// movements despite being hip-dominant.
+const ISO_RE = /curl|raise|extension|fly|kickback|pushdown|shrug|adduction|abduction|clamshell|pec deck|crunch|sit-?up|twist|pullover|face pull|wrist/i;
 
 // Manual aliases: same movement, different wording, so the name matcher misses
 // it. Verified one-by-one against the manifest — only exact-movement matches
