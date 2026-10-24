@@ -1,7 +1,7 @@
 // FITNESS FORGE — Service Worker
 // Cache-first strategy for full offline support
 
-const CACHE = 'forge-v55';
+const CACHE = 'forge-v56';
 
 const PRECACHE = [
   './',
@@ -55,6 +55,7 @@ const PRECACHE = [
   './src/data/exercise-anim.js',
   './src/data/exercise-videos.js',
   './src/data/exercises-wg.js',
+  './src/data/exercise-equipment.js',
   './src/data/body-model.js',
   './src/data/programs.js',
   './manifest.json',

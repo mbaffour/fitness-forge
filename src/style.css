@@ -1076,21 +1076,24 @@ select.input { cursor: pointer; }
    Pick one tool, work through its movements. Card grid → station detail. */
 .st-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 .st-card {
-  display: flex; align-items: center; gap: 12px; text-align: left; width: 100%;
+  display: flex; align-items: flex-start; gap: 12px; text-align: left; width: 100%;
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg);
   padding: 14px 16px; cursor: pointer; font-family: var(--ff-mono, monospace);
   transition: border-color 0.15s, transform 90ms ease-out;
 }
 .st-card:hover { border-color: var(--fire); }
 .st-card:active { transform: scale(0.985); }
-.st-ic { font-size: 26px; flex-shrink: 0; line-height: 1; }
+.st-ic { font-size: 26px; flex-shrink: 0; line-height: 1.1; }
+/* Name and counts share the top line so the blurb gets the card's full width
+   — squeezed beside the counts it wrapped to four lines on a two-up grid. */
+.st-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 .st-body { flex: 1; min-width: 0; display: block; }
 .st-name {
   display: block; font-size: 0.9rem; font-weight: 600; color: var(--text);
-  letter-spacing: 0.02em; margin-bottom: 3px;
+  letter-spacing: 0.02em; margin-bottom: 4px;
 }
 .st-blurb { display: block; font-size: 0.68rem; color: var(--text-2); line-height: 1.45; }
-.st-meta { display: flex; gap: 14px; flex-shrink: 0; text-align: right; }
+.st-meta { display: flex; gap: 14px; flex-shrink: 0; text-align: right; white-space: nowrap; }
 .st-meta b { display: block; font-size: 0.95rem; color: var(--fire); font-weight: 600; }
 .st-meta i {
   display: block; font-style: normal; font-size: 0.58rem; color: var(--text-3);
@@ -1133,6 +1136,13 @@ select.input { cursor: pointer; }
   .st-grid { grid-template-columns: 1fr; }
   .st-meta { gap: 10px; }
 }
+
+.sec-note { font-style: normal; font-weight: 400; color: var(--text-3);
+  letter-spacing: 0.04em; text-transform: none; margin-left: var(--s-2); }
+
+.st-intro { font-size: 0.8rem; color: var(--text-2); letter-spacing: 0.04em;
+  margin: calc(-1 * var(--s-2)) 0 var(--s-5); }
+.st-intro b { color: var(--fire); }
 
 /* ══ FREESTYLE PAGE ══ */
 .muscle-grid {

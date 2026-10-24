@@ -21,8 +21,8 @@ export function pageHeader(title, { eyebrow = '', sub = '' } = {}) {
 }
 
 // Section header with the design-system underline rule (::after draws the line).
-export function sectionHead(label) {
-  return `<div class="sec-head">${esc(label)}</div>`;
+export function sectionHead(label, note = '') {
+  return `<div class="sec-head">${esc(label)}${note ? `<i class="sec-note">${esc(note)}</i>` : ''}</div>`;
 }
 
 // Generic card. `accent` adds the fire left-border; `pad` overrides padding.

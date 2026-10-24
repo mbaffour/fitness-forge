@@ -4,7 +4,7 @@
 //   or manual builder. Zero hardcoded values.
 // ═══════════════════════════════════════════
 
-import { upsertExercise, removeExercise } from './data/exercises.js';
+import { upsertExercise, removeExercise, EQUIP_ITEMS } from './data/exercises.js';
 
 const KEY = 'fitness_forge_v1';
 
@@ -361,11 +361,14 @@ export function displayName() {
 
 // The active owned-item list. Falls back to the profile's onboarding preset
 // (mapped to items) so equipment works even before any profile is saved.
+// full_gym is derived from EQUIP_ITEMS rather than listed again: this copy had
+// already drifted from the one in exercises.js, so any item added there was
+// silently missing from "full gym" here.
 const _PRESET_ITEMS = {
   bodyweight: [],
   dumbbells:  ['dumbbells','bench'],
   home_basic: ['dumbbells','resistance_bands','pull_up_bar','bench'],
-  full_gym:   ['dumbbells','barbell','bench','kettlebell','resistance_bands','cable','pull_up_bar','machine','rings_trx','ab_wheel'],
+  full_gym:   EQUIP_ITEMS.map(i => i.id),
 };
 
 export function getOwnedItems() {

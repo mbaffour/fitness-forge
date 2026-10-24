@@ -11,6 +11,7 @@ import { LIBRARY_EXERCISES } from './exercises-library.js';
 // Openly-licensed exercises derived from workout-guide (CC BY-SA 4.0 metadata +
 // animations, © Bryl Lim / Everkinetic), each carrying a matched animation.
 import { WG_EXERCISES } from './exercises-wg.js';
+import { EX_EQUIP } from './exercise-equipment.js';
 
 export const EQUIPMENT_OPTIONS = [
   { id: 'full_gym',   label: 'Full Gym',      desc: 'Barbells, machines, cables', icon: '🏋️' },
@@ -230,6 +231,8 @@ export const EQUIP_ITEMS = [
   { id:'machine',         label:'Weight Machines',icon:'⚙️' },
   { id:'rings_trx',       label:'Rings / TRX',    icon:'💍' },
   { id:'ab_wheel',        label:'Ab Wheel',       icon:'🎡' },
+  { id:'medicine_ball',   label:'Medicine Ball',  icon:'⚽' },
+  { id:'stability_ball',  label:'Stability Ball', icon:'🔵' },
 ];
 const ALL_ITEMS = EQUIP_ITEMS.map(i => i.id);
 
@@ -597,6 +600,25 @@ for (const [id, ex] of Object.entries(EXERCISES)) {
   if (!Array.isArray(ex.requires)) ex.requires = REQUIRES[id] || [];
 }
 
+// The free-exercise-db importer mapped `medicine ball` and `exercise ball` to
+// `[]` — the same value as "body only" — so 31 movements that genuinely need a
+// ball were being offered to someone with no equipment at all, and counted in
+// the Bodyweight station's total. The generated equipment map remembers what
+// the original data said, so the requirement is restored from there rather
+// than from a hand-kept list that would drift.
+const BALL_ITEMS = ['medicine_ball', 'stability_ball'];
+for (const [id, tags] of Object.entries(EX_EQUIP)) {
+  const ex = EXERCISES[id];
+  if (!ex) continue;
+  for (const item of BALL_ITEMS) {
+    if (tags.includes(item) && !ex.requires.includes(item)) ex.requires = [...ex.requires, item];
+  }
+}
+
+// The specific kit an exercise uses, past the ten coarse `requires` buckets:
+// 'smith', 'preacher', 'leg_press', 'landmine'… See tools/import-equipment.mjs.
+export function equipTags(id) { return EX_EQUIP[id] || []; }
+
 // ── CUSTOM (user-created) EXERCISES ──
 // Merged into EXERCISES at boot from persisted state (store.js). Kept here so
 // every lookup (`EXERCISES[id]`, `Object.entries(EXERCISES)`) sees them for free.
@@ -662,6 +684,11 @@ const CARDIO_GAIT_RE = /^(?:\w+ )?(?:walking|running|jogging|cycling|sprinting|r
 
 export function isStrengthExercise(ex) {
   if (ex?.trainingType === 'mobility') return false;
+  // Anything performed on a foam roller is self-myofascial release, not a
+  // lift. The name filter catches the ones suffixed "-SMR" but not "Adductor",
+  // which was sitting in the quads pool; the generated equipment map knows
+  // what the source data said it needs.
+  if (ex?.id && EX_EQUIP[ex.id]?.includes('foam_roller')) return false;
   const name = ex?.name || '';
   return !NOT_STRENGTH_RE.test(name) && !CARDIO_GAIT_RE.test(name.trim());
 }
