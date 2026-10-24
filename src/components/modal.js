@@ -14,6 +14,15 @@ import { movementDiagram } from './movement-patterns.js';
 
 const GIF_CDN = 'https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises';
 
+// Real photographs — 850x567, two frames per exercise (start and end of the
+// movement), public domain, from the same free-exercise-db repo as the stills.
+// 870 of the 1077 exercises have a pair. They were only ever used as a
+// last-resort 42px thumbnail; as cover imagery they are the most photographic
+// thing the app owns, so the hero treatments draw on them directly.
+export function exPhotoURL(ex, frame = 0) {
+  return ex?.imgKey ? `${GIF_CDN}/${ex.imgKey}/${frame}.jpg` : '';
+}
+
 // Openly-licensed 3-frame animated illustration (workout-guide, CC BY-SA 4.0).
 // Cycles frame-1→2→3 via the `wgFlip` keyframe. Hotlinked at runtime (never
 // vendored); on error the wrap is removed so the next fallback shows.
@@ -158,7 +167,14 @@ export function exThumbHTML(ex) {
   else if (EXERCISE_GIFS[ex.id]) src = `${GIF_BASE}${EXERCISE_GIFS[ex.id]}`;
   else if (ex.imgKey) src = `${GIF_CDN}/${ex.imgKey}/0.jpg`;
   if (!src) return '<span class="ex-thumb ex-thumb-none" aria-hidden="true"></span>';
-  return `<span class="ex-thumb${wg ? ' is-wg' : ''}"><img src="${src}" alt="" loading="lazy"
+  // The URL of a SECOND frame, if the movement has one — workout-guide ships
+  // three frames per animation, free-exercise-db two photos (start and end).
+  // It is not loaded here: hovering 153 rows' worth of second frames would add
+  // roughly 10 MB. main.js fetches it on hover and crossfades.
+  let f2 = '';
+  if (wg && wg.frames > 1) f2 = `${WG_BASE}${wg.slug}/frame-2.svg`;
+  else if (!wg && !EXERCISE_GIFS[ex.id] && ex.imgKey) f2 = `${GIF_CDN}/${ex.imgKey}/1.jpg`;
+  return `<span class="ex-thumb${wg ? ' is-wg' : ''}"${f2 ? ` data-f2="${f2}"` : ''}><img src="${src}" alt="" loading="lazy"
     onerror="this.closest('.ex-thumb')?.classList.add('ex-thumb-none');this.remove()"></span>`;
 }
 

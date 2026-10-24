@@ -3,7 +3,8 @@ import { GOAL_OPTIONS, LEVEL_OPTIONS, PHASE_NAMES, PHASE_DESCS, EXERCISES, MUSCL
 import { calcBMR, calcTDEE, calcMacros, ACTIVITY_MULTIPLIERS } from '../engine/bmr.js';
 import { renderCardioLog, scheduleCardioCharts } from './cardio-log.js';
 import { initStrengthChart, initVolumeChart, initWeeklyFrequencyChart, initMuscleFrequencyChart } from './charts.js';
-import { exPreviewHTML } from './modal.js';
+import { exPreviewHTML, exPhotoURL } from './modal.js';
+import { photoLayer } from './ui.js';
 import { requestNotifyPermission } from './feedback.js';
 
 // Muscle-group color chip used across workout cards.
@@ -54,13 +55,21 @@ ${(() => {
   const icon = type === 'strength' ? '⚡' : type === 'cardio' ? '🏃' : '🧘';
   const title = todaySchedule ? todaySchedule.label : 'Rest Day';
   const focus = type === 'strength' ? 'Strength' : type === 'cardio' ? 'Cardio' : 'Recovery';
+  // The hero shows a photograph of the FIRST MOVEMENT of today's actual
+  // session, read from the same phaseWorkouts the Workout page renders — not a
+  // generic stock shot. A rest day gets no photo: there is nothing to show.
+  const todayEx = program.phaseWorkouts?.[`phase${currentPhase}`]?.[dayName]?.exercises || [];
+  const heroEx = todayEx.map(e => EXERCISES[e.id]).find(e => e?.imgKey);
+  const heroPhoto = heroEx ? exPhotoURL(heroEx, 0) : '';
+  const heroPhotoAlt = heroEx ? `${heroEx.name} — today's first movement` : '';
   const cta = type === 'strength'
     ? `<button class="btn btn-fire btn-lg w100" onclick="navigate('workout')">${icon} Start Today's Workout</button>`
     : type === 'cardio'
       ? `<button class="btn btn-fire btn-lg w100" onclick="navigate('cardio')">${icon} Log Cardio</button>`
       : `<button class="btn btn-ghost btn-lg w100" onclick="navigate('workout')">View Recovery Plan →</button>`;
   return `
-<div class="hero-card mb-5">
+<div class="hero-card mb-5${heroPhoto ? ' has-photo' : ''}">
+  ${photoLayer(heroPhoto, heroPhotoAlt)}
   <div class="hero-eyebrow">Today · ${dayName} · Phase ${currentPhase} ${PHASE_NAMES[currentPhase-1]} · Week ${currentWeek}/${program.totalWeeks}</div>
   <div class="hero-title">${title}</div>
   <div class="hero-meta">

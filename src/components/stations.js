@@ -22,8 +22,8 @@ import { state, formatWeight } from '../store.js';
 import { EXERCISES, MUSCLE_GROUPS, isStrengthExercise, stapleRank, equipTags } from '../data/exercises.js';
 import { suggestNextSet } from '../engine/overload.js';
 import { cue } from './feedback.js';
-import { toast, pageHeader, sectionHead, emptyState } from './ui.js';
-import { exThumbHTML } from './modal.js';
+import { toast, pageHeader, sectionHead, emptyState, photoLayer } from './ui.js';
+import { exThumbHTML, exPhotoURL } from './modal.js';
 
 // A bench is a surface, not a second piece of kit — every press and row done
 // on one is really a dumbbell or barbell movement. So for an item station it
@@ -118,6 +118,21 @@ function stations() {
 
 const groupsOf = (movs) => MUSCLE_GROUPS.filter((g) => movs.some((m) => m.groups?.[0] === g.id));
 
+// The photograph that represents a station: the best-ranked movement it has
+// that actually owns one. Deterministic, so a station keeps the same face
+// between renders. 870 of 1077 exercises have a photo pair; a station whose
+// movements have none (towel, battle ropes) simply renders without one rather
+// than borrowing a picture of something else.
+function coverFor(station) {
+  const best = station.movements
+    .filter((m) => m.imgKey)
+    .sort((a, b) => stapleRank(a, a.groups?.[0]) - stapleRank(b, b.groups?.[0])
+                 || (a.type === 'compound' ? 0 : 1) - (b.type === 'compound' ? 0 : 1)
+                 || (a.name || '').localeCompare(b.name || ''))[0];
+  return best ? exPhotoURL(best, 0) : '';
+}
+
+
 // What to load, from the same engine every other surface uses — so a movement
 // shows the weight your history says you should be on, not a generic number.
 function loadFor(ex) {
@@ -133,8 +148,10 @@ function loadFor(ex) {
 // ── PICKER ──────────────────────────────────────────────────────────────────
 function cardHTML(s) {
   const cov = groupsOf(s.movements).length;
+  const cover = coverFor(s);
   return `
-  <button class="st-card" onclick="stationOpen('${s.id}')">
+  <button class="st-card${cover ? ' has-photo' : ''}" onclick="stationOpen('${s.id}')">
+    ${photoLayer(cover)}
     <span class="st-ic">${s.icon}</span>
     <span class="st-body">
       <span class="st-top">
@@ -214,8 +231,21 @@ function detailHTML(station) {
     return `${sectionHead(`${g.icon} ${g.label}`)}<div class="st-list">${rows}</div>`;
   }).join('');
 
+  const cover = coverFor(station);
+  const hero = cover ? `
+<div class="st-hero">
+  ${photoLayer(cover, `${station.label} station`)}
+  <div class="st-hero-text">
+    <span class="st-hero-eyebrow">Station</span>
+    <h1 class="st-hero-title">${station.label.toUpperCase()}</h1>
+    <p class="st-hero-sub">${station.blurb}</p>
+    <span class="st-hero-stats"><b>${movs.length}</b> move${movs.length === 1 ? '' : 's'}
+      · <b>${groups.length}</b>/${MUSCLE_GROUPS.length} muscle groups</span>
+  </div>
+</div>` : pageHeader(station.label.toUpperCase(), { eyebrow: 'Station', sub: station.blurb });
+
   return `
-${pageHeader(station.label.toUpperCase(), { eyebrow: 'Station', sub: station.blurb })}
+${hero}
 <div class="st-bar">
   <button class="btn btn-ghost btn-sm" onclick="stationOpen(null)">← All stations</button>
   <button class="btn btn-fire btn-sm" onclick="stationStart('${station.id}')">⚡ Train this station</button>

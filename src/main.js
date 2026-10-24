@@ -629,6 +629,53 @@ document.addEventListener('keydown', (e) => {
   setTimeout(() => document.querySelector('.lib-search')?.focus(), 50);
 });
 
+// ── DEMO THUMBNAIL CYCLING ──
+// A thumbnail shows one frame of a movement that has two or three. On hover
+// the next frame is fetched and crossfaded, so a list of exercises animates
+// under the cursor instead of sitting still — without paying for a second
+// image on every row up front (a 153-row station would be ~10 MB).
+//
+// Delegated from the document because every page rebuilds its own markup, and
+// capture-phase because `mouseenter` does not bubble.
+const _prefersReducedMotion = () =>
+  window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+document.addEventListener('mouseenter', (e) => {
+  const thumb = e.target instanceof Element ? e.target.closest?.('.ex-thumb[data-f2]') : null;
+  // Bail if a second frame is already present, not merely if it is already
+  // showing: removing one mid-hover changes the element under the cursor and
+  // fires `mouseenter` again, which otherwise stacks up a fresh image whose
+  // `is-cycling` class has not landed yet.
+  if (!thumb || thumb.querySelector('img.f2') || _prefersReducedMotion()) return;
+  const url = thumb.dataset.f2;
+  if (!url) return;
+  const img = document.createElement('img');
+  img.className = 'f2';
+  img.alt = '';
+  img.decoding = 'async';
+  // Only reveal the second frame once it has actually decoded: a half-loaded
+  // crossfade reads as a flicker, and a 404 should leave the first frame alone.
+  // `isConnected` guards the race where the pointer leaves before the image
+  // arrives — the teardown has already removed it, and marking the thumbnail
+  // then left the class stuck on with nothing to show.
+  img.onload = () => { if (img.isConnected) thumb.classList.add('is-cycling'); };
+  img.onerror = () => { img.remove(); delete thumb.dataset.f2; };
+  img.src = url;
+  thumb.appendChild(img);
+}, true);
+
+document.addEventListener('mouseleave', (e) => {
+  // Matches any thumbnail, not just one already marked `is-cycling` — the
+  // replacement described above can still be waiting on its `onload`.
+  const thumb = e.target instanceof Element ? e.target.closest?.('.ex-thumb') : null;
+  if (!thumb) return;
+  // `mouseleave` also fires on the thumbnail's own children as the pointer
+  // crosses between them. Only tear down when it has actually left the thumb.
+  if (e.relatedTarget instanceof Node && thumb.contains(e.relatedTarget)) return;
+  thumb.classList.remove('is-cycling');
+  thumb.querySelector('img.f2')?.remove();
+}, true);
+
 // ── BOOT ──
 function boot() {
   if (!state.onboarded || !state.program) {
