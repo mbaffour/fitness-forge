@@ -24,6 +24,17 @@ CC BY-SA 4.0 animations above. Generated data: `src/data/exercises-wg.js`
 (`WG_EXERCISES`). This metadata is likewise **CC BY-SA 4.0** (© Bryl Lim /
 Everkinetic); stretches and cardio entries are excluded from the strength library.
 
+### Fine-grained equipment tags
+
+The **Stations** page needs to know which specific piece of kit a movement uses —
+a Smith machine, a preacher bench, a leg press — where our own model records only
+the coarse bucket (`machine`). `tools/import-equipment.mjs` derives those tags from
+free-exercise-db's `equipment` field (**Unlicense / public domain**) and
+workout-guide's `equipment` field (**CC BY-SA 4.0**, © Bryl Lim / Everkinetic,
+credited above), plus exercise names that state the kit outright. Generated data:
+`src/data/exercise-equipment.js` (`EX_EQUIP`). No media is involved — these are
+metadata tags only.
+
 ## Anatomical body model — react-muscle-highlighter (MIT)
 
 The front/back muscle figures on the **Body Map** and the Analytics muscle map use
