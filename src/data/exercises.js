@@ -303,6 +303,268 @@ for (const [id, ex] of Object.entries(COACHED_EXERCISES)) {
   if (!(id in EXERCISES)) EXERCISES[id] = ex;
 }
 
+// ── DUMBBELL COACHING OVERLAY ────────────────────────────────────────────────
+// The library already holds 153 dumbbell movements, but most arrived from the
+// bulk imports with no form cues and no staple ranking, so a dumbbell-only
+// lifter was served obscure entries that taught nothing. These are the ones
+// worth putting in front of someone, with real coaching attached.
+//
+// Applied as an overlay rather than edited into exercises-wg.js, which is
+// generated — a re-run of tools/import-workout-guide.mjs would wipe anything
+// written there. Ids are left alone on purpose: renaming wg_* to a curated id
+// would orphan every logged set and PR already recorded against it.
+//
+// `curated: true` is what promotes them; see stapleRank().
+const DB_COACHING = {
+  // ── GLUTES — the library had zero curated dumbbell options here ──
+  wg_dumbbell_hip_thrust: {
+    diff: 'beg',
+    cues: [
+      'Upper back on the bench, just under the shoulder blades — it should pivot, not slide.',
+      'Dumbbell across the hip crease; a folded towel or pad under it saves your hip bones.',
+      'Drive through the heels and squeeze the glutes until hips are level with knees and ribs.',
+      'Chin tucked, ribs down — look forward, not at the ceiling.',
+      'Pause a full second at the top. That pause is the exercise.',
+    ],
+    commonErrors: [
+      'Hyperextending the lower back instead of finishing with the glutes',
+      'Pushing through the toes, which turns it into a quad movement',
+      'Letting the bench slide up toward the neck',
+    ],
+  },
+  wg_dumbbell_glute_bridge: {
+    diff: 'beg',
+    cues: [
+      'Floor version — shoulders stay down, only the hips travel.',
+      'Heels close enough that your fingertips can brush them.',
+      'Posterior tilt first (tuck the pelvis), then lift. Order matters.',
+      'Squeeze hard at the top; lower under control rather than dropping.',
+    ],
+    commonErrors: [
+      'Arching the lower back to fake extra height',
+      'Feet too far out, which shifts the work to the hamstrings',
+    ],
+  },
+  wg_dumbbell_curtsy_lunge: {
+    diff: 'int',
+    cues: [
+      'Step the rear foot behind and across, as if curtsying.',
+      'Keep the front shin vertical and both hips square to the front.',
+      'Front knee tracks over the middle toes — it will want to cave in.',
+      'Push back to the start through the front heel.',
+    ],
+    commonErrors: [
+      'Rotating the hips open, which removes the glute-medius work that is the point',
+      'Letting the front knee collapse inward',
+    ],
+  },
+  wg_dumbbell_sumo_squat: {
+    diff: 'beg',
+    cues: [
+      'Stance wide, toes turned out 30–45°, one dumbbell held between the legs.',
+      'Knees track out over the toes the whole way down.',
+      'Sit straight down between the hips, chest tall.',
+      'Drive the floor apart with your feet as you stand.',
+    ],
+    commonErrors: [
+      'Letting the knees fall inward at the bottom',
+      'Leaning forward and turning it into a good morning',
+    ],
+  },
+  wg_dumbbell_sumo_deadlift: {
+    diff: 'int',
+    cues: [
+      'Wide stance, dumbbell on the floor between your feet.',
+      'Hips lower than in a conventional pull, chest up, back flat.',
+      'Push the floor away rather than yanking the weight up.',
+      'Finish standing tall with the glutes, not by leaning back.',
+    ],
+    commonErrors: [
+      'Rounding the lower back off the floor',
+      'Hips shooting up first, leaving the back to do the lift',
+    ],
+  },
+  // ── QUADS ──
+  wg_heel_elevated_goblet_squat: {
+    diff: 'beg',
+    cues: [
+      'Heels on a small plate or wedge — this lets you sit deeper with an upright torso.',
+      'Dumbbell held vertically against the chest, elbows tucked in.',
+      'Knees travel forward over the toes; that is the point of the elevation.',
+      'Depth before load. Go as deep as you can hold the chest up.',
+    ],
+    commonErrors: [
+      'Elevating so much that the heels roll off the edge',
+      'Letting the elbows flare and the chest drop',
+    ],
+  },
+  wg_dumbbell_lateral_lunge: {
+    diff: 'int',
+    cues: [
+      'Step wide to the side, keeping the trailing leg straight.',
+      'Sit the hips back over the stepping foot, that foot flat throughout.',
+      'Chest up — the torso leans forward slightly, the back does not round.',
+      'Push off the stepping leg to return to centre.',
+    ],
+    commonErrors: [
+      'Letting the heel of the stepping foot lift',
+      'Turning it into a forward lunge instead of a true sideways shift',
+    ],
+  },
+  wg_front_foot_elevated_split_squat: {
+    diff: 'int',
+    cues: [
+      'Front foot on a low step; the extra range is what loads the glute.',
+      'Long stance — the knee should stay roughly over the mid-foot.',
+      'Lower until the back knee is just off the floor.',
+      'Weight through the front heel to stand.',
+    ],
+    commonErrors: [
+      'Standing too short, which makes it all quad and jams the knee',
+      'Bouncing the back knee off the floor',
+    ],
+  },
+  wg_deficit_reverse_lunge: {
+    diff: 'adv',
+    cues: [
+      'Stand on a low platform and step back off it — the deficit adds hip range.',
+      'Lower with control; the back knee travels down, not backward.',
+      'Front shin stays near vertical, torso leaning slightly forward to load the glute.',
+      'Step back up to the platform under control.',
+    ],
+    commonErrors: [
+      'Starting from a deficit that is too high before you own the flat version',
+      'Pushing off the back foot instead of driving through the front heel',
+    ],
+  },
+  // ── CHEST ──
+  wg_decline_dumbbell_press: {
+    diff: 'int',
+    cues: [
+      'Lock the legs in before you take the dumbbells — sliding head-down under load is how people get hurt.',
+      'Lower to the lower chest with the elbows at roughly 45°.',
+      'Press up and slightly back, following the line of the torso.',
+      'Keep the shoulder blades pinned to the bench.',
+    ],
+    commonErrors: [
+      'Flaring the elbows straight out to the sides',
+      'Setting too steep a decline, which makes it a shoulder-unfriendly press',
+    ],
+  },
+  wg_dumbbell_fly: {
+    diff: 'int',
+    cues: [
+      'Soft, fixed elbow bend — set it at the top and do not change it.',
+      'Open in a wide arc until you feel a stretch across the chest, no further.',
+      'Shoulder blades stay retracted and down throughout.',
+      'Hug the weights back together; think about the chest, not the hands.',
+    ],
+    commonErrors: [
+      'Bending and straightening the elbows, which makes it a clumsy press',
+      'Going so deep the shoulders roll forward under the stretch',
+    ],
+  },
+  // ── BACK ──
+  wg_one_arm_dumbbell_row: {
+    diff: 'beg',
+    cues: [
+      'Hand and knee on the bench, back flat and roughly parallel to the floor.',
+      'Let the shoulder blade stretch forward at the bottom, then pull it back first.',
+      'Drive the elbow toward the hip, not out to the side.',
+      'Hips stay square — no twisting to lift a heavier bell.',
+    ],
+    commonErrors: [
+      'Rotating the torso to heave the weight up',
+      'Pulling with the arm only and never moving the shoulder blade',
+    ],
+  },
+  wg_dumbbell_bent_over_row: {
+    diff: 'int',
+    cues: [
+      'Hinge at the hips to about 45°, back flat, knees softly bent.',
+      'Both dumbbells pulled to the lower ribs, elbows close to the body.',
+      'Squeeze the shoulder blades together at the top.',
+      'Lower all the way; let the lats stretch before the next rep.',
+    ],
+    commonErrors: [
+      'Standing more upright each rep as you fatigue',
+      'Jerking with the lower back instead of rowing',
+    ],
+  },
+  // ── TRICEPS — only one curated dumbbell option before this ──
+  wg_dumbbell_skull_crusher: {
+    diff: 'int',
+    cues: [
+      'Upper arms stay vertical and still — only the forearms move.',
+      'Lower the dumbbells beside the ears, not to the forehead.',
+      'Elbows stay pointed at the ceiling and tucked in.',
+      'Stop just short of lockout to keep the tension on the triceps.',
+    ],
+    commonErrors: [
+      'Letting the elbows drift back so the shoulders take over',
+      'Flaring the elbows wide under load',
+    ],
+  },
+  wg_tricep_kickback: {
+    diff: 'beg',
+    cues: [
+      'Hinge forward until the torso is near parallel; upper arm pinned to your side.',
+      'Straighten the elbow until the arm is in line with the torso.',
+      'Squeeze at the top for a beat — this one is about the contraction, not the load.',
+      'Lower slowly; no swinging.',
+    ],
+    commonErrors: [
+      'Letting the upper arm drop, which turns it into a swing',
+      'Using a weight heavy enough to need body english',
+    ],
+  },
+  wg_dumbbell_overhead_tricep_extension: {
+    diff: 'beg',
+    cues: [
+      'One dumbbell held in both hands, elbows pointing forward beside the head.',
+      'Lower behind the head until you feel the stretch along the back of the arm.',
+      'Keep the ribs down — the lower back wants to arch here.',
+      'Extend to just short of lockout.',
+    ],
+    commonErrors: [
+      'Elbows flaring out to the sides',
+      'Arching the lower back to get more range',
+    ],
+  },
+  // ── CORE ──
+  // ── CALVES — no curated dumbbell option existed, so a mobility drill with no
+  // demo was outranking three perfectly good loaded calf raises. These already
+  // carry cues and a GIF from the library import; they only needed promoting.
+  fx_Standing_Dumbbell_Calf_Raise: { diff: 'beg' },
+  fx_Dumbbell_Seated_One_Leg_Calf_Raise: { diff: 'beg' },
+  fx_Calf_Raise_On_A_Dumbbell: { diff: 'beg' },
+
+  wg_weighted_russian_twist: {
+    diff: 'int',
+    cues: [
+      'Sit tall, lean back to roughly 45°, chest up and back flat.',
+      'Rotate from the ribcage — the shoulders and the weight travel together.',
+      'Touch the weight down beside the hip, not out in front.',
+      'Feet can stay down until you own the movement.',
+    ],
+    commonErrors: [
+      'Swinging the arms while the torso stays still',
+      'Rounding the lower back and rocking rather than rotating',
+    ],
+  },
+};
+
+// Apply coaching + staple promotion to entries that already exist. Never
+// creates an exercise: if an id is gone the entry is simply skipped.
+for (const [id, patch] of Object.entries(DB_COACHING)) {
+  const ex = EXERCISES[id];
+  if (!ex) continue;
+  if (patch.cues?.length && !ex.cues?.length) ex.cues = patch.cues;
+  if (patch.commonErrors?.length && !ex.commonErrors?.length) ex.commonErrors = patch.commonErrors;
+  if (patch.diff) ex.diff = patch.diff;
+  ex.curated = true;
+}
+
 // Assign `requires` to every exercise (inline value wins; else map; else []).
 for (const [id, ex] of Object.entries(EXERCISES)) {
   if (!Array.isArray(ex.requires)) ex.requires = REQUIRES[id] || [];
@@ -383,7 +645,13 @@ export function isStrengthExercise(ex) {
 // (wg_) and free-exercise-db (fx_) libraries.
 export function stapleRank(ex, groupId) {
   const primary = ex.groups?.[0] === groupId ? 0 : 4;
-  const source  = /^fx_/.test(ex.id) ? 2 : /^wg_/.test(ex.id) ? 1 : 0;
+  // `curated` is an explicit promotion, used by the dumbbell coaching overlay:
+  // those entries keep their generated wg_ ids (renaming would orphan every
+  // logged set and PR against them) but rank as the staples they are.
+  const source  = ex.curated ? 0
+                : /^fx_/.test(ex.id) ? 2
+                : /^wg_/.test(ex.id) ? 1
+                : 0;
   return primary + source;
 }
 
