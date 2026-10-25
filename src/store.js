@@ -142,10 +142,14 @@ export function stateBytes() {
   try {
     if (state.profile) state.profile.name = cleanText(state.profile.name, 60);
     (state.gymProfiles || []).forEach((g) => { g.name = cleanText(g.name, 40); });
-    for (const ex of Object.values(state.customExercises || {})) {
-      ex.name = cleanText(ex.name, 80);
-      ex.muscle = cleanText(ex.muscle, 60);
-      if (Array.isArray(ex.cues)) ex.cues = ex.cues.map((c) => cleanText(c, 200));
+    // Keys first: these two maps are keyed by exercise id and those ids reach
+    // inline handlers verbatim. Then each custom record is reduced to the
+    // fields this app actually writes.
+    state.prs = pruneIdMap(state.prs);
+    state.customExercises = pruneIdMap(state.customExercises);
+    for (const [id, ex] of Object.entries(state.customExercises)) {
+      const clean = cleanCustomExercise(ex);
+      if (clean) state.customExercises[id] = clean; else delete state.customExercises[id];
     }
     for (const list of ['sessions', 'workoutLog', 'cardioLog', 'bodyLog', 'sleepLog', 'activityLog']) {
       (state[list] || []).forEach((e) => {
@@ -160,7 +164,12 @@ export function stateBytes() {
     (state.nutritionLog || []).forEach((d) => {
       (d?.meals || []).forEach((m) => { if (m?.name != null) m.name = cleanText(m.name, 120); });
     });
-  } catch { /* never let a scrub failure stop the app booting */ }
+  } catch (err) {
+    // Never let a scrub failure stop the app booting — but never let one pass
+    // unnoticed either. This catch previously hid a ReferenceError that
+    // disabled the key sanitiser completely.
+    console.error('[forge] boot scrub failed — stored data may not be sanitised:', err);
+  }
 })();
 
 // ── CUSTOM EXERCISES ──
@@ -246,6 +255,57 @@ export function cleanText(v, max = 200) {
     .replace(/"/g, '\u2033')     // double prime — looks right, cannot close an attribute
     .replace(/\u0000/g, '')
     .slice(0, max);
+}
+
+// An exercise id, validated. Every one of the 1077 ids in the library is
+// [A-Za-z0-9_] and at most 61 characters, and ids generated for custom
+// exercises are forced into that shape — so anything else did not come from
+// this app.
+//
+// This matters because `cleanText` cleans VALUES, and ids arrive as object
+// KEYS: `prs` and `customExercises` are both maps keyed by exercise id, and
+// those keys are interpolated straight into single-quoted inline handlers
+// (`onclick="openExDetail('${id}')"`) on the Achievements, Analytics and
+// Library pages. A key is not free text and is never cleaned, so a restored
+// backup containing `prs: { "\"><img src=x onerror=…>": {…} }` executed on
+// load. `cleanText` would not have saved it either: it deliberately keeps
+// apostrophes, which is all you need to break out of a single-quoted handler.
+// The pattern is inline rather than a module-level `const`: the boot scrub
+// calls this through a hoisted function declaration long before a `const`
+// further down the file has initialised, and the resulting TDZ ReferenceError
+// was swallowed whole by the scrub's catch — the sanitiser silently did
+// nothing while every test still passed.
+export function isValidId(k) { return typeof k === 'string' && /^[A-Za-z0-9_-]{1,64}$/.test(k); }
+
+// Drop every entry of an id-keyed map whose key is not a plausible id.
+// Dropping rather than cleaning is deliberate: a mangled key would point at no
+// exercise anyway, so there is nothing to preserve, and silently rewriting it
+// could collide with a real entry.
+export function pruneIdMap(obj) {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return {};
+  const out = Object.create(null);
+  for (const [k, v] of Object.entries(obj)) if (isValidId(k)) out[k] = v;
+  return Object.assign({}, out);
+}
+
+// A custom exercise, reduced to the fields this app writes. An imported record
+// is otherwise merged into the shared EXERCISES map wholesale, so a tampered
+// backup could add an `imgKey` of `" onerror=…` — which lands inside the
+// double-quoted `src` of every thumbnail built for it.
+export function cleanCustomExercise(ex) {
+  if (!ex || typeof ex !== 'object') return null;
+  const str = (v, n) => (v == null ? '' : cleanText(v, n));
+  const arr = (v) => (Array.isArray(v) ? v.filter((x) => typeof x === 'string').slice(0, 20) : []);
+  return {
+    name:     str(ex.name, 80) || 'Custom Exercise',
+    muscle:   str(ex.muscle, 60),
+    groups:   arr(ex.groups),
+    equip:    arr(ex.equip).length ? arr(ex.equip) : ['full_gym'],
+    requires: arr(ex.requires),
+    type:     ex.type === 'isolation' ? 'isolation' : 'compound',
+    diff:     ['beg', 'int', 'adv'].includes(ex.diff) ? ex.diff : 'int',
+    cues:     arr(ex.cues).map((c) => cleanText(c, 200)),
+  };
 }
 
 // ── SANITISERS ───────────────────────────────────────────────────────────────

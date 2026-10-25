@@ -3,6 +3,32 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <!--
+    Content Security Policy. The app uses inline onclick handlers throughout, so
+    script-src must allow 'unsafe-inline' and this cannot stop script injection
+    on its own. What it does do is cut off what injected script could DO:
+    connect-src 'self' blocks fetch/XHR/beacon/WebSocket to anywhere else (the
+    app makes no network calls of its own, so this costs nothing), img-src is a
+    whitelist so a pixel cannot carry data to an attacker's host, and
+    object-src/base-uri/form-action close the usual remaining routes.
+    frame-ancestors is deliberately absent: it is ignored in a meta tag, and
+    GitHub Pages serves no headers.
+  -->
+  <meta http-equiv="Content-Security-Policy" content="
+    default-src 'self';
+    script-src 'self' 'unsafe-inline' https://www.youtube.com https://s.ytimg.com;
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+    font-src 'self' https://fonts.gstatic.com;
+    img-src 'self' data: blob: https://raw.githubusercontent.com https://img.youtube.com https://i.ytimg.com;
+    media-src 'self' blob:;
+    frame-src https://www.youtube-nocookie.com https://www.youtube.com;
+    connect-src 'self';
+    worker-src 'self';
+    object-src 'none';
+    base-uri 'self';
+    form-action 'none';
+  "/>
+  <meta name="referrer" content="strict-origin-when-cross-origin"/>
   <title>Fitness Forge — Build Your Program</title>
   <meta name="description" content="Generate a personalized training program or build your own. Tracks workouts, benchmarks, and progress."/>
   <meta name="theme-color" content="#0b0a0d"/>
