@@ -1769,6 +1769,10 @@ details[open] .ex-cues summary::before { transform: rotate(90deg); }
 }
 .ex-gif-wrap .frame-0 { animation: gifFlip 2s step-end infinite; }
 .ex-gif-wrap .frame-1 { animation: gifFlip 2s step-end infinite reverse; }
+/* One image, nothing to flip to: the start/end crossfade above hid it for half
+   of every cycle, so a single-image exercise (most wger entries) showed an
+   empty box half the time. Hold it on screen instead. */
+.ex-gif-wrap.is-single .frame-0 { animation: none; opacity: 1; }
 @keyframes gifFlip {
   0%, 49% { opacity: 1; }
   50%, 100% { opacity: 0; }
