@@ -23,6 +23,17 @@ export function exPhotoURL(ex, frame = 0) {
   return ex?.imgKey ? `${GIF_CDN}/${ex.imgKey}/${frame}.jpg` : '';
 }
 
+// An image that carries its own source and credit (wger, CC BY-SA). Kept out
+// of exPhotoURL on purpose: covers are decorative and have nowhere to show a
+// credit, which CC BY-SA requires wherever the image is used.
+const _creditedSrc = (ex, frame = 0) => (frame ? ex?.img?.src2 : ex?.img?.src) || '';
+export function imgCreditHTML(ex) {
+  const c = ex?.img?.credit;
+  if (!c) return '';
+  return `Image © ${c.author} · <a href="${c.licenceUrl}" target="_blank" rel="noopener" style="color:inherit">${c.licence}</a>
+    · <a href="${c.page}" target="_blank" rel="noopener" style="color:inherit">wger.de ↗</a>`;
+}
+
 // Openly-licensed 3-frame animated illustration (workout-guide, CC BY-SA 4.0).
 // Cycles frame-1→2→3 via the `wgFlip` keyframe. Hotlinked at runtime (never
 // vendored); on error the wrap is removed so the next fallback shows.
@@ -39,6 +50,16 @@ function _wgAnim(ex, cls, name) {
 // Static preview: crossfaded free-exercise-db frames (public domain) when the
 // exercise has an `imgKey`; else its YouTube demo thumbnail. '' when neither.
 function _staticPreview(ex, cls, name) {
+  if (!ex?.imgKey && ex?.img?.src) {
+    const b = _creditedSrc(ex, 1);
+    return `
+    <div class="${cls}${b ? '' : ' is-single'}">
+      <img class="frame-0" src="${_creditedSrc(ex)}"
+           onerror="this.closest('.ex-gif-wrap').style.display='none'"
+           alt="${name} — demonstration" loading="lazy">
+      ${b ? `<img class="frame-1" src="${b}" onerror="this.style.display='none'" alt="${name} — second position" loading="lazy">` : ''}
+    </div>`;
+  }
   if (ex?.imgKey) {
     return `
     <div class="${cls}">
@@ -166,6 +187,7 @@ export function exThumbHTML(ex) {
   if (wg) src = `${WG_BASE}${wg.slug}/frame-1.svg`;
   else if (EXERCISE_GIFS[ex.id]) src = `${GIF_BASE}${EXERCISE_GIFS[ex.id]}`;
   else if (ex.imgKey) src = `${GIF_CDN}/${ex.imgKey}/0.jpg`;
+  else if (ex.img?.src) src = _creditedSrc(ex);
   if (!src) return '<span class="ex-thumb ex-thumb-none" aria-hidden="true"></span>';
   // The URL of a SECOND frame, if the movement has one — workout-guide ships
   // three frames per animation, free-exercise-db two photos (start and end).
@@ -174,6 +196,7 @@ export function exThumbHTML(ex) {
   let f2 = '';
   if (wg && wg.frames > 1) f2 = `${WG_BASE}${wg.slug}/frame-2.svg`;
   else if (!wg && !EXERCISE_GIFS[ex.id] && ex.imgKey) f2 = `${GIF_CDN}/${ex.imgKey}/1.jpg`;
+  else if (!wg && !EXERCISE_GIFS[ex.id] && ex.img?.src2) f2 = _creditedSrc(ex, 1);
   return `<span class="ex-thumb${wg ? ' is-wg' : ''}"${f2 ? ` data-f2="${f2}"` : ''}><img src="${src}" alt="" loading="lazy"
     onerror="this.closest('.ex-thumb')?.classList.add('ex-thumb-none');this.remove()"></span>`;
 }
@@ -223,12 +246,14 @@ export function showExerciseModal(ex) {
   <div class="modal-body">
 
     <!-- ── ANIMATED EXERCISE PREVIEW ─────── -->
-    ${(ex.id && (EXERCISE_ANIM[ex.id] || EXERCISE_GIFS[ex.id])) || ex.imgKey || ex.coached ? `
+    ${(ex.id && (EXERCISE_ANIM[ex.id] || EXERCISE_GIFS[ex.id])) || ex.imgKey || ex.img?.src || ex.coached ? `
     ${exPreviewHTML(ex)}
     <div class="ex-gif-source">${
       ex.coached ? 'Original Fitness Forge pattern diagram · use the technique steps below' : ex.id && EXERCISE_ANIM[ex.id]
         ? `Animation <a href="${WG_ATTRIBUTION_URL}" target="_blank" rel="noopener" style="color:inherit">${WG_ATTRIBUTION} ↗</a>`
-        : ex.id && EXERCISE_GIFS[ex.id] ? `Animation ${GIF_ATTRIBUTION}` : 'Images: free-exercise-db · public domain'
+        : ex.id && EXERCISE_GIFS[ex.id] ? `Animation ${GIF_ATTRIBUTION}`
+        : !ex.imgKey && ex.img?.credit ? imgCreditHTML(ex)
+        : 'Images: free-exercise-db · public domain'
     }</div>
     ` : ''}
 

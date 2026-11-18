@@ -11,7 +11,9 @@ import { LIBRARY_EXERCISES } from './exercises-library.js';
 // Openly-licensed exercises derived from workout-guide (CC BY-SA 4.0 metadata +
 // animations, © Bryl Lim / Everkinetic), each carrying a matched animation.
 import { WG_EXERCISES } from './exercises-wg.js';
-import { EX_EQUIP } from './exercise-equipment.js';
+import { EX_EQUIP, EX_STRETCH, EX_FORCE, WG_STRETCHES, WG_STRETCH_ANIM } from './exercise-meta.js';
+import { EXERCISE_ANIM } from './exercise-anim.js';
+import { WGER_EXERCISES } from './exercises-wger.js';
 
 export const EQUIPMENT_OPTIONS = [
   { id: 'full_gym',   label: 'Full Gym',      desc: 'Barbells, machines, cables', icon: '🏋️' },
@@ -57,6 +59,53 @@ export const MUSCLE_GROUPS = [
   { id: 'traps',      label: 'Traps',      icon: '🔺', color: '#7ab3c8' },
   { id: 'forearms',   label: 'Forearms',   icon: '🤛', color: '#ffb347' },
 ];
+
+// ── FINER REGIONS ────────────────────────────────────────────────────────────
+// Four muscles the anatomical figure draws separately but the 12-group model
+// folded into a neighbour: lower back into Back, obliques into Core, adductors
+// into Quads, neck into Traps (where it was drawn but not even tappable).
+//
+// These refine TARGETING and SHADING only. The 12 groups still drive programs,
+// the Overload rotation and every generator — changing that taxonomy would
+// ripple through all of them for no gain. Each split earns its place with
+// real exercises behind it (lower back 28, adductors 15, obliques 26 by name,
+// neck 8); tibialis (1) and abductors (1) did not, so they stay merged.
+// `slug` is the body model's own region name, so the figure needs no new art.
+export const SUB_REGIONS = [
+  { id: 'lower_back', parent: 'back',  slug: 'lower-back', label: 'Lower Back', icon: '🧱' },
+  { id: 'obliques',   parent: 'core',  slug: 'obliques',   label: 'Obliques',   icon: '🌀' },
+  { id: 'adductors',  parent: 'quads', slug: 'adductors',  label: 'Adductors',  icon: '↔️' },
+  { id: 'neck',       parent: 'traps', slug: 'neck',       label: 'Neck',       icon: '🦒' },
+].map((r) => ({ ...r, color: MUSCLE_GROUPS.find((g) => g.id === r.parent).color }));
+
+// Every tappable region: the 12 groups plus the four refinements.
+export const REGIONS = [...MUSCLE_GROUPS, ...SUB_REGIONS];
+export const regionOf = (id) => REGIONS.find((r) => r.id === id);
+export const parentOf = (id) => SUB_REGIONS.find((r) => r.id === id)?.parent || id;
+
+// Rotation and lateral flexion are what obliques do; these names say so. The
+// sources file every one of them under plain "abdominals".
+const OBLIQUE_RE = /oblique|side bend|russian twist|wood ?chop|side plank|windmill|pallof|landmine 180|saxon/i;
+
+// The region an exercise primarily trains — a refinement where the source's
+// own primary muscle says so (free-exercise-db / workout-guide `primary`),
+// otherwise its group. A custom exercise with no source data stays on its group.
+export function subOf(ex) {
+  const g = ex?.groups?.[0];
+  const p = String(ex?.musclesFull?.primary?.[0] || '').toLowerCase();
+  if (g === 'back'  && /lower back|erector/.test(p)) return 'lower_back';
+  if (g === 'quads' && /adductor|groin/.test(p))     return 'adductors';
+  if (g === 'traps' && /\bneck\b/.test(p))          return 'neck';
+  if (g === 'core'  && (/oblique/.test(p) || OBLIQUE_RE.test(ex?.name || ''))) return 'obliques';
+  return g || null;
+}
+
+// Every region an exercise counts toward: its refined primary, plus its
+// secondary groups as-is (the sources do not say which part of the back a
+// secondary hits, so that is not guessed).
+export function targetsOf(ex) {
+  return new Set([subOf(ex), ...(ex?.groups || []).slice(1)].filter(Boolean));
+}
 
 export const EXERCISES = {
 
@@ -595,6 +644,32 @@ for (const [id, patch] of Object.entries(DB_COACHING)) {
   ex.curated = true;
 }
 
+// Animated workout-guide stretches the strength importer skipped. Added only
+// where the id is free, so nothing curated or imported is ever overwritten;
+// their animation joins EXERCISE_ANIM so the modal, the walkthrough phase
+// strip and every thumbnail pick it up without knowing they are special.
+for (const [id, ex] of Object.entries(WG_STRETCHES)) {
+  if (!EXERCISES[id]) EXERCISES[id] = ex;
+}
+// Reviewed imports from wger (CC BY-SA 4.0, credited per entry in img.credit).
+for (const [id, ex] of Object.entries(WGER_EXERCISES)) {
+  if (!EXERCISES[id]) EXERCISES[id] = ex;
+}
+for (const [id, anim] of Object.entries(WG_STRETCH_ANIM)) {
+  if (!EXERCISE_ANIM[id]) EXERCISE_ANIM[id] = anim;
+}
+
+// Held or moved: the source's force field decides. A static stretch is a hold
+// and opens the logger's timer; a push/pull one (arm circles, leg swings) is
+// counted in reps. Generated stretches carry no force, so their names decide.
+const DYNAMIC_STRETCH_RE = /circle|swing|twist|cat[- ]?cow|march|kick|rotation|roll(?!er)|walkout|inchworm/i;
+for (const id of EX_STRETCH) {
+  const ex = EXERCISES[id];
+  if (!ex || ex.timed != null) continue;
+  const f = EX_FORCE[id];
+  ex.timed = f ? f === 'static' : !DYNAMIC_STRETCH_RE.test(ex.name || '');
+}
+
 // Assign `requires` to every exercise (inline value wins; else map; else []).
 for (const [id, ex] of Object.entries(EXERCISES)) {
   if (!Array.isArray(ex.requires)) ex.requires = REQUIRES[id] || [];
@@ -616,7 +691,7 @@ for (const [id, tags] of Object.entries(EX_EQUIP)) {
 }
 
 // The specific kit an exercise uses, past the ten coarse `requires` buckets:
-// 'smith', 'preacher', 'leg_press', 'landmine'… See tools/import-equipment.mjs.
+// 'smith', 'preacher', 'leg_press', 'landmine'… See tools/import-exercise-meta.mjs.
 export function equipTags(id) { return EX_EQUIP[id] || []; }
 
 // ── CUSTOM (user-created) EXERCISES ──
@@ -682,8 +757,24 @@ const NOT_STRENGTH_RE = /elliptical|treadmill|stationary bike|rowing machine|sta
 // appears inside a movement name.
 const CARDIO_GAIT_RE = /^(?:\w+ )?(?:walking|running|jogging|cycling|sprinting|rowing|swimming|hiking|stair climbing|skipping)(?:,.*)?$/i;
 
+// Ids the SOURCE classifies as a stretch. Matching on the name alone missed 57
+// of free-exercise-db's 123 stretches — 90/90 Hamstring, Knee Circles, Ankle
+// On The Knee never say "stretch" — so they were filed as strength work and
+// turned up in strength pools (Knee Circles ranked #17 for calves).
+const STRETCH_IDS = new Set(EX_STRETCH);
+
+export function isStretch(ex) {
+  if (!ex) return false;
+  if (ex.trainingType === 'mobility') return true;
+  return !!(ex.id && STRETCH_IDS.has(ex.id));
+}
+
+// push | pull | static, from the source's own `force` field — or null.
+export function forceOf(id) { return EX_FORCE[id] || null; }
+
 export function isStrengthExercise(ex) {
   if (ex?.trainingType === 'mobility') return false;
+  if (ex?.id && STRETCH_IDS.has(ex.id)) return false;
   // Anything performed on a foam roller is self-myofascial release, not a
   // lift. The name filter catches the ones suffixed "-SMR" but not "Adductor",
   // which was sitting in the quads pool; the generated equipment map knows
@@ -698,7 +789,7 @@ export function isStrengthExercise(ex) {
 // (short curated ids, with form cues) above the bulk-imported workout-guide
 // (wg_) and free-exercise-db (fx_) libraries.
 export function stapleRank(ex, groupId) {
-  const primary = ex.groups?.[0] === groupId ? 0 : 4;
+  const primary = (ex.groups?.[0] === groupId || subOf(ex) === groupId) ? 0 : 4;
   // `curated` is an explicit promotion, used by the dumbbell coaching overlay:
   // those entries keep their generated wg_ ids (renaming would orphan every
   // logged set and PR against them) but rank as the staples they are.

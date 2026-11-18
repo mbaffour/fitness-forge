@@ -24,16 +24,39 @@ CC BY-SA 4.0 animations above. Generated data: `src/data/exercises-wg.js`
 (`WG_EXERCISES`). This metadata is likewise **CC BY-SA 4.0** (© Bryl Lim /
 Everkinetic); stretches and cardio entries are excluded from the strength library.
 
-### Fine-grained equipment tags
+### Exercise metadata — equipment, stretch and force tags
 
 The **Stations** page needs to know which specific piece of kit a movement uses —
 a Smith machine, a preacher bench, a leg press — where our own model records only
-the coarse bucket (`machine`). `tools/import-equipment.mjs` derives those tags from
+the coarse bucket (`machine`). `tools/import-exercise-meta.mjs` derives those tags from
 free-exercise-db's `equipment` field (**Unlicense / public domain**) and
 workout-guide's `equipment` field (**CC BY-SA 4.0**, © Bryl Lim / Everkinetic,
 credited above), plus exercise names that state the kit outright. Generated data:
-`src/data/exercise-equipment.js` (`EX_EQUIP`). No media is involved — these are
-metadata tags only.
+`src/data/exercise-meta.js` (`EX_EQUIP`). The same generator recovers which
+exercises the sources classify as **stretches** (`EX_STRETCH`) and their
+**push / pull / static** force (`EX_FORCE`) from free-exercise-db (public
+domain), and adds **10 animated workout-guide stretches** the strength importer
+had skipped (`WG_STRETCHES`, `WG_STRETCH_ANIM` — **CC BY-SA 4.0**, © Bryl Lim /
+Everkinetic, credited above; animations hotlinked, never vendored).
+
+## Exercises from wger (CC BY-SA 4.0)
+
+**22 exercises** come from [wger](https://wger.de), an open-source fitness project
+whose exercise data and images are licensed per record. Every entry imported here
+is **CC BY-SA 4.0** (text and image alike); records under ODbL are refused, as
+their share-alike terms would attach to the whole derived dataset.
+
+- **Credit shown in-app:** under each image in the exercise detail — the image
+  author, the licence (linked) and a link to the exercise's page on wger.de, which
+  carries the full authorship history. Where wger gives no author, or the author
+  field is an email address, the credit reads "wger.de contributors".
+- **Use:** images are hotlinked from `wger.de/media/…` at runtime and are **not**
+  copied into this repository. Exercise names and step text are reduced to plain
+  text at generation time.
+- **Our own text is ours:** two entries (Pigeon Stretch, Tuck Planche) had no usable
+  instructions in wger; their steps were written for Fitness Forge and are marked
+  `cuesBy: 'Fitness Forge'`. The project's code stays MIT; no wger code (AGPL) is used.
+- Generator `tools/import-wger.mjs` (explicit reviewed allowlist) → `src/data/exercises-wger.js`.
 
 ## Anatomical body model — react-muscle-highlighter (MIT)
 

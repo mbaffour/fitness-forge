@@ -24,15 +24,8 @@ const wg = JSON.parse(readFileSync(manifestPath, 'utf8'));
 const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
 // ── WG vocabulary → Forge taxonomy ──────────────────────────────────────────
-// WG primaryMuscle/secondaryMuscles → our 12 muscle-group ids.
-const MUS = {
-  Chest: 'chest', Shoulders: 'shoulders', 'Rear Delts': 'shoulders',
-  'Upper Back': 'back', Back: 'back', Lats: 'back', 'Lower Back': 'back',
-  Hamstrings: 'hamstrings', 'Posterior Chain': 'hamstrings',
-  Quads: 'quads', Legs: 'quads', Adductors: 'quads',
-  Glutes: 'glutes', Hips: 'glutes', Calves: 'calves',
-  Biceps: 'biceps', Triceps: 'triceps', Forearms: 'forearms', Core: 'core',
-};
+// WG primaryMuscle/secondaryMuscles → our 12 muscle-group ids (shared table).
+import { MUS } from './wg-muscles.mjs';
 // WG equipment → our item-level `requires` ids ([] = bodyweight/anywhere).
 const EQ = {
   Barbell: ['barbell'], Dumbbell: ['dumbbells'], Machine: ['machine'],

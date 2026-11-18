@@ -2,7 +2,7 @@
 //   FITNESS FORGE — Chart.js Wrappers
 //   All charts use design-system colors
 // ═══════════════════════════════════════════
-import { EXERCISES } from '../data/exercises.js';
+import { EXERCISES, isStretch } from '../data/exercises.js';
 
 const COLORS = {
   fire:   '#ff6b1a',
@@ -399,7 +399,11 @@ export function initMuscleFrequencyChart(canvasId, sessions) {
   const counts = {};
   sessions.forEach(s => {
     s.exercises?.forEach(ex => {
-      EXERCISES[ex.exId]?.groups?.forEach(g => { counts[g] = (counts[g] || 0) + 1; });
+      // A stretch is not a training hit for that muscle — counting it made a
+      // cool-down look like extra hamstring work.
+      const data = EXERCISES[ex.exId];
+      if (!data || isStretch({ id: ex.exId, ...data })) return;
+      data.groups?.forEach(g => { counts[g] = (counts[g] || 0) + 1; });
     });
   });
 
