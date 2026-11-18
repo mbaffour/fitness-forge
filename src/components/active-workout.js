@@ -9,7 +9,7 @@ import { programSuggestion, programProfile } from './program-coach.js';
 
 import { state, logSession, saveOk, recordPR, clampReps, clampSeconds, updateStreak, checkFirstSession, formatWeight, weightUnitLabel, toStoredWeight, toDisplayWeight, weightInputStep } from '../store.js';
 import { suggestNextSet, detectPR, computeSessionVolume, estimateOneRepMax } from '../engine/overload.js';
-import { EXERCISES } from '../data/exercises.js';
+import { EXERCISES, isStretch, subOf } from '../data/exercises.js';
 import { cue, acquireWakeLock, releaseWakeLock, notify, countUp, sparkBurst } from './feedback.js';
 
 let sessionState = null;  // current in-progress session
@@ -990,6 +990,20 @@ function showSessionSummary(session, persisted = true) {
     return topSet && state.prs[ex.exId]?.weight === topSet.weight;
   });
 
+  // The muscles this session actually worked — strength sets only, primary
+  // target, most-hit first — so the cool-down offer stretches what you used.
+  // A stretch routine gets no offer: you have just done one.
+  const hits = {};
+  for (const ex of session.exercises) {
+    const data = EXERCISES[ex.exId];
+    if (!data || isStretch({ id: ex.exId, ...data })) continue;
+    if (!ex.sets.some(x => x.completed && !x.warmup)) continue;
+    const g = subOf({ id: ex.exId, ...data });   // lower back, not "back", after back extensions
+    if (g) hits[g] = (hits[g] || 0) + 1;
+  }
+  const worked = Object.entries(hits).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([g]) => g)
+    .filter(g => /^[a-z_]+$/.test(g));   // group ids go into an inline handler
+
   const toast = document.createElement('div');
   toast.className = 'session-summary-toast';
   toast.innerHTML = `
@@ -1006,6 +1020,8 @@ function showSessionSummary(session, persisted = true) {
 </div>
 ${prs.length ? `<div class="fs12" style="color:var(--forge-green);margin-bottom:8px">🏆 ${prs.length} PR${prs.length > 1 ? 's' : ''} this session!</div>` : ''}
 <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+  ${worked.length ? `<button class="btn btn-secondary btn-sm" onclick="this.closest('.session-summary-toast').remove();bodyMapStretchFor(${JSON.stringify(worked).replace(/"/g, "'")})"
+     title="A short hold routine for the muscles you just trained">🧘 Stretch what you trained</button>` : ''}
   <button class="btn btn-fire btn-sm" onclick="navigate('cardio');this.closest('.session-summary-toast').remove()">View Log →</button>
   <button class="btn btn-ghost btn-sm" onclick="this.closest('.session-summary-toast').remove()">Close</button>
 </div>

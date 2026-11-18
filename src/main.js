@@ -640,8 +640,9 @@ document.addEventListener('keydown', (e) => {
 const _prefersReducedMotion = () =>
   window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
-document.addEventListener('mouseenter', (e) => {
-  const thumb = e.target instanceof Element ? e.target.closest?.('.ex-thumb[data-f2]') : null;
+// Start / stop one thumbnail's cycle. Shared by the hover path (desktop) and
+// the in-view path (touch), so the two cannot drift apart.
+function _startCycle(thumb) {
   // Bail if a second frame is already present, not merely if it is already
   // showing: removing one mid-hover changes the element under the cursor and
   // fires `mouseenter` again, which otherwise stacks up a fresh image whose
@@ -655,13 +656,23 @@ document.addEventListener('mouseenter', (e) => {
   img.decoding = 'async';
   // Only reveal the second frame once it has actually decoded: a half-loaded
   // crossfade reads as a flicker, and a 404 should leave the first frame alone.
-  // `isConnected` guards the race where the pointer leaves before the image
-  // arrives — the teardown has already removed it, and marking the thumbnail
-  // then left the class stuck on with nothing to show.
+  // `isConnected` guards the race where the cycle is stopped before the image
+  // arrives — marking the thumbnail then left the class stuck on with nothing
+  // to show.
   img.onload = () => { if (img.isConnected) thumb.classList.add('is-cycling'); };
   img.onerror = () => { img.remove(); delete thumb.dataset.f2; };
   img.src = url;
   thumb.appendChild(img);
+}
+function _stopCycle(thumb) {
+  if (!thumb) return;
+  thumb.classList.remove('is-cycling');
+  thumb.querySelector('img.f2')?.remove();
+}
+
+document.addEventListener('mouseenter', (e) => {
+  const thumb = e.target instanceof Element ? e.target.closest?.('.ex-thumb[data-f2]') : null;
+  _startCycle(thumb);
 }, true);
 
 document.addEventListener('mouseleave', (e) => {
@@ -672,9 +683,45 @@ document.addEventListener('mouseleave', (e) => {
   // `mouseleave` also fires on the thumbnail's own children as the pointer
   // crosses between them. Only tear down when it has actually left the thumb.
   if (e.relatedTarget instanceof Node && thumb.contains(e.relatedTarget)) return;
-  thumb.classList.remove('is-cycling');
-  thumb.querySelector('img.f2')?.remove();
+  _stopCycle(thumb);
 }, true);
+
+// Touch devices never hover, so the cycling above never ran on a phone — most
+// of the people using this at a gym. There, exactly ONE thumbnail cycles: the
+// one nearest the middle of the screen as you scroll. One extra image at a
+// time, never a list's worth, and it reads as the list coming alive under
+// your thumb.
+const _noHover = () => window.matchMedia?.('(hover: none)').matches;
+let _focusThumb = null;
+let _focusQueued = false;
+
+function _refocusThumb() {
+  _focusQueued = false;
+  if (!_noHover() || _prefersReducedMotion()) return;
+  const mid = window.innerHeight / 2;
+  let best = null, bestDist = Infinity;
+  for (const t of document.querySelectorAll('.ex-thumb[data-f2]')) {
+    const r = t.getBoundingClientRect();
+    if (r.bottom < 0 || r.top > window.innerHeight || !r.width) continue;   // off screen or hidden
+    const d = Math.abs(r.top + r.height / 2 - mid);
+    if (d < bestDist) { best = t; bestDist = d; }
+  }
+  if (best === _focusThumb) return;
+  _stopCycle(_focusThumb);
+  _focusThumb = best;
+  _startCycle(best);
+}
+// rAF-throttled: a scroll fires dozens of events a frame.
+function _queueRefocus() {
+  if (_focusQueued) return;
+  _focusQueued = true;
+  requestAnimationFrame(_refocusThumb);
+}
+// Capture phase, so scrolling inside the app's own scroll container is seen too.
+document.addEventListener('scroll', _queueRefocus, { capture: true, passive: true });
+window.addEventListener('resize', _queueRefocus, { passive: true });
+// Pages rebuild their markup on navigation; pick a new focus when they do.
+new MutationObserver(_queueRefocus).observe(document.getElementById('root') || document.body, { childList: true, subtree: true });
 
 // ── BOOT ──
 function boot() {

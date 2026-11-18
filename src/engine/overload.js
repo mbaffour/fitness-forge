@@ -3,7 +3,7 @@
 //   Pure functions — no side effects
 // ═══════════════════════════════════════════
 
-import { EXERCISES } from '../data/exercises.js';
+import { EXERCISES, forceOf, isStretch } from '../data/exercises.js';
 
 // Weight increments by exercise category and level
 const INCREMENT = {
@@ -147,6 +147,11 @@ const PATTERN_BY_NAME = [
   [/incline (bench|press|push)/i,                  'incline_push'],
   [/shoulder press|overhead press|military|push press|arnold|landmine press/i, 'vert_push'],
   [/bench press|chest press|floor press|board press|dip machine/i, 'horiz_push'],
+  // Rear-delt work must be tested BEFORE the chest-fly rule: "Reverse Flyes"
+  // and "Cable Rear Delt Fly" both contain "fly", and matching chest_fly first
+  // loaded them against the chest standard — Cable Rear Delt Fly asked for
+  // 50 lbs while the curated Rear Delt Fly, matched by id, asked for 11.
+  [/rear delt|reverse fly|reverse flye|reverse pec/i, 'rear_delt'],
   [/fly|flye|pec deck|crossover/i,                 'chest_fly'],
   [/pullover/i,                                     'pullover'],
   [/pulldown|pull[- ]?down|pull[- ]?up|chin[- ]?up/i, 'vert_pull'],
@@ -154,7 +159,6 @@ const PATTERN_BY_NAME = [
   [/shrug/i,                                        'shrug'],
   [/carry|farmer|suitcase|waiter/i,                 'carry'],
   [/lateral raise|side raise|front raise|upright row/i, 'lat_raise'],
-  [/rear delt|reverse fly|reverse flye/i,           'rear_delt'],
   [/curl/i,                                         'curl'],
   [/tricep|pushdown|push[- ]?down|skull ?crusher|extension.*tricep|kickback/i, 'tri_ext'],
   [/calf|heel raise/i,                              'calf'],
@@ -189,6 +193,40 @@ function movementPattern(exId, ex) {
     return ex?.type === 'isolation' ? (pat === 'horiz_push' ? 'chest_fly' : pat) : pat;
   }
   return ex?.type === 'isolation' ? 'other_iso' : 'other_compound';
+}
+
+// ── PUSH / PULL ──────────────────────────────────────────────────────────────
+// Direction of force for a movement pattern, checked against free-exercise-db's
+// own tags pattern by pattern: a squat, lunge and hip thrust are push (12/12
+// calf raises, 9/10 lunges, both hip thrusts and glute bridges), a hinge, row,
+// curl, shrug and leg curl are pull. Where the source ITSELF is split the
+// pattern stays unclassified — lateral raises are tagged 4 push / 4 pull — and
+// so do patterns with no single direction (carries, loaded core, grip, hip
+// isolation, the catch-alls). An honest "unclassified" beats a ratio built on
+// a guess.
+const PATTERN_FORCE = {
+  squat: 'push', front_squat: 'push', leg_press: 'push', lunge: 'push',
+  horiz_push: 'push', incline_push: 'push', vert_push: 'push', tri_ext: 'push',
+  chest_fly: 'push', calf: 'push', leg_ext: 'push', hip_thrust: 'push',
+  hinge: 'pull', hinge_light: 'pull', horiz_pull: 'pull',
+  vert_pull: 'pull', shrug: 'pull', curl: 'pull', rear_delt: 'pull',
+  pullover: 'pull', leg_curl: 'pull',
+};
+
+// push | pull | null. The source's own force tag when it has one — but that
+// covers almost none of what people actually log: free-exercise-db names the
+// staples differently ("Barbell Full Squat", "Pushups"), so the curated bench,
+// squat, deadlift, overhead press and push-up all came through untagged, as did
+// 153 of 157 workout-guide entries. The movement pattern the weight model
+// already resolves for every exercise fills that in. 'static' (isometrics) is
+// neither, and a stretch is not training.
+export function pushPullOf(exId) {
+  const ex = EXERCISES[exId];
+  if (!ex || isStretch({ id: exId, ...ex })) return null;
+  const f = forceOf(exId);
+  if (f === 'push' || f === 'pull') return f;
+  if (f === 'static') return null;
+  return PATTERN_FORCE[movementPattern(exId, ex)] || null;
 }
 
 // Each standard above is quoted for the implement the movement is normally

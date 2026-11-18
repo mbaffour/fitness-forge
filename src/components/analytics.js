@@ -3,7 +3,8 @@
 // ═══════════════════════════════════════════
 
 import { state, toDisplayWeight, weightUnitLabel, formatWeight } from '../store.js';
-import { MUSCLE_GROUPS, EXERCISES } from '../data/exercises.js';
+import { EXERCISES, isStretch, REGIONS, SUB_REGIONS, targetsOf, subOf } from '../data/exercises.js';
+import { pushPullOf } from '../engine/overload.js';
 import { BODY_FRONT, BODY_BACK, BODY_VIEWBOX_FRONT, BODY_VIEWBOX_BACK,
          BODY_OUTLINE_FRONT, BODY_OUTLINE_BACK } from '../data/body-model.js';
 import { exThumbHTML } from './modal.js';
@@ -65,13 +66,16 @@ function _prTimeline() {
     .slice(0, 12);
 }
 
+// Per REGION (the 12 groups plus lower back, obliques, adductors and neck), so
+// a lower-back session lights the lower back rather than the whole back.
 function _muscleMap(mode) {
-  const vals = {}; MUSCLE_GROUPS.forEach(g => vals[g.id] = 0);
+  const vals = {}; REGIONS.forEach(g => vals[g.id] = 0);
   const now = Date.now();
   for (const s of state.sessions || []) {
     if (mode === 'fatigue' && (now - new Date(s.date).getTime()) > 4 * 86400000) continue;
     for (const ex of s.exercises || []) {
-      const groups = EXERCISES[ex.exId]?.groups || [];
+      const data = EXERCISES[ex.exId];
+      const groups = data ? [...targetsOf({ id: ex.exId, ...data })] : [];
       if (!groups.length) continue;
       let m = 0;
       for (const st of ex.sets || []) if (st.completed && !st.warmup && st.weight > 0) {
@@ -82,7 +86,7 @@ function _muscleMap(mode) {
     }
   }
   const max = Math.max(1, ...Object.values(vals));
-  return MUSCLE_GROUPS.map(g => ({ ...g, val: vals[g.id], pct: vals[g.id] / max }));
+  return REGIONS.map(g => ({ ...g, val: vals[g.id], pct: vals[g.id] / max }));
 }
 
 // ── ANATOMICAL MUSCLE MAP ──
@@ -90,6 +94,8 @@ function _muscleMap(mode) {
 // Muscle Contributors), tinted by each group's normalized training value.
 // Drawn as: body outline → muscle regions on top. `interactive` makes every
 // muscle a tappable button calling window.bodyMapTap('<id>').
+const _SLUG_REGION = Object.fromEntries(SUB_REGIONS.map(r => [r.slug, r.id]));
+
 export function renderBodyFigures(groups, { interactive = false, selected = null } = {}) {
   const g = {};
   groups.forEach(x => { g[x.id] = x; });
@@ -99,7 +105,10 @@ export function renderBodyFigures(groups, { interactive = false, selected = null
       ? `<path d="${outline}" fill="var(--bg-2)" stroke="var(--border-hi)" stroke-width="2" vector-effect="non-scaling-stroke"/>`
       : '';
 
-    const shapes = regions.map(r => {
+    const shapes = regions.map(r0 => {
+      // A refined slug (lower-back, obliques, adductors, neck) is its own
+      // region; everything else keeps the group the body model gave it.
+      const r = _SLUG_REGION[r0.slug] ? { ...r0, group: _SLUG_REGION[r0.slug] } : r0;
       if (!r.group) {
         return r.paths.map(d =>
           `<path d="${d}" fill="var(--bg-2)" stroke="var(--border)" stroke-width="1" vector-effect="non-scaling-stroke"/>`
@@ -162,6 +171,92 @@ function _muscleMapHTML() {
   <div class="dim fs11" style="margin-top:10px">${_mmMode === 'balance' ? 'Total training volume per muscle group.' : _mmMode === 'fatigue' ? 'Volume in the last 4 days — high = recently hammered.' : 'Best estimated 1RM reached per group.'}</div>`;
 }
 
+// ── PUSH / PULL BALANCE ─────────────────────────────────────────────────────
+// Working sets over the last 28 days, split by direction of force. Set count,
+// not volume: tonnage would let one heavy deadlift outweigh a week of rows.
+// Upper and lower body are judged separately because the advice differs —
+// upper-body pressing that outruns pulling is the classic road to cranky
+// shoulders, while a lower body that only squats leaves the hinge behind.
+const _UPPER = new Set(['chest', 'shoulders', 'triceps', 'back', 'biceps', 'traps', 'forearms', 'neck']);
+const _LOWER = new Set(['quads', 'hamstrings', 'glutes', 'calves', 'adductors', 'lower_back']);
+const _PP_DAYS = 28;
+const _PP_MIN_SETS = 6;   // fewer than this and a ratio is noise, not a trend
+
+export function pushPullData(sessions = state.sessions || [], now = Date.now()) {
+  const out = { upper: { push: 0, pull: 0 }, lower: { push: 0, pull: 0 }, unclassified: 0 };
+  for (const s of sessions) {
+    if (now - new Date(s.date).getTime() > _PP_DAYS * 86400000) continue;
+    for (const ex of s.exercises || []) {
+      const n = (ex.sets || []).filter(st => st.completed && !st.warmup).length;
+      if (!n) continue;
+      const data = EXERCISES[ex.exId];
+      // A stretch is not a training set at all, so it is neither push, pull
+      // nor "unclassified" — counting it there inflated the footnote.
+      if (!data || isStretch({ id: ex.exId, ...data })) continue;
+      // Refined region, so a back extension counts as lower-body hinge work
+      // rather than inflating upper-body pull, which is the shoulder-health
+      // number — rows help shoulders, back extensions do not.
+      const g = subOf({ id: ex.exId, ...data });
+      const half = _UPPER.has(g) ? 'upper' : _LOWER.has(g) ? 'lower' : null;
+      if (!half) continue;                       // core work is judged elsewhere
+      const dir = pushPullOf(ex.exId);
+      if (dir) out[half][dir] += n; else out.unclassified += n;
+    }
+  }
+  return out;
+}
+
+function _ppVerdict(half, push, pull) {
+  const total = push + pull;
+  if (total < _PP_MIN_SETS) return { tone: 'dim', text: `Not enough ${half}-body sets yet to judge — ${total} in ${_PP_DAYS} days.`, fix: null };
+  const r = pull ? push / pull : Infinity;
+  if (half === 'upper') {
+    if (r > 1.5) return { tone: 'warn', text: 'Pressing is outrunning pulling. Over time that rounds the shoulders forward — add rows and pull-ups.', fix: ['back'] };
+    if (r < 0.67) return { tone: 'ok', text: 'Pull-heavy. That is the safe side to err on for shoulder health.', fix: null };
+    return { tone: 'ok', text: 'Balanced.', fix: null };
+  }
+  if (r > 1.5) return { tone: 'warn', text: 'Squats and presses are outrunning hinges. Add RDLs, hip-hinge and hamstring work.', fix: ['hamstrings'] };
+  if (r < 0.67) return { tone: 'warn', text: 'Hinges are outrunning knee-dominant work. Add squats, lunges or leg press.', fix: ['quads'] };
+  return { tone: 'ok', text: 'Balanced.', fix: null };
+}
+
+function _ppRowHTML(half, { push, pull }) {
+  const total = push + pull;
+  const pct = total ? Math.round(100 * push / total) : 50;
+  const v = _ppVerdict(half, push, pull);
+  const ratio = !total ? '—' : !pull ? `${push} : 0` : `${(push / pull).toFixed(1)} : 1`;
+  return `
+  <div class="pp-row">
+    <div class="pp-head">
+      <span class="pp-label">${half === 'upper' ? 'Upper body' : 'Lower body'}</span>
+      <span class="pp-ratio">${ratio}</span>
+    </div>
+    <div class="pp-bar" role="img" aria-label="${push} push sets, ${pull} pull sets">
+      <i class="pp-push" style="width:${pct}%"></i><i class="pp-pull" style="width:${100 - pct}%"></i>
+    </div>
+    <div class="pp-legend"><span><b class="pp-dot pp-push"></b>Push ${push}</span><span><b class="pp-dot pp-pull"></b>Pull ${pull}</span></div>
+    <div class="pp-verdict pp-${v.tone}">${v.text}
+      ${v.fix ? `<button class="btn btn-secondary btn-sm pp-fix" onclick="bodyMapTarget(['${v.fix.join("','")}'])">Train ${v.fix.join(' + ')} →</button>` : ''}
+    </div>
+  </div>`;
+}
+
+function _pushPullHTML() {
+  const d = pushPullData();
+  const classified = d.upper.push + d.upper.pull + d.lower.push + d.lower.pull;
+  if (!classified) return '';
+  const total = classified + d.unclassified;
+  return `
+<div class="sec-head" style="margin-bottom:12px">Push : Pull Balance</div>
+<div class="card mb24" style="margin-bottom:24px">
+  ${_ppRowHTML('upper', d.upper)}
+  ${_ppRowHTML('lower', d.lower)}
+  <div class="dim fs11" style="margin-top:12px">Working sets, last ${_PP_DAYS} days.
+    ${d.unclassified ? `${d.unclassified} of ${total} sets have no single direction (carries, isometric holds) and are left out.` : ''}
+    Core and stretching are not counted.</div>
+</div>`;
+}
+
 function _strengthSectionHTML() {
   const hasSessions = (state.sessions || []).length > 0;
   if (!hasSessions) {
@@ -190,6 +285,8 @@ ${topLift ? `
 
 <div class="sec-head" style="margin-bottom:12px">Muscle Map</div>
 <div class="card mb24" style="margin-bottom:24px" id="muscle-map-card">${_muscleMapHTML()}</div>
+
+${_pushPullHTML()}
 
 <div class="sec-head" style="margin-bottom:12px">Personal Record Timeline</div>
 ${prs.length ? `<div class="card mb24" style="margin-bottom:24px"><div class="pr-timeline">

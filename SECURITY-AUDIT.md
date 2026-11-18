@@ -25,7 +25,7 @@ no account and no transmitted data, so the threat model is narrow and specific:
 | 4 | Moderate | CSV export formula injection | Fixed |
 | 5 | Low | No Content-Security-Policy | Added |
 | 6 | Low | No referrer policy | Added |
-| 7 | Low | Service worker caches third-party media without bound | Reported |
+| 7 | ~~Low~~ | ~~Service worker caches third-party media without bound~~ | **Withdrawn — incorrect** (see below) |
 
 ---
 
@@ -134,19 +134,28 @@ the in-app video player still mounting (`script-src` has to allow
 `https://www.youtube.com` for `iframe_api`, which the first draft of the policy
 broke).
 
-### 7. Unbounded media cache — **low, reported not changed**
+### 7. ~~Unbounded media cache~~ — **withdrawn: this finding was wrong**
 
-`sw.js` caches every successful 200 GET, including hotlinked photos, GIFs and
-animations from raw.githubusercontent.com. With 870 exercises carrying two 70 KB
-photographs each, plus 431 GIFs and 287 animations, the Cache API entry for this
-origin can grow into the hundreds of megabytes with no eviction. That is a
-storage and availability concern rather than a direct vulnerability, but it
-shares an origin quota with `localStorage`, and a full quota is exactly the
-`save()` failure mode handled in v3.28.
+*Correction, added after the original audit.* The original text said `sw.js`
+caches every successful GET "including hotlinked photos, GIFs and animations",
+so the cache could grow into the hundreds of megabytes. **That was reasoned from
+the code without being tested, and it is false.**
 
-Not changed here, because capping it is a behaviour change (it would reduce
-offline media) rather than a security fix. Recommended: either restrict runtime
-caching to same-origin responses, or cap the media cache with LRU eviction.
+`sw.js` skips any response whose `type` is `'opaque'`. Every hotlinked image in
+this app is a plain `<img>` with no `crossorigin` attribute, which makes a
+`no-cors` request, and a cross-origin response to one is opaque. So hotlinked
+media has never been cached.
+
+Verified empirically: a full copy of the app under its real `sw.js`, with a
+second origin serving two images. The `no-cors` image (how the app loads all of
+its media) was **not** cached; a `crossOrigin="anonymous"` image, added only
+for contrast, was. The only cross-origin entries the worker can store are CORS
+responses — in practice Google Fonts' font files, a small fixed set.
+
+No change is needed, and none was made. One consequence worth knowing, which
+the app already handles: because media is never cached, exercise photos and
+animations are unavailable offline, and each photo layer removes itself
+cleanly rather than showing a broken image.
 
 ---
 
