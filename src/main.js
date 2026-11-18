@@ -173,7 +173,7 @@ const PAGE_META = {
   fasting:      { label: 'Fasting',      icon: '⏱' },
   sleep:        { label: 'Sleep',        icon: '🌙' },
   activity:     { label: 'Activity',     icon: '⚑' },
-  body:         { label: 'Body Stats',   icon: '◉' },
+  body:         { label: 'Body & Metrics', icon: '◉' },
   cardio:       { label: 'Cardio',       icon: '≡' },
   achievements: { label: 'Achievements', icon: '★' },
   analytics:    { label: 'Analytics',    icon: '◎' },
@@ -318,7 +318,7 @@ const PAGE_LABELS = {
   schedule:     'Schedule',
   nutrition:    'Nutrition',    fasting:      'Fasting',
   sleep:        'Sleep',        activity:     'Activity',
-  body:         'Body Stats',   cardio:       'Cardio Log',
+  body:         'Body & Metrics', cardio:       'Cardio Log',
   achievements: 'Achievements', analytics:    'Analytics',
   progress:     'Progress',     settings:     'Settings',
 };
