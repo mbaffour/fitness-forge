@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Backfill the release tags that were never pushed.
+# Backfill the release tags that were never pushed (v2.9-stable … v3.36-stable).
 #
 # CLAUDE.md documents every version from v2.9 on, but the remote only carries
 # tags up to v2.8-stable — the sessions that shipped v2.9+ could not push to
@@ -178,12 +178,77 @@ else
   echo "  + v3.27 -> e3a960e"; created+=("v3.27")
 fi
 
+# v3.28 → v3.36. From v3.28 the release point is the commit on master that
+# merged it (a PR merge or squash), which carries that version's CLAUDE.md row.
+if git rev-parse -q --verify "refs/tags/v3.28" >/dev/null; then
+  echo "  = v3.28 already exists"
+else
+  git tag -a "v3.28" 7f90f69 -m "v3.28 — Stress testing + tag backfill."
+  echo "  + v3.28 -> 7f90f69"; created+=("v3.28")
+fi
+if git rev-parse -q --verify "refs/tags/v3.29" >/dev/null; then
+  echo "  = v3.29 already exists"
+else
+  git tag -a "v3.29" 2e2c3d8 -m "v3.29 — More stress tests, four more fixes — and the app now has a feel."
+  echo "  + v3.29 -> 2e2c3d8"; created+=("v3.29")
+fi
+if git rev-parse -q --verify "refs/tags/v3.30" >/dev/null; then
+  echo "  = v3.30 already exists"
+else
+  git tag -a "v3.30" 1c5415b -m "v3.30 — XSS, and a malformed log that blanked whole pages."
+  echo "  + v3.30 -> 1c5415b"; created+=("v3.30")
+fi
+if git rev-parse -q --verify "refs/tags/v3.31" >/dev/null; then
+  echo "  = v3.31 already exists"
+else
+  git tag -a "v3.31" 9e75b1c -m "v3.31 — Dumbbell training, made usable."
+  echo "  + v3.31 -> 9e75b1c"; created+=("v3.31")
+fi
+if git rev-parse -q --verify "refs/tags/v3.32" >/dev/null; then
+  echo "  = v3.32 already exists"
+else
+  git tag -a "v3.32" 0242e79 -m "v3.32 — Stations — pick a tool, see everything it can do."
+  echo "  + v3.32 -> 0242e79"; created+=("v3.32")
+fi
+if git rev-parse -q --verify "refs/tags/v3.33" >/dev/null; then
+  echo "  = v3.33 already exists"
+else
+  git tag -a "v3.33" f4e3ce7 -m "v3.33 — Stations, comprehensive — 8 tools become 32."
+  echo "  + v3.33 -> f4e3ce7"; created+=("v3.33")
+fi
+if git rev-parse -q --verify "refs/tags/v3.34" >/dev/null; then
+  echo "  = v3.34 already exists"
+else
+  git tag -a "v3.34" 9f7c81e -m "v3.34 — Photography and motion — using the real pictures the app already owned."
+  echo "  + v3.34 -> 9f7c81e"; created+=("v3.34")
+fi
+if git rev-parse -q --verify "refs/tags/v3.35" >/dev/null; then
+  echo "  = v3.35 already exists"
+else
+  git tag -a "v3.35" 0f62fa6 -m "v3.35 — Security audit — a critical stored XSS, and a sanitiser that was silently doing nothing."
+  echo "  + v3.35 -> 0f62fa6"; created+=("v3.35")
+fi
+if git rev-parse -q --verify "refs/tags/v3.36" >/dev/null; then
+  echo "  = v3.36 already exists"
+else
+  git tag -a "v3.36" 19adeaa -m "v3.36 — Stretching, push/pull balance, a 16-region muscle map, 22 reviewed wger exercises — and MuscleWi"
+  echo "  + v3.36 -> 19adeaa"; created+=("v3.36")
+fi
+
 # v3.27-stable is an alias for the current release, matching the naming in
 # CLAUDE.md coding rule 8.
 if ! git rev-parse -q --verify "refs/tags/v3.27-stable" >/dev/null; then
   git tag -a v3.27-stable e3a960e -m "v3.27-stable — current stable release"
   echo "  + v3.27-stable -> e3a960e"; created+=("v3.27-stable")
 fi
+# …and the -stable names for the releases since (CLAUDE.md coding rule 8).
+for pair in v3.35-stable:0f62fa6 v3.36-stable:19adeaa; do
+  t=${pair%%:*}; c=${pair##*:}
+  if ! git rev-parse -q --verify "refs/tags/$t" >/dev/null; then
+    git tag -a "$t" "$c" -m "$t — stable release"
+    echo "  + $t -> $c"; created+=("$t")
+  fi
+done
 
 echo; echo "${#created[@]} tag(s) created locally."
 
