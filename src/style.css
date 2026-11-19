@@ -1769,6 +1769,10 @@ details[open] .ex-cues summary::before { transform: rotate(90deg); }
 }
 .ex-gif-wrap .frame-0 { animation: gifFlip 2s step-end infinite; }
 .ex-gif-wrap .frame-1 { animation: gifFlip 2s step-end infinite reverse; }
+/* One image, nothing to flip to: the start/end crossfade above hid it for half
+   of every cycle, so a single-image exercise (most wger entries) showed an
+   empty box half the time. Hold it on screen instead. */
+.ex-gif-wrap.is-single .frame-0 { animation: none; opacity: 1; }
 @keyframes gifFlip {
   0%, 49% { opacity: 1; }
   50%, 100% { opacity: 0; }
@@ -3115,6 +3119,72 @@ body.session-active .sidebar { display: none !important; }
 .pr-tl-name .ex-thumb { width: 26px; height: 26px; }
 .freestyle-ex-card .ex-thumb, .cali-ex-card .ex-thumb { width: 34px; height: 34px; }
 
+/* ══ BODY & METRICS (v3.37) ══ */
+.bs-top { margin-bottom: 24px; align-items: start; }
+.bs-bigrow { display: flex; align-items: baseline; gap: 8px; margin: 6px 0 4px; }
+.bs-big { font-size: 52px; line-height: 1; }
+.bs-dim { color: var(--text-3); margin: 6px 0 4px; }
+.bs-unit { font-size: 0.875rem; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.06em; }
+.bs-deltas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px;
+  padding-top: 12px; border-top: 1px solid var(--border); }
+.bs-deltas .mono { font-size: 1rem; margin-top: 2px; }
+.bs-goal { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+.bs-goal-head { display: flex; justify-content: space-between; align-items: center; }
+.bs-goal-form { display: flex; gap: 8px; }
+.bs-goal-form .form-input { flex: 1; min-width: 0; }
+.bs-bar { height: 6px; background: var(--bg-2); border-radius: var(--r-sm); overflow: hidden; }
+.bs-bar i { display: block; height: 100%; background: var(--grad, var(--fire)); transition: width 400ms ease; }
+.bs-link { background: none; border: 0; padding: 0; color: var(--fire); font: inherit; font-size: 0.7rem;
+  letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; text-decoration: none; }
+.bs-link:hover { text-decoration: underline; }
+.bs-form { display: flex; flex-direction: column; gap: 10px; }
+.bs-form-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+.bs-field { display: flex; flex-direction: column; gap: 4px; flex: 1 1 130px; min-width: 0; }
+.bs-field .form-input { width: 100%; box-sizing: border-box; }
+.bs-summary { cursor: pointer; user-select: none; }
+.bs-actions { display: flex; gap: 8px; margin-top: 4px; }
+.bs-chart-card { margin-bottom: 24px; }
+.bs-controls { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.bs-nodata { padding: 40px 8px; text-align: center; }
+.bs-stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 14px;
+  padding-top: 12px; border-top: 1px solid var(--border); }
+.bs-stats > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.bs-stats b { font-weight: 400; font-size: 0.95rem; }
+.bs-corr { margin-top: 12px; padding: 10px 12px; background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-md); line-height: 1.5; }
+.bs-log { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.bs-log .bs-form-row { width: 100%; }
+.bs-logbtn { flex: 0 0 auto; }
+.bs-entries { display: flex; flex-direction: column; width: 100%; }
+.bs-entry { display: grid; grid-template-columns: 80px 1fr auto; align-items: center; gap: 8px;
+  padding: 6px 0; border-bottom: 1px solid var(--border); }
+.bs-entry:last-child { border-bottom: 0; }
+.bs-x { background: none; border: 1px solid transparent; color: var(--text-3); border-radius: var(--r-sm);
+  min-width: 32px; min-height: 32px; cursor: pointer; font: inherit; font-size: 0.8rem; }
+.bs-x:hover { color: var(--text); border-color: var(--border-hi); }
+.bs-metrics { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; margin-bottom: 24px; }
+.bs-metric { display: flex; flex-direction: column; gap: 4px; text-align: left; padding: 12px; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); color: var(--text); font: inherit; min-width: 0; }
+.bs-metric:hover { border-color: var(--border-hi); }
+.bs-metric.is-on { border-color: var(--fire); border-left: 3px solid var(--fire); padding-left: 10px; }
+.bs-metric-head { display: flex; justify-content: space-between; align-items: center; gap: 6px; min-width: 0; }
+.bs-metric-head .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bs-tag { font-size: 0.55rem; padding: 1px 5px; }
+.bs-metric-val b { font-size: 1.25rem; font-weight: 500; }
+.bs-spark { width: 100%; height: 28px; margin-top: 4px; display: block; }
+.bs-add { align-items: flex-start; justify-content: center; border-style: dashed; background: transparent; }
+.bs-add-plus { font-size: 1.3rem; color: var(--fire); line-height: 1; }
+.bs-addform { margin: -12px 0 24px; }
+.bs-hist { overflow-x: auto; margin-bottom: 24px; }
+.bs-hist tr.is-editing td { background: var(--fire-dim); }
+.bs-note { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bs-rowbtns { white-space: nowrap; text-align: right; }
+.bs-empty { padding: 32px; margin-bottom: 24px; }
+@media (max-width: 768px) {
+  .bs-stats { grid-template-columns: repeat(3, 1fr); }
+  .bs-big { font-size: 44px; }
+  .bs-metrics { grid-template-columns: repeat(2, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) { .bs-bar i { transition: none; } }
 /* ══ CROSS-CUTTING: KEYBOARD, MOBILE ERGONOMICS ══ */
 
 /* One visible focus ring for keyboard users, in the only interactive accent.

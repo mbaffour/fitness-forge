@@ -8,6 +8,14 @@ import { upsertExercise, removeExercise, EQUIP_ITEMS } from './data/exercises.js
 
 const KEY = 'fitness_forge_v1';
 
+// Declared up here, not beside the metric functions that use them: the boot
+// scrub below runs at module evaluation and calls those (hoisted) functions,
+// and a `const` declared further down is still in its temporal dead zone then.
+// That exact ReferenceError once disabled the scrub silently (v3.35).
+const METRIC_DIRS = new Set(['up', 'down', 'none']);
+const METRIC_LOG_MAX = 5000;
+const _idSeq = { n: 0 };
+
 const defaultState = {
   onboarded:    false,
   profile:      null,   // set after quiz
@@ -51,6 +59,9 @@ const defaultState = {
   goalProgram: null,    // { id, startedAt, done:[] } — active curated goal program
   bodyMapSel:  [],      // muscle-group ids currently targeted on the Body Map
   challenge:   null,    // { id, startedAt, done:[dayIndex] } — active daily challenge
+  // ── v3.37 additions ──
+  metricDefs:  {},      // { m_id: { name, unit, dir:'up'|'down'|'none', decimals } } — user-defined metrics
+  metricLog:   [],      // [{ id, metric, value, date }] — values logged against metricDefs
 };
 
 export const state = (() => {
@@ -68,10 +79,10 @@ export const state = (() => {
       const obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
       for (const k of ['workoutLog', 'sessions', 'cardioLog', 'nutritionLog', 'bodyLog',
                        'achievements', 'fastingLog', 'sleepLog', 'activityLog',
-                       'gymProfiles', 'bodyMapTray', 'bodyMapSel']) {
+                       'gymProfiles', 'bodyMapTray', 'bodyMapSel', 'metricLog']) {
         parsed[k] = arr(parsed[k]);
       }
-      for (const k of ['prs', 'customExercises']) parsed[k] = obj(parsed[k]);
+      for (const k of ['prs', 'customExercises', 'metricDefs']) parsed[k] = obj(parsed[k]);
 
       return {
         ...defaultState,
@@ -88,6 +99,8 @@ export const state = (() => {
         goalProgram: parsed.goalProgram ?? null,
         bodyMapSel: parsed.bodyMapSel,
         challenge: parsed.challenge ?? null,
+        metricDefs: parsed.metricDefs,
+        metricLog: parsed.metricLog,
       };
     }
     return { ...defaultState };
@@ -164,6 +177,19 @@ export function stateBytes() {
     (state.nutritionLog || []).forEach((d) => {
       (d?.meals || []).forEach((m) => { if (m?.name != null) m.name = cleanText(m.name, 120); });
     });
+    // Check-ins are edited and deleted by id, and the id reaches an inline
+    // handler — a restored entry without a numeric one could not be touched.
+    const seen = new Set();
+    state.bodyLog.forEach((e) => {
+      if (!e || typeof e !== 'object') return;
+      if (!Number.isFinite(Number(e.id)) || seen.has(Number(e.id))) e.id = _uid();
+      else e.id = Number(e.id);
+      seen.add(e.id);
+    });
+    _sortBodyLog();
+    // Metric ids reach inline handlers just as exercise ids do.
+    state.metricDefs = cleanMetricDefs(state.metricDefs);
+    state.metricLog = cleanMetricLog(state.metricLog, state.metricDefs);
   } catch (err) {
     // Never let a scrub failure stop the app booting — but never let one pass
     // unnoticed either. This catch previously hid a ReferenceError that
@@ -594,15 +620,123 @@ export function logWater(glasses) {
 
 // ── NEW: BODY LOG ──
 
+// Newest first, by the date the check-in is FOR — not when it was typed. A
+// check-in can be back-dated ("I weighed in yesterday"), so insertion order is
+// no longer date order and everything reading bodyLog[0] as "latest" would lie.
+function _sortBodyLog() {
+  state.bodyLog.sort((a, b) => (Date.parse(b?.date) || 0) - (Date.parse(a?.date) || 0));
+}
+
+const BODY_LOG_MAX = 1500;   // ~4 years of daily weigh-ins; entries are ~100 bytes
+
 export function addBodyCheckIn(entry) {
   if (entry && typeof entry === 'object') {
     if (entry.notes != null) entry.notes = cleanText(entry.notes, 2000);
     if (entry.label != null) entry.label = cleanText(entry.label, 120);
     if (entry.type  != null) entry.type  = cleanText(entry.type, 60);
   }
-  state.bodyLog.unshift({ id: Date.now(), ...entry });
-  if (state.bodyLog.length > 365) state.bodyLog.length = 365;
+  state.bodyLog.unshift({ id: _uid(), ...entry });
+  _sortBodyLog();
+  if (state.bodyLog.length > BODY_LOG_MAX) state.bodyLog.length = BODY_LOG_MAX;
+  return save();
+}
+
+export function updateBodyCheckIn(id, patch) {
+  const e = state.bodyLog.find((x) => x?.id === id);
+  if (!e) return false;
+  if (patch.notes != null) patch.notes = cleanText(patch.notes, 2000);
+  Object.assign(e, patch);
+  _sortBodyLog();
+  return save();
+}
+
+export function deleteBodyCheckIn(id) {
+  const n = state.bodyLog.length;
+  state.bodyLog = state.bodyLog.filter((x) => x?.id !== id);
+  if (state.bodyLog.length === n) return false;
+  return save();
+}
+
+// Goal bodyweight, canonical lbs (or null to clear).
+export function setGoalWeight(lbs) {
+  const n = Number(lbs);
+  state.settings.goalWeight = Number.isFinite(n) && n > 0 ? Math.min(n, 1500) : null;
+  return save();
+}
+
+// ── CUSTOM METRICS (v3.37) ──
+// Anything a person wants to watch over time that the app does not already
+// track: resting heart rate, steps, HRV, blood pressure, energy, mood. Each is a
+// definition plus a flat log of dated values, plotted on the Body & Metrics page.
+
+function _uid() { return Date.now() * 100 + (_idSeq.n++ % 100); }
+
+function _cleanMetricDef(d) {
+  if (!d || typeof d !== 'object') return null;
+  const name = cleanText(String(d.name ?? '').trim(), 40);
+  if (!name) return null;
+  const dec = Number(d.decimals);
+  return {
+    name,
+    unit: cleanText(String(d.unit ?? '').trim(), 12) || '',
+    dir: METRIC_DIRS.has(d.dir) ? d.dir : 'none',
+    decimals: Number.isInteger(dec) && dec >= 0 && dec <= 2 ? dec : 1,
+  };
+}
+
+export function cleanMetricDefs(defs) {
+  const out = {};
+  for (const [id, d] of Object.entries(pruneIdMap(defs))) {
+    if (!id.startsWith('m_')) continue;
+    const c = _cleanMetricDef(d);
+    if (c) out[id] = c;
+  }
+  return out;
+}
+
+export function cleanMetricLog(log, defs) {
+  if (!Array.isArray(log)) return [];
+  return log.filter((e) => e && typeof e === 'object'
+      && Object.prototype.hasOwnProperty.call(defs, e.metric)
+      && Number.isFinite(Number(e.value)) && Math.abs(Number(e.value)) < 1e7
+      && Number.isFinite(Date.parse(e.date)))
+    .map((e) => ({ id: Number.isFinite(Number(e.id)) ? Number(e.id) : _uid(),
+                   metric: e.metric, value: Number(e.value), date: String(e.date) }));
+}
+
+export function addMetricDef(def) {
+  const clean = _cleanMetricDef(def);
+  if (!clean) return null;
+  const base = clean.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 24) || 'metric';
+  let id = `m_${base}`, n = 2;
+  while (state.metricDefs[id]) id = `m_${base}_${n++}`;
+  state.metricDefs[id] = clean;
   save();
+  return id;
+}
+
+export function deleteMetricDef(id) {
+  if (!Object.prototype.hasOwnProperty.call(state.metricDefs, id)) return false;
+  delete state.metricDefs[id];
+  state.metricLog = state.metricLog.filter((e) => e.metric !== id);
+  return save();
+}
+
+export function addMetricEntry(metric, value, date) {
+  const v = Number(value);
+  if (!Object.prototype.hasOwnProperty.call(state.metricDefs, metric)) return false;
+  if (!Number.isFinite(v) || Math.abs(v) >= 1e7) return false;
+  if (!Number.isFinite(Date.parse(date))) return false;
+  state.metricLog.unshift({ id: _uid(), metric, value: v, date });
+  state.metricLog.sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
+  if (state.metricLog.length > METRIC_LOG_MAX) state.metricLog.length = METRIC_LOG_MAX;
+  return save();
+}
+
+export function deleteMetricEntry(id) {
+  const n = state.metricLog.length;
+  state.metricLog = state.metricLog.filter((e) => e.id !== id);
+  return state.metricLog.length !== n && save();
 }
 
 // ── NEW: PERSONAL RECORDS ──

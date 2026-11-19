@@ -8,7 +8,8 @@ import { pushPullOf } from '../engine/overload.js';
 import { BODY_FRONT, BODY_BACK, BODY_VIEWBOX_FRONT, BODY_VIEWBOX_BACK,
          BODY_OUTLINE_FRONT, BODY_OUTLINE_BACK } from '../data/body-model.js';
 import { exThumbHTML } from './modal.js';
-import { initAnalyticsTrendChart, initWeightTrendChart, toggleChartSeries, initVolumeBarChart, initE1rmChart } from './charts.js';
+import { initAnalyticsTrendChart, toggleChartSeries, initVolumeBarChart, initE1rmChart } from './charts.js';
+import { drawWeightChart } from './body-stats.js';
 
 // ── STRENGTH ANALYTICS (v3.4) ──
 const _WEEK_MS = 604800000;
@@ -549,9 +550,9 @@ export function renderAnalytics() {
   <div class="chart-wrap" style="height:220px"><canvas id="analytics-trend-chart"></canvas></div>
 </div>
 
-${state.bodyLog.length >= 2 ? `
+${state.bodyLog.filter(e => Number(e?.weight) > 0).length >= 2 ? `
 <!-- BODY WEIGHT TREND -->
-<div class="sec-head" style="margin-bottom:12px">Body Weight Trend</div>
+<div class="sec-head" style="margin-bottom:12px">Body Weight Trend<i class="sec-note"><a href="#body" class="bs-link">open Body &amp; Metrics →</a></i></div>
 <div class="card mb24" style="margin-bottom:24px">
   <div class="chart-wrap" style="height:180px"><canvas id="analytics-weight-chart"></canvas></div>
 </div>
@@ -579,9 +580,7 @@ export function scheduleAnalyticsCharts() {
   setTimeout(() => {
     const trendData = _buildTrendData();
     initAnalyticsTrendChart('analytics-trend-chart', trendData);
-    if (state.bodyLog.length >= 2) {
-      initWeightTrendChart('analytics-weight-chart', state.bodyLog);
-    }
+    if (document.getElementById('analytics-weight-chart')) drawWeightChart('analytics-weight-chart');
     // Strength charts
     if ((state.sessions || []).length) {
       const unit = weightUnitLabel();
