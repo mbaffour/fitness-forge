@@ -355,7 +355,8 @@ export function initCalorieChart(canvasId, nutritionLog) {
 }
 
 // ── CARDIO DISTANCE BAR CHART ──
-export function initCardioChart(canvasId, cardioLog) {
+// `toUnit` converts stored miles to the display unit; `unit` labels it.
+export function initCardioChart(canvasId, cardioLog, { toUnit = (mi) => mi, unit = 'mi' } = {}) {
   ensureDefaults();
   if (!window.Chart) return;
   destroyIfExists(canvasId);
@@ -369,7 +370,7 @@ export function initCardioChart(canvasId, cardioLog) {
     const d = new Date(e.date);
     return `${d.getMonth()+1}/${d.getDate()}`;
   });
-  const distances = sorted.map(e => e.distanceMiles || 0);
+  const distances = sorted.map(e => (e.distanceMiles ? toUnit(e.distanceMiles) : 0));
   const colors    = sorted.map(e => {
     const map = { run: COLORS.fire, bike: COLORS.green, swim: COLORS.steel, row: COLORS.ember };
     return map[e.type] || COLORS.fire;
@@ -380,7 +381,7 @@ export function initCardioChart(canvasId, cardioLog) {
     data: {
       labels,
       datasets: [{
-        label: 'Distance (mi)',
+        label: `Distance (${unit})`,
         data: distances,
         backgroundColor: colors,
         borderRadius: 3,
@@ -391,7 +392,7 @@ export function initCardioChart(canvasId, cardioLog) {
       maintainAspectRatio: false,
       scales: {
         x: { grid: { color: COLORS.border } },
-        y: { grid: { color: COLORS.border }, beginAtZero: true, ticks: { callback: v => v + ' mi' } },
+        y: { grid: { color: COLORS.border }, beginAtZero: true, ticks: { callback: v => `${v} ${unit}` } },
       },
     },
   });

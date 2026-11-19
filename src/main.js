@@ -83,6 +83,12 @@ window.setWeightUnit = (unit) => {
   refreshCurrentPage();
 };
 
+window.setDistanceUnit = (unit) => {
+  state.settings.distanceUnit = unit === 'km' ? 'km' : 'miles';
+  save();
+  refreshCurrentPage();
+};
+
 // ── INSTALL (Add to Home Screen) ──
 // Capture the Android/Chromium install prompt so we can surface an in-app button;
 // iOS has no such event, so Settings shows manual instructions there instead.

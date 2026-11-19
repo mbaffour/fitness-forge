@@ -2,7 +2,7 @@
 //   FITNESS FORGE — Cardio Log
 // ═══════════════════════════════════════════
 
-import { state, addCardioEntry, removeCardioEntry } from '../store.js';
+import { state, addCardioEntry, removeCardioEntry, distUnitLabel, toDisplayDist, toStoredDist } from '../store.js';
 import { initCardioChart } from './charts.js';
 import { toast } from './ui.js';
 
@@ -32,8 +32,8 @@ export function renderCardioLog() {
       </select>
     </div>
     <div>
-      <label class="label">Distance (miles)</label>
-      <input type="number" id="cardio-dist" class="form-input" placeholder="3.1" min="0" step="0.1" style="width:100%;margin-top:4px;box-sizing:border-box">
+      <label class="label">Distance (${distUnitLabel() === 'km' ? 'km' : 'miles'})</label>
+      <input type="number" id="cardio-dist" class="form-input" placeholder="${distUnitLabel() === 'km' ? '5.0' : '3.1'}" min="0" step="0.1" style="width:100%;margin-top:4px;box-sizing:border-box">
     </div>
     <div>
       <label class="label">Duration (min)</label>
@@ -70,17 +70,17 @@ ${cardioLog.length > 0 ? `
       const type = CARDIO_TYPES.find(t => t.id === e.type);
       const dur  = e.durationSeconds ? formatDur(e.durationSeconds) : (e.durationMinutes ? e.durationMinutes + ' min' : '—');
       const pace = e.durationMinutes && e.distanceMiles > 0
-        ? formatPace(e.durationMinutes / e.distanceMiles) : null;
+        ? formatPace(e.durationMinutes / toDisplayDist(e.distanceMiles)) : null;
       return `
       <div class="cardio-entry-row">
         <div class="cardio-icon">${type?.icon || '⚡'}</div>
         <div style="flex:1">
           <div style="font-weight:500;font-size:13px">${type?.label || e.type}</div>
           <div class="muted fs11 mt4" style="margin-top:3px">
-            ${e.distanceMiles ? e.distanceMiles + ' mi' : ''}
+            ${e.distanceMiles ? toDisplayDist(e.distanceMiles) + ' ' + distUnitLabel() : ''}
             ${e.distanceMiles && dur !== '—' ? ' · ' : ''}
             ${dur !== '—' ? dur : ''}
-            ${pace ? ' · ' + pace + '/mi' : ''}
+            ${pace ? ' · ' + pace + '/' + distUnitLabel() : ''}
             ${e.avgHR ? ' · ' + e.avgHR + ' bpm' : ''}
           </div>
           ${e.notes ? `<div class="dim fs11" style="margin-top:2px">${e.notes}</div>` : ''}
@@ -139,7 +139,7 @@ window.logCardioSession = () => {
   addCardioEntry({
     date:           new Date().toISOString(),
     type,
-    distanceMiles:  dist || null,
+    distanceMiles:  dist ? Math.round(toStoredDist(dist) * 1000) / 1000 : null,
     durationMinutes: dur,
     durationSeconds: Math.round(dur * 60),
     avgHR:          hr,
@@ -171,7 +171,7 @@ function refreshCardioSection() {
 export function scheduleCardioCharts() {
   setTimeout(() => {
     if (state.cardioLog.length >= 3) {
-      initCardioChart('cardio-chart', state.cardioLog);
+      initCardioChart('cardio-chart', state.cardioLog, { toUnit: toDisplayDist, unit: distUnitLabel() });
     }
   }, 0);
 }

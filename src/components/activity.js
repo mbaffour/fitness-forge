@@ -2,7 +2,7 @@
 //   FITNESS FORGE — Activity Tracker
 // ═══════════════════════════════════════════
 
-import { state, addActivityEntry, removeActivityEntry, localDateStr } from '../store.js';
+import { state, addActivityEntry, removeActivityEntry, localDateStr, distUnitLabel, toDisplayDist, toStoredDist } from '../store.js';
 import { initActivityStackedBar } from './charts.js';
 import { toast } from './ui.js';
 
@@ -152,8 +152,8 @@ export function renderActivity() {
       <input type="date" id="act-date" class="form-input" value="${today}" style="width:100%;margin-top:4px;box-sizing:border-box">
     </div>
     <div>
-      <label class="label">Distance (optional)</label>
-      <input type="number" id="act-dist" class="form-input" placeholder="3.1 mi" min="0" step="0.1" style="width:100%;margin-top:4px;box-sizing:border-box">
+      <label class="label">Distance (${distUnitLabel()}, optional)</label>
+      <input type="number" id="act-dist" class="form-input" placeholder="${distUnitLabel() === 'km' ? '5.0' : '3.1'}" min="0" step="0.1" style="width:100%;margin-top:4px;box-sizing:border-box">
     </div>
     <div>
       <label class="label">Avg HR bpm (opt.)</label>
@@ -207,7 +207,7 @@ ${activityLog.length > 0 ? `
         <span style="font-size:20px">${_getIcon(e.type)}</span>
         <div>
           <div style="font-size:13px;font-weight:500">${e.type}</div>
-          <div class="muted fs11">${e.durationMin}min · ${e.intensity} · ${e.calories} cal${e.distance ? ' · ' + e.distance + 'mi' : ''}${e.hr ? ' · ' + e.hr + 'bpm' : ''}</div>
+          <div class="muted fs11">${e.durationMin}min · ${e.intensity} · ${e.calories} cal${e.distance ? ' · ' + toDisplayDist(e.distance) + ' ' + distUnitLabel() : ''}${e.hr ? ' · ' + e.hr + 'bpm' : ''}</div>
         </div>
       </div>
       <button class="btn-remove" onclick="deleteActivity(${e.id})" title="Remove">✕</button>
@@ -249,7 +249,7 @@ ${bestKeys.length > 0 ? `
           <td>${icon} ${type}</td>
           <td class="mono fs11">${b.longestMin}min</td>
           <td class="mono fs11">${b.mostCalories} cal</td>
-          <td class="mono fs11">${b.bestDistance ? b.bestDistance + 'mi' : '—'}</td>
+          <td class="mono fs11">${b.bestDistance ? toDisplayDist(b.bestDistance) + ' ' + distUnitLabel() : '—'}</td>
         </tr>`;
       }).join('')}
     </tbody>
@@ -305,7 +305,9 @@ window.logActivity = () => {
   }
 
   const met = MET_VALUES[type] || 5.0;
-  addActivityEntry({ type, durationMin, intensity, date, distance, hr, calories, notes, met });
+  // Stored in miles whatever the display unit (store clamps the range).
+  const distMi = distance ? Math.round(toStoredDist(distance) * 1000) / 1000 : null;
+  addActivityEntry({ type, durationMin, intensity, date, distance: distMi, hr, calories, notes, met });
   _refreshActivityPage();
 };
 

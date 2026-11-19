@@ -1,4 +1,4 @@
-import { state, save, setPhase, setWeek, logWorkout, clearLog, resetAll, updateProfile, formatWeight, toDisplayWeight, toStoredWeight, weightUnitLabel, displayName, currentStreak, pruneIdMap, cleanCustomExercise, cleanMetricDefs, cleanMetricLog } from '../store.js';
+import { state, save, setPhase, setWeek, logWorkout, clearLog, resetAll, updateProfile, formatWeight, toDisplayWeight, toStoredWeight, weightUnitLabel, displayName, currentStreak, localDateStr, pruneIdMap, cleanCustomExercise, cleanMetricDefs, cleanMetricLog } from '../store.js';
 import { GOAL_OPTIONS, LEVEL_OPTIONS, PHASE_NAMES, PHASE_DESCS, EXERCISES, MUSCLE_GROUPS } from '../data/exercises.js';
 import { calcBMR, calcTDEE, calcMacros, ACTIVITY_MULTIPLIERS } from '../engine/bmr.js';
 import { renderCardioLog, scheduleCardioCharts } from './cardio-log.js';
@@ -62,7 +62,11 @@ ${(() => {
   const heroEx = todayEx.map(e => EXERCISES[e.id]).find(e => e?.imgKey);
   const heroPhoto = heroEx ? exPhotoURL(heroEx, 0) : '';
   const heroPhotoAlt = heroEx ? `${heroEx.name} — today's first movement` : '';
-  const cta = type === 'strength'
+  // Once today's session is logged the hero should say so, not keep asking.
+  const trainedToday = (workoutLog || []).some(l => l?.date && localDateStr(new Date(l.date)) === localDateStr());
+  const cta = type === 'strength' && trainedToday
+    ? `<button class="btn btn-ghost btn-lg w100" onclick="navigate('workout')">✓ Done for today · view session</button>`
+    : type === 'strength'
     ? `<button class="btn btn-fire btn-lg w100" onclick="navigate('workout')">${icon} Start Today's Workout</button>`
     : type === 'cardio'
       ? `<button class="btn btn-fire btn-lg w100" onclick="navigate('cardio')">${icon} Log Cardio</button>`
@@ -131,7 +135,7 @@ ${(() => {
   </div>
   <div class="stat s-ember" style="cursor:pointer" onclick="navigate('nutrition')">
     <div class="label">Today kcal</div>
-    <div class="display" style="font-size:28px;margin-top:6px">${state.nutritionLog.find(d => d.date === new Date().toISOString().slice(0,10))?.calories || 0}</div>
+    <div class="display" style="font-size:28px;margin-top:6px">${state.nutritionLog.find(d => d.date === localDateStr())?.calories || 0}</div>
   </div>
 </div>
 
@@ -429,7 +433,8 @@ export function renderSchedule() {
 // ── PROGRESS ──
 // ── Training consistency heatmap (GitHub-style, last 16 weeks) ──
 // Counts any logged training day: workouts (incl. sessions), cardio, activity,
-// and HIIT logs. Uses the app's UTC-ISO date convention (toISOString).
+// and HIIT logs. Keyed by LOCAL calendar day, like the log pages and streak —
+// a UTC key put an evening session in Los Angeles on tomorrow's square.
 function _activeDayCounts() {
   const counts = {};
   const add = (d) => {
@@ -438,7 +443,7 @@ function _activeDayCounts() {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) {
       const t = new Date(d);
       if (isNaN(t)) return;
-      key = t.toISOString().slice(0, 10);
+      key = localDateStr(t);
     }
     counts[key] = (counts[key] || 0) + 1;
   };
@@ -451,19 +456,19 @@ function _activeDayCounts() {
 
 function _heatmapHTML() {
   const counts   = _activeDayCounts();
-  const todayKey = new Date().toISOString().slice(0, 10);
-  const todayUTC = new Date(`${todayKey}T00:00:00Z`);
-  const dow      = todayUTC.getUTCDay();               // 0 = Sun
+  const todayKey = localDateStr();
+  const today    = new Date(); today.setHours(12, 0, 0, 0);
+  const dow      = today.getDay();                     // 0 = Sun
   const weeks    = 16;
-  const start    = new Date(todayUTC.getTime() - (7 * (weeks - 1) + dow) * 86400000);
 
   let cells = '';
   let activeDays = 0;
   for (let i = 0; i < weeks * 7; i++) {
-    const d   = new Date(start.getTime() + i * 86400000);
-    const key = d.toISOString().slice(0, 10);
+    // Calendar steps, not 24h steps: across a DST change those drift a day.
+    const d   = new Date(today); d.setDate(today.getDate() - (7 * (weeks - 1) + dow) + i);
+    const key = localDateStr(d);
     const n   = counts[key] || 0;
-    const future = d > todayUTC;
+    const future = key > todayKey;
     if (n > 0 && !future) activeDays++;
     const lvl = n >= 3 ? 'l3' : n === 2 ? 'l2' : n === 1 ? 'l1' : '';
     cells += `<span class="hm-cell ${lvl}${future ? ' future' : ''}${key === todayKey ? ' today' : ''}" title="${key}${n ? ` · ${n} ${n === 1 ? 'entry' : 'entries'}` : ''}"></span>`;
@@ -835,6 +840,17 @@ ${(() => {
   </div>
   <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
     <div>
+      <div style="font-size:13px;font-weight:500">Distance Units</div>
+      <div class="muted fs11" style="margin-top:2px">Cardio and activity distances and pace</div>
+    </div>
+    <select class="form-input" aria-label="Distance unit" style="width:120px" onchange="setDistanceUnit(this.value)">
+      ${[['miles','Miles (mi)'],['km','Kilometres (km)']].map(([v,l]) =>
+        `<option value="${v}" ${(state.settings?.distanceUnit === 'km' ? 'km' : 'miles') === v ? 'selected' : ''}>${l}</option>`
+      ).join('')}
+    </select>
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
+    <div>
       <div style="font-size:13px;font-weight:500">Sound</div>
       <div class="muted fs11" style="margin-top:2px">Beeps on timers, set completion & PRs</div>
     </div>
@@ -1078,7 +1094,7 @@ window.exportCSV = (type) => {
     activity: () => {
       const rows = [['Date','Type','Duration(min)','Intensity','Calories','Distance','HR','Notes']];
       state.activityLog.forEach(e => {
-        rows.push([e.date, e.type, e.durationMin, e.intensity, e.calories, e.distance || '', e.hr || '', e.notes || '']);
+        rows.push([e.date, e.type, e.durationMin, e.intensity, e.calories, e.distance ? `${e.distance} mi` : '', e.hr || '', e.notes || '']);
       });
       return rows;
     },

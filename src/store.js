@@ -451,6 +451,24 @@ export function toDisplayWeight(lbs) {
   return Math.round(val / step) * step;
 }
 
+// ── DISTANCE ──
+// Stored canonically in MILES (cardioLog.distanceMiles, activityLog.distance);
+// shown in the unit picked in Settings. `settings.distanceUnit` existed from the
+// start but nothing read it and there was no control, so km users got miles.
+const KM_PER_MILE = 1.609344;
+const _km = () => state.settings?.distanceUnit === 'km';
+export function distUnitLabel() { return _km() ? 'km' : 'mi'; }
+export function toDisplayDist(mi) {
+  const n = Number(mi);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.round((_km() ? n * KM_PER_MILE : n) * 100) / 100;
+}
+export function toStoredDist(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return NaN;
+  return _km() ? n / KM_PER_MILE : n;
+}
+
 // Sensible increment for a weight input in the current unit (kg plates are finer).
 export function weightInputStep() {
   return state.settings?.weightUnit === 'kg' ? 2.5 : 5;
@@ -669,8 +687,11 @@ function _uniqueId(list) {
 
 // ── NEW: NUTRITION ──
 
+// Streak days are LOCAL calendar days, like every log page. They used to be
+// UTC days, so in Los Angeles an evening session counted toward tomorrow and
+// the streak disagreed with the 7-day strip for a third of every day.
 function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  return localDateStr();
 }
 
 export function getTodayNutrition() {
@@ -912,7 +933,7 @@ export function updateStreak() {
   const last  = state.streak.lastSessionDate;
   if (last === today) return; // already counted today
 
-  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const yesterday = _localYesterday();
   if (last === yesterday) {
     state.streak.current += 1;
   } else if (last !== today) {
@@ -933,14 +954,20 @@ export function updateStreak() {
 
 // The streak as it stands TODAY. `streak.current` only changes when a session
 // is logged, so after a week off it still read "5 days" on the dashboard. A
-// streak is alive only if the last session was today or yesterday (same UTC
-// day convention as updateStreak).
+// streak is alive only if the last session was today or yesterday (local days,
+// same convention as updateStreak).
+// Calendar arithmetic, not `now - 24h`: across a DST change 24 hours back can
+// land on the same local day (or skip one).
+function _localYesterday() {
+  const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - 1);
+  return localDateStr(d);
+}
+
 export function currentStreak() {
   const s = state.streak || {};
   const last = s.lastSessionDate;
   if (!last) return 0;
-  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-  return last === todayStr() || last === yesterday ? (Number(s.current) || 0) : 0;
+  return last === todayStr() || last === _localYesterday() ? (Number(s.current) || 0) : 0;
 }
 
 export function checkFirstSession() {
