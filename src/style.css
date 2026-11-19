@@ -1451,7 +1451,7 @@ select.form-input option { background: var(--bg-3); }
 }
 .set-input:focus { outline: none; border-color: var(--fire); }
 .set-input.input-error { border-color: var(--danger); animation: shake 0.3s; }
-.rir-selector { display: flex; gap: 3px; width: 90px; flex-shrink: 0; }
+.rir-selector { display: flex; gap: 3px; flex-shrink: 0; }  /* a fixed 90px pushed RIR 4–5 under the W toggle */
 .rir-btn {
   padding: 5px 6px; background: var(--bg-3); border: 1px solid var(--border);
   color: var(--text-3); font-family: var(--ff-mono); font-size: 9px;

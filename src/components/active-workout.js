@@ -7,10 +7,11 @@ import { programSuggestion, programProfile } from './program-coach.js';
 //   Live set-by-set session overlay
 // ═══════════════════════════════════════════
 
-import { state, logSession, saveOk, recordPR, clampReps, clampSeconds, updateStreak, checkFirstSession, formatWeight, weightUnitLabel, toStoredWeight, toDisplayWeight, weightInputStep } from '../store.js';
+import { state, logSession, saveOk, recordPR, clampReps, clampSeconds, MAX_WEIGHT_LB, MAX_REPS, updateStreak, checkFirstSession, formatWeight, weightUnitLabel, toStoredWeight, toDisplayWeight, weightInputStep } from '../store.js';
 import { suggestNextSet, detectPR, computeSessionVolume, estimateOneRepMax } from '../engine/overload.js';
-import { EXERCISES, isStretch, subOf } from '../data/exercises.js';
+import { EXERCISES, isStretch, subOf, rankedForGroup } from '../data/exercises.js';
 import { cue, acquireWakeLock, releaseWakeLock, notify, countUp, sparkBurst } from './feedback.js';
+import { toast } from './ui.js';
 
 let sessionState = null;  // current in-progress session
 let timerInterval = null;
@@ -178,8 +179,56 @@ export function startActiveWorkout(workoutId, workoutLabel, exercises, workoutTy
 
   renderOverlay();
   startTimer();
+  _saveDraft();
   cue('start');
   acquireWakeLock();   // keep the screen on for the whole session
+}
+
+// ── IN-PROGRESS DRAFT ──
+// The session lived only in memory, so a reload, a crash, or a phone browser
+// discarding the backgrounded tab between sets threw away the whole workout.
+// Keep a draft beside the main state (not in it — an unfinished session must
+// not reach backups, history or PRs) and pick it back up on boot.
+const DRAFT_KEY = 'fitness_forge_active_session';
+const DRAFT_MAX_AGE = 12 * 3600 * 1000;
+
+function _saveDraft() {
+  if (!sessionState) return;
+  const notes = document.getElementById('session-notes')?.value;
+  if (notes != null) sessionState.notes = notes;
+  try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ v: 1, startTime, session: sessionState })); } catch { /* storage full/blocked — the save banner covers it */ }
+}
+window.saveSessionDraft = _saveDraft;
+function _clearDraft() {
+  try { localStorage.removeItem(DRAFT_KEY); } catch { /* nothing to clear */ }
+}
+
+/** Reopen an unfinished session saved before a reload. Returns true if one was resumed. */
+export function resumeActiveWorkout() {
+  if (sessionState) return false;
+  let d = null;
+  try { d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); } catch { d = null; }
+  const s = d?.session;
+  const fresh = Number.isFinite(d?.startTime) && Date.now() - d.startTime < DRAFT_MAX_AGE;
+  // Ids go into inline handlers: only ones this app could have written.
+  const exercises = Array.isArray(s?.exercises)
+    ? s.exercises.filter(e => typeof e?.exId === 'string' && /^[A-Za-z0-9_]{1,80}$/.test(e.exId) && EXERCISES[e.exId])
+        .map(e => ({ ...e, targetSets: parseInt(e.targetSets) || 3, sets: Array.isArray(e.sets) ? e.sets : [],
+                     exName: String(e.exName || EXERCISES[e.exId].name).replace(/[<>"]/g, '') }))
+    : [];
+  if (!fresh || !exercises.length) { _clearDraft(); return false; }
+  sessionState = { ...s, exercises,
+    workoutLabel: String(s.workoutLabel || 'Workout').replace(/[<>"]/g, ''),
+    notes: typeof s.notes === 'string' ? s.notes : '' };
+  startTime = d.startTime;
+  renderOverlay();
+  const notesEl = document.getElementById('session-notes');
+  if (notesEl) notesEl.value = sessionState.notes;
+  updateVolumeDisplay();
+  startTimer();
+  acquireWakeLock();
+  toast('Resumed your unfinished session');
+  return true;
 }
 
 function startTimer() {
@@ -215,6 +264,7 @@ function renderOverlay() {
   overlay.innerHTML = buildOverlayHTML();
   mainArea.appendChild(overlay);
   document.body.classList.add('session-active');  // focus mode: hide nav chrome
+  window.scrollTo(0, 0);   // started from low on a page — open at the header
 }
 
 function buildOverlayHTML() {
@@ -249,7 +299,7 @@ function buildOverlayHTML() {
 
 <div class="session-notes-wrap">
   <label class="label">Session Notes (optional)</label>
-  <textarea id="session-notes" placeholder="How did it feel? Any PRs, pain points, notes..."
+  <textarea id="session-notes" oninput="saveSessionDraft()" placeholder="How did it feel? Any PRs, pain points, notes..."
     style="width:100%;margin-top:8px;padding:10px;background:var(--bg-2);border:1px solid var(--border);color:var(--text);font-family:var(--ff-body);font-size:13px;border-radius:4px;resize:vertical;min-height:60px;box-sizing:border-box"></textarea>
 </div>
 
@@ -471,6 +521,47 @@ function _nextUpLabel(exIdx) {
   return nx ? `${nx.exName} · set 1` : 'Last exercise — finish strong';
 }
 
+// Read a typed weight in the display unit. `null` = reject and re-prompt:
+// negative, zero, or above the store's ceiling. Clamping instead turned a
+// typo of 1e308 lbs into a logged 5,000 lb set and a PR nothing could beat.
+// An empty field is allowed (0) — bands and unloaded variations have no load.
+function _readWeight(el) {
+  const raw = String(el?.value ?? '').trim();
+  if (raw === '') return 0;
+  const n = parseFloat(raw);
+  const lbs = n * toStoredWeight(1);          // 1 display unit in stored lbs
+  if (!Number.isFinite(lbs) || lbs <= 0 || lbs > MAX_WEIGHT_LB) return null;
+  return toStoredWeight(raw);
+}
+// Reps/seconds: 0 = reject (empty, < 1, or past the ceiling — not clamped).
+function _readCount(el, timed) {
+  const n = Math.round(Number(el?.value));
+  if (!timed && n > MAX_REPS) return 0;
+  return timed ? clampSeconds(el?.value) : clampReps(el?.value);
+}
+function _flagInput(el) {
+  if (!el) return;
+  el.classList.add('input-error');
+  cue('error');
+  setTimeout(() => el.classList.remove('input-error'), 800);
+}
+
+// Best estimated 1RM already on record for this lift: the stored PR, or a
+// working set earlier in this session. PRs are only written to the store when
+// the session is saved, so a typo you delete — or a session you discard —
+// can no longer leave behind a record nothing will ever beat.
+function _bestE1rm(exId, exclude) {
+  let best = state.prs[exId]?.e1rm || 0;
+  for (const e of sessionState?.exercises || []) {
+    if (e.exId !== exId) continue;
+    for (const st of e.sets) {
+      if (st === exclude || !st.completed || st.warmup || st.timed || !(st.weight > 0) || !(st.reps <= 30)) continue;
+      best = Math.max(best, estimateOneRepMax(st.weight, st.reps) || 0);
+    }
+  }
+  return best;
+}
+
 window.logSet = (exIdx) => {
   if (!sessionState) return;
   const ex = sessionState.exercises[exIdx];
@@ -482,27 +573,12 @@ window.logSet = (exIdx) => {
   _stopSetTimer();
 
   // Inputs are in the user's display unit; convert back to canonical lbs to store.
-  const weight = isBodyweight ? 0 : (toStoredWeight(weightEl?.value) || 0);
-
-  // A typed or pasted negative clamps to 0, which would quietly log a loaded
-  // lift as a bodyweight set. Re-prompt instead of recording something the
-  // user did not do.
-  if (!isBodyweight && weightEl && String(weightEl.value).trim() !== '' && weight <= 0) {
-    weightEl.classList.add('input-error');
-    cue('error');
-    setTimeout(() => weightEl.classList.remove('input-error'), 800);
-    return;
-  }
-  // Clamp, don't trust: "-5", "999999" and "8.7" all reach here from a number
-  // input. A rejected value returns 0 and re-prompts rather than being stored.
-  const count  = ex.timed ? clampSeconds(repsEl?.value) : clampReps(repsEl?.value);
-
-  if (!count || count < 1) {
-    repsEl?.classList.add('input-error');
-    cue('error');
-    setTimeout(() => repsEl?.classList.remove('input-error'), 800);
-    return;
-  }
+  // A typed negative or an out-of-range value re-prompts rather than being
+  // clamped into something the user did not lift.
+  const weight = isBodyweight ? 0 : _readWeight(weightEl);
+  if (weight === null) { _flagInput(weightEl); return; }
+  const count = _readCount(repsEl, ex.timed);
+  if (!count || count < 1) { _flagInput(repsEl); return; }
 
   const warmup     = block?.dataset.pendingWarmup === '1';
   const pendingRir = block?.dataset.pendingRir != null ? parseInt(block.dataset.pendingRir) : null;
@@ -525,10 +601,10 @@ window.logSet = (exIdx) => {
   // PR only for real working sets: non-warmup, weighted, rep-based.
   let wasPR = false;
   if (!warmup && !ex.timed && !isBodyweight && weight > 0) {
-    const { isPR } = detectPR(ex.exId, weight, count, state.prs);
+    const best = _bestE1rm(ex.exId, setData);
+    const { isPR } = detectPR(ex.exId, weight, count, best ? { [ex.exId]: { e1rm: best } } : {});
     if (isPR) {
       wasPR = true;
-      recordPR(ex.exId, weight, count);
       showPRToast(ex.exName, weight, count, estimateOneRepMax(weight, count));
       cue('pr');
     }
@@ -587,14 +663,18 @@ window.saveEditSet = (exIdx, setIdx) => {
   if (!set) return;
   const wEl = document.getElementById(`edit-w-${exIdx}-${setIdx}`);
   const rEl = document.getElementById(`edit-r-${exIdx}-${setIdx}`);
-  const count = set.timed ? clampSeconds(rEl?.value) : clampReps(rEl?.value);
-  if (!count || count < 1) { rEl?.classList.add('input-error'); setTimeout(() => rEl?.classList.remove('input-error'), 800); return; }
-  if (wEl) set.weight = toStoredWeight(wEl.value) || 0;   // clamped in the store
+  const count = _readCount(rEl, set.timed);
+  if (!count || count < 1) { _flagInput(rEl); return; }
+  // Same rule as logging: a negative or absurd weight re-prompts instead of
+  // silently becoming a 0-load set.
+  const w = wEl ? _readWeight(wEl) : 0;
+  if (w === null) { _flagInput(wEl); return; }
+  if (wEl) set.weight = w;
   if (set.timed) set.seconds = count; else set.reps = count;
   editingSet = null;
   updateVolumeDisplay();
   refreshExerciseBlock(exIdx);
-  // Note: editing does not retro-adjust an already-awarded PR (best-ever semantics).
+  // PRs are written at finish from the sets as they stand, so an edit counts.
 };
 window.deleteSet = (exIdx, setIdx) => {
   const ex = sessionState?.exercises[exIdx];
@@ -683,6 +763,20 @@ window.finishActiveWorkout = () => {
   const sessionId = Date.now();
   sessionState.id = sessionId;
 
+  // Records are written now, from the sets as they finally stand — edited,
+  // deleted and discarded sets never reach the PR board. Which lifts beat
+  // their previous best is worked out first, for the summary.
+  const prExIds = new Set();
+  for (const ex of sessionState.exercises) {
+    for (const st of ex.sets) {
+      if (!st.completed || st.warmup || st.timed || !(st.weight > 0)) continue;
+      if (detectPR(ex.exId, st.weight, st.reps, state.prs).isPR && recordPR(ex.exId, st.weight, st.reps)) {
+        prExIds.add(ex.exId);
+      }
+    }
+  }
+  sessionState.prExIds = [...prExIds];
+
   const gp = state.goalProgram;
   const key = completedProgramKey(sessionState, gp, gp && getProgram(gp.id));
   const previousDone = Array.isArray(gp?.done) ? gp.done : [];
@@ -714,6 +808,7 @@ function refreshAllExercises() {
   const host = document.getElementById('session-exercises');
   if (!host || !sessionState) return;
   host.innerHTML = sessionState.exercises.map((ex, i) => renderExerciseBlock(ex, i)).join('');
+  _saveDraft();
 }
 
 function scrollToExercise(exIdx) {
@@ -723,6 +818,7 @@ function scrollToExercise(exIdx) {
 // ── EXERCISE PICKER (add mid-session) ──
 let _pickerQ = '';
 let _swapIdx = null;   // when set, the picker replaces this exercise instead of adding
+let _swapGroup = '';   // muscle group a swap is restricted to
 window.pickerSearch = (v) => { _pickerQ = (v || '').trim().toLowerCase(); _renderPickerResults(); };
 
 // Swap an exercise mid-session for a similar one (same primary muscle group,
@@ -732,11 +828,14 @@ window.swapExercise = (exIdx) => {
   const ex = sessionState.exercises[exIdx];
   _swapIdx = exIdx;
   openExercisePicker();
+  // Restrict to the same primary muscle, ranked like every generator ranks.
+  // Pre-filling the search box with the group id matched names instead, so
+  // swapping Chin-Ups ("back") offered Barbell Back Squat first.
   const g = (EXERCISES[ex.exId]?.groups || [])[0] || '';
   if (g) {
-    _pickerQ = g;
+    _swapGroup = g;
     const inp = document.querySelector('#exercise-picker .lib-search');
-    if (inp) inp.value = g;
+    if (inp) inp.placeholder = `Search ${g} exercises…`;
     _renderPickerResults();
   }
   const title = document.querySelector('#exercise-picker .display');
@@ -745,7 +844,11 @@ window.swapExercise = (exIdx) => {
 
 function _pickerList() {
   const inSession = new Set(sessionState.exercises.map(e => e.exId));
-  return Object.entries(EXERCISES)
+  const base = _swapGroup
+    ? rankedForGroup(Object.entries(EXERCISES).map(([id, ex]) => ({ ...ex, id }))
+        .filter(ex => ex.groups?.[0] === _swapGroup), _swapGroup).map(ex => [ex.id, ex])
+    : Object.entries(EXERCISES);
+  return base
     .filter(([id, ex]) => {
       if (inSession.has(id)) return false;
       if (!_pickerQ) return true;
@@ -770,6 +873,7 @@ function _renderPickerResults() {
 function openExercisePicker() {
   document.getElementById('exercise-picker')?.remove();
   _pickerQ = '';
+  _swapGroup = '';
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.id = 'exercise-picker';
@@ -793,6 +897,7 @@ function closeExercisePicker() {
   document.getElementById('exercise-picker')?.remove();
   document.body.style.overflow = '';
   _swapIdx = null;   // cancel any pending swap
+  _swapGroup = '';
 }
 window.closeExercisePicker = closeExercisePicker;
 
@@ -804,6 +909,7 @@ function updateVolumeDisplay() {
   const setsEl = document.getElementById('session-sets-done');
   if (volEl) countUp(volEl, vol, { format: (n) => formatWeight(Math.round(n)) });
   if (setsEl) setsEl.textContent = sets;
+  _saveDraft();   // every set change funnels through here
 }
 
 function closeOverlay() {
@@ -812,6 +918,7 @@ function closeOverlay() {
   releaseWakeLock();
   _stopSetTimer();
   closeExercisePicker();
+  _clearDraft();
   editingSet   = null;
   sessionState = null;
   startTime    = null;
@@ -985,10 +1092,7 @@ function showSessionSummary(session, persisted = true) {
   const vol   = session.totalVolume || 0;
   const sets  = session.exercises.reduce((s, ex) => s + ex.sets.filter(x => x.completed && !x.warmup).length, 0);
   const dur   = session.durationMinutes;
-  const prs   = session.exercises.filter(ex => {
-    const topSet = ex.sets.filter(s => s.completed && s.weight > 0).sort((a,b) => b.weight-a.weight)[0];
-    return topSet && state.prs[ex.exId]?.weight === topSet.weight;
-  });
+  const prs   = session.prExIds || [];
 
   // The muscles this session actually worked — strength sets only, primary
   // target, most-hit first — so the cool-down offer stretches what you used.

@@ -32,7 +32,7 @@ import {
 } from './store.js';
 import { generateProgram } from './engine/generator.js';
 import { EXERCISES } from './data/exercises.js';
-import { startActiveWorkout } from './components/active-workout.js';
+import { startActiveWorkout, resumeActiveWorkout } from './components/active-workout.js';
 
 // ── THEME ──
 // 'forge' is the base (no attribute = Machinist). 'heat' is the default look.
@@ -616,9 +616,9 @@ window.resetProgram = () => {
 };
 
 // ── ACTIVE WORKOUT ──
-window.startActiveWorkout = (workoutId, workoutLabel, exercises, workoutType) => {
-  startActiveWorkout(workoutId, workoutLabel, exercises, workoutType);
-};
+// Pass every argument through: Programs sends a 5th (programContext — its
+// overload rule and rest period), which this wrapper used to drop.
+window.startActiveWorkout = (...args) => startActiveWorkout(...args);
 
 // ── KEYBOARD SHORTCUT: "/" jumps to the Exercise Library search ──
 document.addEventListener('keydown', (e) => {
@@ -741,6 +741,7 @@ function boot() {
     buildShell();
     setInterval(_updateStatsStrip, 30000);
     maybeShowTour();
+    resumeActiveWorkout();           // a reload mid-session picks the workout back up
   }
 }
 

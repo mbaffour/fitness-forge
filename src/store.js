@@ -344,8 +344,8 @@ export function cleanCustomExercise(ex) {
 //
 // Every path that records a set funnels through these, so the logger, the
 // edit-set form and the CSV importer are all covered.
-const MAX_WEIGHT_LB = 5000;    // ~2.3x the heaviest ratified deadlift
-const MAX_REPS      = 300;     // a very high bodyweight set; beyond this it is a typo
+export const MAX_WEIGHT_LB = 5000;    // ~2.3x the heaviest ratified deadlift
+export const MAX_REPS      = 300;     // a very high bodyweight set; beyond this it is a typo
 const MAX_SECONDS   = 24 * 3600;
 
 export function clampWeight(lbs) {

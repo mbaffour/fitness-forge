@@ -339,7 +339,9 @@ function renderNonStrengthDay(sched, program) {
 <div class="card tc" style="padding:48px">
   <div style="font-size:44px;margin-bottom:16px">${sched.type === 'cardio' ? '🏃' : '⚽'}</div>
   <div class="display" style="font-size:30px;margin-bottom:8px">${sched.label.toUpperCase()}</div>
-  <div class="dim fs13">See your cardio prescription below ↓</div>
+  <div class="dim fs13">${sched.type === 'cardio' && program?.cardioPrescriptions?.length
+    ? 'See your cardio prescription below ↓'
+    : 'Easy movement or full rest — log any cardio you do.'}</div>
   <button class="btn btn-green btn-sm" style="margin-top:16px" onclick="navigate('cardio');setTimeout(()=>switchLogTab('cardio'),100)">+ Log Cardio →</button>
 </div>`;
 }
