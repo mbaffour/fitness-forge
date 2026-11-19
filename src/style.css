@@ -3114,3 +3114,53 @@ body.session-active .sidebar { display: none !important; }
 .pr-tl-name.is-tappable { display: flex; align-items: center; gap: 8px; }
 .pr-tl-name .ex-thumb { width: 26px; height: 26px; }
 .freestyle-ex-card .ex-thumb, .cali-ex-card .ex-thumb { width: 34px; height: 34px; }
+
+/* ══ CROSS-CUTTING: KEYBOARD, MOBILE ERGONOMICS ══ */
+
+/* One visible focus ring for keyboard users, in the only interactive accent.
+   :where() keeps this at the specificity of the pseudo-class alone, so a
+   component that already draws its own focus state (inputs turn their border
+   fire, .mm-tap, .is-tappable) still wins. Mouse and touch never trigger
+   :focus-visible on buttons, so nothing changes for them. */
+:where(button, a, summary, select, [tabindex], [role="button"], [role="checkbox"]):focus-visible {
+  outline: 2px solid var(--fire);
+  outline-offset: 2px;
+}
+
+@media (max-width: 768px) {
+  /* Hub sub-tabs sat at the top of <main>, which on mobile begins under the
+     fixed 56px topbar and the sticky stats strip — so the Train / Log /
+     Progress sub-tabs (the only in-page route to 10 Train pages) were never
+     visible. Push them below the bar and let them, not the page, clear it. */
+  #hub-subtabs:not(:empty) { padding: 64px 16px 0; }
+  #hub-subtabs:not(:empty) ~ .page { padding-top: 0 !important; }
+
+  /* A 12-letter title ("ACHIEVEMENTS", "CALISTHENICS") at 48px Fira Code is
+     wider than a 360px screen and was clipped mid-letter. */
+  .page-title { font-size: clamp(30px, 11vw, 48px); overflow-wrap: anywhere; }
+
+  /* iOS Safari zooms the whole page when an input under 16px takes focus —
+     on every set the logger asks you to type. */
+  .form-input, .input, .lib-search, .set-input,
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
+  select, textarea { font-size: 16px; }
+
+  /* Primary controls under ~32px are hard to hit with a thumb at the rack. */
+  .wtab, .btn-sm, .seg-btn, .tab-btn, .int-btn, .hiit-wk-btn, .lib-chip, .ex-act-btn, .hiit-demo-btn { min-height: 36px; }
+  .ex-act-btn { min-width: 36px; }
+  .rir-btn { min-width: 32px; min-height: 32px; font-size: 11px; }
+  .hiit-ex-chk { width: 28px; height: 28px; }
+  .hiit-ex-chk.on::after { font-size: 14px; }
+
+  /* Focus mode: the rule below the tab bar hides `.topbar`, but the mobile bar
+     is `.mobile-topbar`, so the hamburger stayed live over the workout and
+     could open the drawer mid-set. */
+  body.session-active .mobile-topbar,
+  body.session-active .stats-strip { display: none !important; }
+  body.session-active .active-session-overlay { padding-top: 20px; }
+
+  /* HIIT's four view tabs are wider than a phone; scroll them like hub tabs
+     instead of pushing the page sideways. */
+  .hiit-tabs { overflow-x: auto; scrollbar-width: none; }
+  .hiit-tab { flex: 0 0 auto; white-space: nowrap; padding: 10px 14px; }
+}
