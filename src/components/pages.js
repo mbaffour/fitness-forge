@@ -1,4 +1,4 @@
-import { state, save, setPhase, setWeek, logWorkout, clearLog, resetAll, updateProfile, formatWeight, displayName, pruneIdMap, cleanCustomExercise } from '../store.js';
+import { state, save, setPhase, setWeek, logWorkout, clearLog, resetAll, updateProfile, formatWeight, displayName, pruneIdMap, cleanCustomExercise, cleanMetricDefs, cleanMetricLog } from '../store.js';
 import { GOAL_OPTIONS, LEVEL_OPTIONS, PHASE_NAMES, PHASE_DESCS, EXERCISES, MUSCLE_GROUPS } from '../data/exercises.js';
 import { calcBMR, calcTDEE, calcMacros, ACTIVITY_MULTIPLIERS } from '../engine/bmr.js';
 import { renderCardioLog, scheduleCardioCharts } from './cardio-log.js';
@@ -769,6 +769,8 @@ ${(() => {
       <button class="btn btn-ghost btn-sm" onclick="exportCSV('food')">📊 Food Log</button>
       <button class="btn btn-ghost btn-sm" onclick="exportCSV('sleep')">📊 Sleep Log</button>
       <button class="btn btn-ghost btn-sm" onclick="exportCSV('activity')">📊 Activity Log</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportCSV('body')">📊 Body Log</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportCSV('metrics')">📊 Custom Metrics</button>
     </div>
   </div>
 </div>
@@ -1030,6 +1032,25 @@ window.exportCSV = (type) => {
       });
       return rows;
     },
+    body: () => {
+      // Canonical units (lbs, inches), labelled, so a re-import or a
+      // spreadsheet never has to guess which unit a number was in.
+      const M = ['chest','waist','hips','leftArm','rightArm','leftThigh','neck'];
+      const rows = [['Date','Weight(lbs)','BodyFat(%)', ...M.map((m) => `${m}(in)`), 'Notes']];
+      state.bodyLog.forEach(e => {
+        rows.push([String(e.date || '').slice(0, 10), e.weight ?? '', e.bodyFatPct ?? '',
+          ...M.map((m) => e.measurements?.[m] ?? ''), e.notes || '']);
+      });
+      return rows;
+    },
+    metrics: () => {
+      const rows = [['Date','Metric','Value','Unit']];
+      state.metricLog.forEach(e => {
+        const d = state.metricDefs[e.metric];
+        if (d) rows.push([String(e.date).slice(0, 10), d.name, e.value, d.unit]);
+      });
+      return rows;
+    },
     activity: () => {
       const rows = [['Date','Type','Duration(min)','Intensity','Calories','Distance','HR','Notes']];
       state.activityLog.forEach(e => {
@@ -1069,7 +1090,11 @@ const BACKUP_KEYS = [
   'workoutLog', 'sessions', 'cardioLog', 'nutritionLog', 'bodyLog', 'sleepLog',
   'activityLog', 'achievements', 'prs', 'customExercises', 'streak', 'settings',
   'gymProfiles', 'activeGymId', 'goalProgram', 'challenge', 'bodyMapTray',
-  'bodyMapSel', 'fasting',
+  'bodyMapSel', 'metricDefs', 'metricLog',
+  // These four were missing — the list said 'fasting', a key the app never
+  // writes — so restoring a backup silently dropped the whole fasting history,
+  // any fast in progress, HIIT progress and the Overload rotation.
+  'fastingLog', 'activeFast', 'hiitState', 'overloadState',
 ];
 function sanitizeBackup(parsed) {
   const out = {};
@@ -1083,6 +1108,8 @@ function sanitizeBackup(parsed) {
     const clean = cleanCustomExercise(ex);
     if (clean) out.customExercises[id] = clean; else delete out.customExercises[id];
   }
+  out.metricDefs = cleanMetricDefs(out.metricDefs);
+  out.metricLog = cleanMetricLog(out.metricLog, out.metricDefs);
   return out;
 }
 
