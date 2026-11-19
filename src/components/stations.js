@@ -259,10 +259,11 @@ export function renderStations() {
   return station ? detailHTML(station) : pickerHTML();
 }
 
-function rerender() {
+function rerender(toTop = false) {
   const el = document.getElementById('page-stations');
   if (el) el.innerHTML = renderStations();
-  document.getElementById('main-area')?.scrollTo(0, 0);
+  // Opening or leaving a station is a new view; a muscle filter is not.
+  if (toTop) window.scrollTo(0, 0);
 }
 
 // ── HANDLERS ────────────────────────────────────────────────────────────────
@@ -270,7 +271,7 @@ window.stationOpen = (id) => {
   _tool = id || null;
   _muscle = 'all';
   if (id) cue('select');
-  rerender();
+  rerender(true);
 };
 
 window.stationMuscle = (m) => { _muscle = m; cue('select'); rerender(); };

@@ -488,7 +488,10 @@ function navigate(pageId, pushHistory = true) {
     chartFor(pageId)?.();
   }
 
+  // The window is the scroller, not #main-area (which never overflows), so a
+  // page used to open wherever the previous one had been scrolled to.
   document.getElementById('main-area')?.scrollTo(0, 0);
+  window.scrollTo(0, 0);
 }
 
 // Navigate to a hub — land on the hub's current page if already inside it,

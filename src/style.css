@@ -1857,6 +1857,11 @@ details[open] .ex-cues summary::before { transform: rotate(90deg); }
 /* On mobile, pages need extra top padding for topbar + strip */
 @media (max-width: 768px) {
   .page { padding-top: 110px !important; }
+  /* Hub sub-tabs sit above the pages in <main>, so they were drawn underneath
+     the fixed topbar and unreachable on a phone. Clear the topbar + strip
+     here instead, and let the page below drop its own clearance. */
+  #hub-subtabs:not(:empty) { padding: 72px 16px 0; }
+  #hub-subtabs:not(:empty) ~ .page { padding-top: 8px !important; }
 }
 
 /* ── FASTING RING ── */
