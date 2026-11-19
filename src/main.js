@@ -33,7 +33,7 @@ import {
 } from './store.js';
 import { generateProgram } from './engine/generator.js';
 import { EXERCISES } from './data/exercises.js';
-import { startActiveWorkout } from './components/active-workout.js';
+import { startActiveWorkout, resumeActiveWorkout } from './components/active-workout.js';
 
 // ── THEME ──
 // 'forge' is the base (no attribute = Machinist). 'heat' is the default look.
@@ -233,6 +233,15 @@ function hubSubtabsHTML(pageId) {
     <button class="hub-tab ${id === pageId ? 'active' : ''}" onclick="navigate('${id}')">
       <span>${PAGE_META[id].icon}</span>${PAGE_META[id].label}
     </button>`).join('')}</div>`;
+}
+
+// The Train hub has eleven sub-tabs; on a phone the active one (HIIT, Library…)
+// sat off-screen to the right, so nothing showed where you were. Centre it.
+function revealActiveSubtab() {
+  const bar = document.querySelector('#hub-subtabs .hub-tabs');
+  const tab = bar?.querySelector('.hub-tab.active');
+  if (!bar || !tab || bar.scrollWidth <= bar.clientWidth) return;
+  bar.scrollLeft = tab.offsetLeft - bar.offsetLeft - (bar.clientWidth - tab.offsetWidth) / 2;
 }
 
 // Mobile bottom tab bar (one entry per hub).
@@ -450,6 +459,7 @@ function buildShell() {
 ${tabbarHTML(currentPage)}
   `;
 
+  revealActiveSubtab();
   chartFor(currentPage)?.();
 }
 
@@ -489,12 +499,7 @@ function navigate(pageId, pushHistory = true) {
 
   // Refresh hub sub-tabs + mobile tab-bar active state.
   const sub = document.getElementById('hub-subtabs');
-  if (sub) {
-    sub.innerHTML = hubSubtabsHTML(pageId);
-    // On a phone the strip scrolls; keep the current tab in view (Train has 11).
-    const t = sub.querySelector('.hub-tab.active'), strip = t?.parentElement;
-    if (t && strip.scrollWidth > strip.clientWidth) strip.scrollLeft += t.getBoundingClientRect().left - strip.getBoundingClientRect().left - (strip.clientWidth - t.offsetWidth) / 2;
-  }
+  if (sub) { sub.innerHTML = hubSubtabsHTML(pageId); revealActiveSubtab(); }
   const activeHub = hubOf(pageId).id;
   document.querySelectorAll('.tabbar-btn').forEach((btn, i) => {
     btn.classList.toggle('active', HUBS[i]?.id === activeHub);
@@ -508,10 +513,9 @@ function navigate(pageId, pushHistory = true) {
     chartFor(pageId)?.();
   }
 
+  // The window is the scroller, not #main-area (which never overflows), so a
+  // page used to open wherever the previous one had been scrolled to.
   document.getElementById('main-area')?.scrollTo(0, 0);
-  // On mobile it is the window that scrolls, not .main — so a new page opened
-  // at whatever depth the last one was left (bottom of Settings → bottom of
-  // the dashboard).
   window.scrollTo(0, 0);
 }
 
@@ -637,9 +641,9 @@ window.resetProgram = () => {
 };
 
 // ── ACTIVE WORKOUT ──
-window.startActiveWorkout = (workoutId, workoutLabel, exercises, workoutType) => {
-  startActiveWorkout(workoutId, workoutLabel, exercises, workoutType);
-};
+// Pass every argument through: Programs sends a 5th (programContext — its
+// overload rule and rest period), which this wrapper used to drop.
+window.startActiveWorkout = (...args) => startActiveWorkout(...args);
 
 // ── KEYBOARD SHORTCUT: "/" jumps to the Exercise Library search ──
 document.addEventListener('keydown', (e) => {
@@ -820,6 +824,7 @@ function boot() {
     buildShell();
     _startStripTimer();
     maybeShowTour();
+    resumeActiveWorkout();           // a reload mid-session picks the workout back up
   }
 }
 

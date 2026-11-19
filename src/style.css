@@ -1454,7 +1454,7 @@ select.form-input option { background: var(--bg-3); }
 }
 .set-input:focus { outline: none; border-color: var(--fire); }
 .set-input.input-error { border-color: var(--danger); animation: shake 0.3s; }
-.rir-selector { display: flex; gap: 3px; width: 90px; flex-shrink: 0; }
+.rir-selector { display: flex; gap: 3px; flex-shrink: 0; }  /* a fixed 90px pushed RIR 4–5 under the W toggle */
 .rir-btn {
   padding: 5px 6px; background: var(--bg-3); border: 1px solid var(--border);
   color: var(--text-3); font-family: var(--ff-mono); font-size: 9px;
@@ -1867,6 +1867,8 @@ details[open] .ex-cues summary::before { transform: rotate(90deg); }
 /* On mobile, pages need extra top padding for topbar + strip */
 @media (max-width: 768px) {
   .page { padding-top: 110px !important; }
+  /* Pages under a hub sub-tab row: the row clears the bar instead (see the
+     mobile #hub-subtabs rule with the focus-visible styles below). */
 }
 
 /* ── FASTING RING ── */
@@ -2493,10 +2495,6 @@ details[open] summary span:last-child { transform: rotate(180deg); display: inli
    top padding over for it. */
 #hub-subtabs:not(:empty) { padding: 20px 48px 0; max-width: 1080px; }
 #hub-subtabs:not(:empty) ~ .page { padding-top: 8px; }
-@media (max-width: 768px) {
-  #hub-subtabs:not(:empty) { padding: 72px 16px 0; }
-  #hub-subtabs:not(:empty) ~ .page { padding-top: 8px !important; }
-}
 
 /* ── Bottom tab bar (mobile) ── */
 .tabbar { display: none; }
@@ -2520,9 +2518,16 @@ details[open] summary span:last-child { transform: rotate(180deg); display: inli
   /* Hide the desktop sidebar drawer trigger overlap handled elsewhere */
 }
 /* Focus mode: hide all nav chrome during an active workout */
+/* The mobile bar is .mobile-topbar — `.topbar` matched nothing, so the
+   hamburger stayed on screen mid-session and opened a blurred backdrop over a
+   drawer this rule hides. */
 body.session-active .tabbar,
-body.session-active .topbar,
+body.session-active .mobile-topbar,
+body.session-active .sidebar-backdrop,
 body.session-active .sidebar { display: none !important; }
+@media (max-width: 768px) {
+  body.session-active .active-session-overlay { padding-top: calc(16px + env(safe-area-inset-top, 0px)); }
+}
 
 /* ── Hero "Today's Workout" card ── */
 .hero-card {
