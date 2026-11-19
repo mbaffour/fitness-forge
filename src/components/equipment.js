@@ -5,7 +5,7 @@
 //   auto-progressed targets. Save gym profiles.
 // ═══════════════════════════════════════════
 
-import { state, getOwnedItems, saveGymProfile, setActiveGym, deleteGymProfile, formatWeight } from '../store.js';
+import { state, getOwnedItems, saveGymProfile, setActiveGym, deleteGymProfile, renameGymProfile, formatWeight } from '../store.js';
 import { EQUIP_ITEMS, LOCATION_PRESETS, MUSCLE_GROUPS, EXERCISES, getExercisesForItems, isStrengthExercise } from '../data/exercises.js';
 import { buildFullBodyOverload, OVERLOAD_VARIANTS } from '../engine/generator.js';
 import { suggestNextSet } from '../engine/overload.js';
@@ -84,11 +84,17 @@ export function renderEquipment() {
 
   const exercisesJson = JSON.stringify(_plan.map(ex => ({ id: ex.id, name: ex.name, sets: ex.sets, reps: ex.reps, muscle: ex.muscle }))).replace(/'/g, '&#39;');
 
+  // Saved profiles could be created and switched but never renamed or
+  // removed — the handlers existed with no button wired to them.
+  const activeGym = state.gymProfiles.find(gp => gp.id === state.activeGymId);
   const profilesRow = state.gymProfiles.length ? `
-    <div class="flex f-wrap gap-2 mt-3">
+    <div class="flex f-wrap gap-2 mt-3" style="align-items:center">
       ${state.gymProfiles.map(gp => `
-        <button class="eq-chip${gp.id === state.activeGymId ? ' on' : ''}" onclick="equipLoadProfile(${gp.id})" title="${gp.items.length} items">${gp.name}</button>
+        <button class="eq-chip${gp.id === state.activeGymId ? ' on' : ''}" onclick="equipLoadProfile(${Number(gp.id)})" title="${gp.items.length} items">${gp.name}</button>
       `).join('')}
+      ${activeGym ? `
+        <button class="btn btn-ghost btn-sm" onclick="equipRenameProfile(${Number(activeGym.id)})" title="Rename ${activeGym.name}">✎ Rename</button>
+        <button class="btn btn-danger btn-sm" onclick="equipDeleteProfile(${Number(activeGym.id)})" title="Delete ${activeGym.name}">🗑 Delete</button>` : ''}
     </div>` : '';
 
   return `
@@ -157,7 +163,21 @@ window.equipLoadProfile = (id) => {
   const gp = state.gymProfiles.find(p => p.id === id);
   if (gp) { setActiveGym(id); _owned = new Set(gp.items); rebuild(); rerender(); }
 };
-window.equipDeleteProfile = (id) => { deleteGymProfile(id); rerender(); };
+window.equipRenameProfile = (id) => {
+  const gp = state.gymProfiles.find(p => p.id === id);
+  if (!gp) return;
+  const name = prompt('Rename this gym setup:', gp.name);
+  if (name == null) return;
+  renameGymProfile(id, name.trim());
+  rerender();
+};
+window.equipDeleteProfile = (id) => {
+  const gp = state.gymProfiles.find(p => p.id === id);
+  if (!gp || !confirm(`Delete the gym profile "${gp.name}"?`)) return;
+  deleteGymProfile(id);
+  // Fall back to whatever is now active (another profile, or the onboarding kit).
+  _owned = new Set(getOwnedItems()); rebuild(); rerender();
+};
 window.equipStart = (exercises) => {
   window.startActiveWorkout(`equipment-${_variant}`, `Full Body ${OVERLOAD_VARIANTS[_variant].key}`, exercises, 'strength');
 };

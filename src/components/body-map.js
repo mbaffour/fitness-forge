@@ -6,7 +6,7 @@
 // ═══════════════════════════════════════════
 
 import { state, getOwnedItems, formatWeight, save } from '../store.js';
-import { EXERCISES, getExercisesForItems, isStrengthExercise, isStretch, stapleRank, equipTags, regionOf, parentOf, subOf, targetsOf } from '../data/exercises.js';
+import { EXERCISES, getExercisesForItems, isStrengthExercise, isStretch, rankedForGroup, equipTags, regionOf, parentOf, subOf, targetsOf } from '../data/exercises.js';
 import { EXERCISE_ANIM } from '../data/exercise-anim.js';
 import { renderBodyFigures, muscleLoadData } from './analytics.js';
 import { suggestNextSet } from '../engine/overload.js';
@@ -61,12 +61,12 @@ function pickForGroup(groupId, n = 8) {
   // entries (fx_/wg_ ids). Then primary-group match, compound, then name.
   // Logged lifts first (they carry real history, so their loads are progressed
   // rather than estimated), then the shared staple ranking every generator uses.
-  list.sort((a, b) =>
-    (logged.has(a.id) ? 0 : 1) - (logged.has(b.id) ? 0 : 1) ||
-    stapleRank(a, groupId) - stapleRank(b, groupId) ||
-    (a.type === 'compound' ? 0 : 1) - (b.type === 'compound' ? 0 : 1) ||
-    (a.name || '').localeCompare(b.name || ''));
-  return n === Infinity ? list : list.slice(0, n);
+  // rankedForGroup also puts bands after free weights within a tier — sorting
+  // on stapleRank alone then the name put Band Chest Press ahead of Barbell
+  // Bench Press for someone with a full gym. The sort below is stable.
+  const ranked = rankedForGroup(list, groupId)
+    .sort((a, b) => (logged.has(a.id) ? 0 : 1) - (logged.has(b.id) ? 0 : 1));
+  return n === Infinity ? ranked : ranked.slice(0, n);
 }
 
 // Concrete per-set plan for one exercise: every working set gets a stated

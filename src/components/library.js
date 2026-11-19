@@ -5,7 +5,7 @@
 //   existing detail modal (openExDetail).
 // ═══════════════════════════════════════════
 
-import { EXERCISES, MUSCLE_GROUPS, EQUIPMENT_OPTIONS } from '../data/exercises.js';
+import { EXERCISES, MUSCLE_GROUPS, EQUIPMENT_OPTIONS, EQUIP_ITEMS } from '../data/exercises.js';
 import { exPreviewHTML } from './modal.js';
 import { MOVEMENT_PATTERNS, movementPattern } from './movement-patterns.js';
 import { pageHeader, sectionHead } from './ui.js';
@@ -127,10 +127,16 @@ window.libSaveCreate = () => {
   if (!name) { document.getElementById('create-name')?.focus(); return; }
   const type  = document.getElementById('create-type')?.value || 'compound';
   const diff  = document.getElementById('create-diff')?.value || 'int';
-  const equip = document.getElementById('create-equip')?.value || 'full_gym';
+  // The select names the one piece of kit the movement needs. It used to offer
+  // the onboarding presets (Full Gym, Dumbbells Only…) and save `requires: []`
+  // whatever was chosen — and an empty `requires` is how the engine spots a
+  // bodyweight movement, so every custom exercise was logged with no weight.
+  const item  = document.getElementById('create-equip')?.value || 'bodyweight';
+  const requires = EQUIP_ITEMS.some(i => i.id === item) ? [item] : [];
+  const equip = !requires.length ? 'bodyweight' : item === 'dumbbells' ? 'dumbbells' : 'full_gym';
   const groups = [..._createGroups];
   const muscle = groups.map(g => MUSCLE_GROUPS.find(m => m.id === g)?.label).filter(Boolean).join(' / ') || 'General';
-  const id = addCustomExercise({ name, type, diff, equip: [equip], groups, muscle });
+  const id = addCustomExercise({ name, type, diff, equip: [equip], requires, groups, muscle });
   _createGroups.clear();
   window.libCloseCreate();
   // surface the new exercise: clear filters and search for it
@@ -178,7 +184,8 @@ window.libOpenCreate = () => {
     </div>
     <label class="label">Equipment</label>
     <select id="create-equip" class="form-input" style="width:100%;margin:6px 0 14px">
-      ${EQUIPMENT_OPTIONS.map(o => `<option value="${o.id}">${o.label}</option>`).join('')}
+      <option value="bodyweight">None — bodyweight</option>
+      ${EQUIP_ITEMS.map(o => `<option value="${o.id}"${o.id === 'barbell' ? ' selected' : ''}>${o.label}</option>`).join('')}
     </select>
     <label class="label">Muscle groups</label>
     <div id="create-grps" class="lib-chips" style="margin-top:6px">

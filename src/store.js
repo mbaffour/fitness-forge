@@ -212,7 +212,7 @@ export function addCustomExercise(ex) {
     muscle: cleanText(ex.muscle, 60) || '',
     groups: ex.groups || [],
     equip:  ex.equip  || ['full_gym'],
-    requires: ex.requires || [],
+    requires: _customRequires(ex),
     type:   ex.type   || 'compound',
     diff:   ex.diff   || 'int',
     cues:   (ex.cues || []).map((c) => cleanText(c, 200)),
@@ -318,6 +318,18 @@ export function pruneIdMap(obj) {
 // is otherwise merged into the shared EXERCISES map wholesale, so a tampered
 // backup could add an `imgKey` of `" onerror=…` — which lands inside the
 // double-quoted `src` of every thumbnail built for it.
+// Custom exercises created before the form asked for a piece of kit were all
+// saved with `requires: []`, which the engine reads as bodyweight — no weight
+// field in the logger. Recover a loaded default from the preset they picked.
+function _customRequires(ex) {
+  const req = Array.isArray(ex.requires) ? ex.requires.filter((x) => typeof x === 'string').slice(0, 20) : [];
+  if (req.length) return req;
+  const preset = Array.isArray(ex.equip) ? ex.equip[0] : null;
+  if (preset === 'dumbbells' || preset === 'home_basic') return ['dumbbells'];
+  if (preset === 'full_gym') return ['barbell'];
+  return [];
+}
+
 export function cleanCustomExercise(ex) {
   if (!ex || typeof ex !== 'object') return null;
   const str = (v, n) => (v == null ? '' : cleanText(v, n));
@@ -327,7 +339,7 @@ export function cleanCustomExercise(ex) {
     muscle:   str(ex.muscle, 60),
     groups:   arr(ex.groups),
     equip:    arr(ex.equip).length ? arr(ex.equip) : ['full_gym'],
-    requires: arr(ex.requires),
+    requires: _customRequires(ex),
     type:     ex.type === 'isolation' ? 'isolation' : 'compound',
     diff:     ['beg', 'int', 'adv'].includes(ex.diff) ? ex.diff : 'int',
     cues:     arr(ex.cues).map((c) => cleanText(c, 200)),
@@ -475,6 +487,15 @@ export function saveGymProfile(name, items) {
 export function setActiveGym(id) {
   state.activeGymId = id;
   save();
+}
+
+export function renameGymProfile(id, name) {
+  const gp = state.gymProfiles.find(p => p.id === id);
+  const label = cleanText(name, 40);
+  if (!gp || !label) return false;
+  gp.name = label;
+  save();
+  return true;
 }
 
 export function deleteGymProfile(id) {
