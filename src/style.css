@@ -2500,9 +2500,16 @@ details[open] summary span:last-child { transform: rotate(180deg); display: inli
   /* Hide the desktop sidebar drawer trigger overlap handled elsewhere */
 }
 /* Focus mode: hide all nav chrome during an active workout */
+/* The mobile bar is .mobile-topbar — `.topbar` matched nothing, so the
+   hamburger stayed on screen mid-session and opened a blurred backdrop over a
+   drawer this rule hides. */
 body.session-active .tabbar,
-body.session-active .topbar,
+body.session-active .mobile-topbar,
+body.session-active .sidebar-backdrop,
 body.session-active .sidebar { display: none !important; }
+@media (max-width: 768px) {
+  body.session-active .active-session-overlay { padding-top: calc(16px + env(safe-area-inset-top, 0px)); }
+}
 
 /* ── Hero "Today's Workout" card ── */
 .hero-card {

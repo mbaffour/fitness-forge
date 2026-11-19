@@ -234,6 +234,15 @@ function hubSubtabsHTML(pageId) {
     </button>`).join('')}</div>`;
 }
 
+// The Train hub has eleven sub-tabs; on a phone the active one (HIIT, Library…)
+// sat off-screen to the right, so nothing showed where you were. Centre it.
+function revealActiveSubtab() {
+  const bar = document.querySelector('#hub-subtabs .hub-tabs');
+  const tab = bar?.querySelector('.hub-tab.active');
+  if (!bar || !tab || bar.scrollWidth <= bar.clientWidth) return;
+  bar.scrollLeft = tab.offsetLeft - bar.offsetLeft - (bar.clientWidth - tab.offsetWidth) / 2;
+}
+
 // Mobile bottom tab bar (one entry per hub).
 function tabbarHTML(pageId) {
   const activeHub = hubOf(pageId).id;
@@ -434,6 +443,7 @@ function buildShell() {
 ${tabbarHTML(currentPage)}
   `;
 
+  revealActiveSubtab();
   chartFor(currentPage)?.();
 }
 
@@ -474,7 +484,7 @@ function navigate(pageId, pushHistory = true) {
 
   // Refresh hub sub-tabs + mobile tab-bar active state.
   const sub = document.getElementById('hub-subtabs');
-  if (sub) sub.innerHTML = hubSubtabsHTML(pageId);
+  if (sub) { sub.innerHTML = hubSubtabsHTML(pageId); revealActiveSubtab(); }
   const activeHub = hubOf(pageId).id;
   document.querySelectorAll('.tabbar-btn').forEach((btn, i) => {
     btn.classList.toggle('active', HUBS[i]?.id === activeHub);
