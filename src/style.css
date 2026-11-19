@@ -1585,6 +1585,9 @@ select.form-input option { background: var(--bg-3); }
 }
 .cal-cell.active { background: var(--fire); border-color: var(--fire); opacity: 0.8; }
 .cal-cell.today  { border-color: var(--forge-green) !important; }
+/* Cap the cells: 7 fluid columns made each day a ~100px tile on desktop and
+   the 12-week calendar over a thousand pixels tall. */
+.cal-dow-labels, .cal-grid { grid-template-columns: repeat(7, minmax(12px, 28px)); }
 
 /* ── CARDIO LOG ── */
 .cardio-entry-row {
@@ -1936,6 +1939,13 @@ details[open] .ex-cues summary::before { transform: rotate(90deg); }
   flex-direction: column;
   align-items: center;
   gap: 6px;
+}
+/* On a phone the rings shared a line with the score, got ~100px, and stacked
+   one per row — a report card four screens tall. Give them their own row of
+   four, scaled to fit. */
+@media (max-width: 768px) {
+  .goal-rings-row { flex: 1 1 100% !important; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .goal-ring-wrap svg { width: 100%; height: auto; max-width: 90px; }
 }
 .goal-ring-label {
   font-family: var(--ff-mono);
@@ -2475,6 +2485,18 @@ details[open] summary span:last-child { transform: rotate(180deg); display: inli
 }
 .hub-tab:hover { color: var(--text); }
 .hub-tab.active { color: var(--fire); border-bottom-color: var(--fire); }
+/* The sub-tab row sits above the active .page, outside its padding. On
+   mobile that put it under the fixed topbar + sticky stats strip — fully
+   hidden, so Progress / Analytics / Achievements could not be switched
+   between without the drawer — and on desktop it hugged the sidebar edge,
+   out of line with the page. Give it the page's gutters and take the page's
+   top padding over for it. */
+#hub-subtabs:not(:empty) { padding: 20px 48px 0; max-width: 1080px; }
+#hub-subtabs:not(:empty) ~ .page { padding-top: 8px; }
+@media (max-width: 768px) {
+  #hub-subtabs:not(:empty) { padding: 72px 16px 0; }
+  #hub-subtabs:not(:empty) ~ .page { padding-top: 8px !important; }
+}
 
 /* ── Bottom tab bar (mobile) ── */
 .tabbar { display: none; }

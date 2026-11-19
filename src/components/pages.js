@@ -1,4 +1,4 @@
-import { state, save, setPhase, setWeek, logWorkout, clearLog, resetAll, updateProfile, formatWeight, displayName, pruneIdMap, cleanCustomExercise, cleanMetricDefs, cleanMetricLog } from '../store.js';
+import { state, save, setPhase, setWeek, logWorkout, clearLog, resetAll, updateProfile, formatWeight, toDisplayWeight, toStoredWeight, weightUnitLabel, displayName, currentStreak, pruneIdMap, cleanCustomExercise, cleanMetricDefs, cleanMetricLog } from '../store.js';
 import { GOAL_OPTIONS, LEVEL_OPTIONS, PHASE_NAMES, PHASE_DESCS, EXERCISES, MUSCLE_GROUPS } from '../data/exercises.js';
 import { calcBMR, calcTDEE, calcMacros, ACTIVITY_MULTIPLIERS } from '../engine/bmr.js';
 import { renderCardioLog, scheduleCardioCharts } from './cardio-log.js';
@@ -75,7 +75,7 @@ ${(() => {
   <div class="hero-meta">
     <div><span class="k">Focus</span><span class="v">${focus}</span></div>
     <div><span class="k">Program</span><span class="v">${pct}% done</span></div>
-    <div><span class="k">Streak</span><span class="v">${streak.current} <span class="streak-flame">🔥</span></span></div>
+    <div><span class="k">Streak</span><span class="v">${currentStreak()} <span class="streak-flame">🔥</span></span></div>
     <div><span class="k">Sessions</span><span class="v">${totalSessions}</span></div>
   </div>
   ${cta}
@@ -123,9 +123,9 @@ ${(() => {
   </div>
   <div class="stat s-green" style="cursor:pointer" onclick="navigate('achievements')">
     <div class="label">Streak</div>
-    <div class="display" style="font-size:28px;margin-top:6px">${streak.current}d</div>
+    <div class="display" style="font-size:28px;margin-top:6px">${currentStreak()}d</div>
   </div>
-  <div class="stat s-steel" style="cursor:pointer" onclick="navigate('body')">
+  <div class="stat s-steel" style="cursor:pointer" onclick="navigate('achievements')">
     <div class="label">PRs</div>
     <div class="display" style="font-size:28px;margin-top:6px">${Object.keys(state.prs).length}</div>
   </div>
@@ -147,7 +147,7 @@ ${(() => {
       <div class="label" style="color:${isActive ? 'var(--fire)' : isDone ? 'var(--forge-green)' : 'var(--text-3)'}">
         ${isDone ? '✓ ' : isActive ? '→ ' : ''}Phase ${n}
       </div>
-      <div class="display" style="font-size:22px;margin:6px 0;color:${isActive ? 'var(--text)' : 'var(--text-2)'}">
+      <div class="display" style="font-size:clamp(15px,4.4vw,22px);overflow-wrap:anywhere;margin:6px 0;color:${isActive ? 'var(--text)' : 'var(--text-2)'}">
         ${name.toUpperCase()}
       </div>
       <div class="muted" style="font-size:11px">Weeks ${(n-1)*4+1}–${n*4}</div>
@@ -532,7 +532,7 @@ ${sessions.length >= 2 ? `
 ` : ''}
 
 ${prKeys.length > 0 ? `
-<div class="sec-head" style="margin-bottom:12px">Strength Trend — ${(state.prs[prKeys[0]] ? (state.prs[prKeys[0]].weight + 'lb ' + prKeys[0].replace(/_/g,' ')) : '')}</div>
+<div class="sec-head" style="margin-bottom:12px">Strength Trend — ${EXERCISES[prKeys[0]]?.name || prKeys[0].replace(/_/g,' ')} · PR ${formatWeight(state.prs[prKeys[0]]?.weight)}</div>
 <div class="card mb24" style="margin-bottom:24px">
   <div class="chart-wrap" style="height:180px" id="strength-chart-1-wrap"><canvas id="strength-chart-1"></canvas></div>
 </div>
@@ -874,6 +874,10 @@ ${(() => {
       <input type="number" id="pf-in" class="form-input" placeholder="10" min="0" max="11" value="${profile?.heightIn || ''}" style="width:100%;margin-top:4px;box-sizing:border-box">
     </div>
     <div>
+      <label class="label">Bodyweight (${weightUnitLabel()})</label>
+      <input type="number" id="pf-weight" class="form-input" placeholder="${weightUnitLabel() === 'kg' ? '80' : '180'}" value="${profile?.weight ? toDisplayWeight(profile.weight) : ''}" style="width:100%;margin-top:4px;box-sizing:border-box">
+    </div>
+    <div>
       <label class="label">Age</label>
       <input type="number" id="pf-age" class="form-input" placeholder="28" min="13" max="100" value="${profile?.age || ''}" style="width:100%;margin-top:4px;box-sizing:border-box">
     </div>
@@ -969,18 +973,26 @@ window.saveBMR = () => {
   const age      = parseInt(document.getElementById('pf-age')?.value)      || 0;
   const sex      = document.getElementById('pf-sex')?.value;
   const activity = document.getElementById('pf-activity')?.value;
+  // Bodyweight lives here too: someone who skipped it during onboarding had
+  // no way to set it, and the button reported "BMR: null · TDEE: null".
+  const wRaw     = parseFloat(document.getElementById('pf-weight')?.value);
+  const weight   = wRaw ? Math.round(toStoredWeight(wRaw)) : 0;
 
-  if (!ft || !age || !sex || !activity) {
-    alert('Please fill in height, age, sex, and activity level.');
+  if (!ft || !age || !sex || !activity || !weight) {
+    alert('Please fill in height, bodyweight, age, sex, and activity level.');
+    return;
+  }
+  if (weight < 60 || weight > 700 || age < 13 || age > 100 || ft < 3 || ft > 8 || inches < 0 || inches > 11) {
+    alert('Those numbers look off — check height, bodyweight and age.');
     return;
   }
 
   const heightCm = Math.round((ft * 12 + inches) * 2.54);
-  const patches  = { heightFt: ft, heightIn: inches, height: heightCm, age, sex, activityLevel: activity };
+  const patches  = { heightFt: ft, heightIn: inches, height: heightCm, age, sex, activityLevel: activity, weight };
   const tmpProfile = { ...state.profile, ...patches };
   const bmr  = calcBMR(tmpProfile);
   const tdee = calcTDEE(bmr, activity);
-  const macros = state.profile ? calcMacros(tdee, state.profile.goal, state.profile.weight) : null;
+  const macros = state.profile ? calcMacros(tdee, state.profile.goal, weight) : null;
 
   updateProfile({ ...patches, bmr, tdee, ...(macros || {}) });
 
@@ -1125,6 +1137,9 @@ function sanitizeBackup(parsed) {
 
 window.importData = (evt) => {
   const file = evt.target.files?.[0];
+  // Clear the picker, or choosing the same file again (after cancelling the
+  // confirm, say) fires no change event and nothing happens.
+  evt.target.value = '';
   if (!file) return;
   const reader = new FileReader();
   reader.onload = (e) => {

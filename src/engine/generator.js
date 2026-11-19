@@ -293,7 +293,7 @@ function build6DaySplit() {
 
 // ── PHASE WORKOUT TABLES ──
 
-function buildPhaseWorkouts(equip, level, goal, splitDays) {
+export function buildPhaseWorkouts(equip, level, goal, splitDays) {
   const phases = {};
   for (let p = 1; p <= 4; p++) {
     const sessions = {};

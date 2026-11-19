@@ -64,6 +64,11 @@ const defaultState = {
   metricLog:   [],      // [{ id, metric, value, date }] — values logged against metricDefs
 };
 
+// A deep copy. `{ ...defaultState }` shared every array and nested object with
+// defaultState itself, so a first-run user's workouts were pushed INTO the
+// defaults — and "Reset All Data" then restored the same arrays, still full.
+function freshState() { return JSON.parse(JSON.stringify(defaultState)); }
+
 export const state = (() => {
   try {
     const raw = localStorage.getItem(KEY);
@@ -103,9 +108,9 @@ export const state = (() => {
         metricLog: parsed.metricLog,
       };
     }
-    return { ...defaultState };
+    return freshState();
   } catch {
-    return { ...defaultState };
+    return freshState();
   }
 })();
 
@@ -149,11 +154,39 @@ export function stateBytes() {
   try { return JSON.stringify(state).length; } catch { return 0; }
 }
 
+function _deepClean(v, depth) {
+  if (v == null || depth > 16) return v;
+  if (typeof v === 'string') return /[<>"\u0000]/.test(v) ? cleanText(v, 100000) : v;
+  if (typeof v === 'object') for (const k of Object.keys(v)) v[k] = _deepClean(v[k], depth + 1);
+  return v;
+}
+
 // One-time sweep of free text already in storage. A payload that arrived via
 // an imported backup before input cleaning existed would otherwise keep firing
 // on every page load.
 (function scrubExistingText() {
   try {
+    // Every string, everywhere. The targeted passes below only ever covered
+    // the fields a form writes, but a restored backup controls ALL of state —
+    // `profile.goal`, a log entry's `phase`, a PR's `reps`, `streak.current`,
+    // the program's day labels — and each of those is interpolated into
+    // innerHTML somewhere. All of them executed. Nothing the app writes itself
+    // contains `<`, `>` or `"`, so this is a no-op for honest data.
+    _deepClean(state, 0);
+    // Numbers that are rendered raw must be numbers.
+    const int = (v, lo, hi, d) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.min(Math.max(n, lo), hi) : d; };
+    state.currentPhase = int(state.currentPhase, 1, 4, 1);
+    state.currentWeek  = int(state.currentWeek, 1, 52, 1);
+    state.streak.current = int(state.streak.current, 0, 100000, 0);
+    state.streak.longest = int(state.streak.longest, 0, 100000, 0);
+    // Ids that reach single-quoted or unquoted inline handlers. Cleaning text
+    // cannot help there — an apostrophe or a bracket is enough — so validate.
+    state.sessions.forEach((s) => {
+      if (s && Array.isArray(s.exercises)) s.exercises = s.exercises.filter((x) => x && isValidId(x.exId));
+    });
+    state.bodyMapSel = state.bodyMapSel.filter(isValidId);
+    state.gymProfiles = state.gymProfiles.filter((g) => g && Number.isFinite(g.id) && Array.isArray(g.items));
+    if (state.activeGymId != null && !Number.isFinite(state.activeGymId)) state.activeGymId = null;
     if (state.profile) state.profile.name = cleanText(state.profile.name, 60);
     (state.gymProfiles || []).forEach((g) => { g.name = cleanText(g.name, 40); });
     // Keys first: these two maps are keyed by exercise id and those ids reach
@@ -454,8 +487,10 @@ export function clearLog() {
 }
 
 export function resetAll() {
-  Object.assign(state, { ...defaultState });
-  localStorage.removeItem(KEY);
+  for (const id of Object.keys(state.customExercises || {})) removeExercise(id);
+  for (const k of Object.keys(state)) delete state[k];
+  Object.assign(state, freshState());
+  try { localStorage.removeItem(KEY); } catch { /* storage blocked: state is reset in memory regardless */ }
 }
 
 // ── NEW: PROFILE ──
@@ -825,11 +860,11 @@ export function deleteMetricEntry(id) {
 
 // ── NEW: PERSONAL RECORDS ──
 
-export function recordPR(exId, weight, reps) {
+export function recordPR(exId, weight, reps, date) {
   const e1rm = Math.round(weight * (1 + reps / 30));
   const prev = state.prs[exId];
   if (!prev || e1rm > prev.e1rm) {
-    state.prs[exId] = { weight, reps, date: new Date().toISOString(), e1rm };
+    state.prs[exId] = { weight, reps, date: date || new Date().toISOString(), e1rm };   // date: imported history keeps its own
     // Store the description unit-neutrally (no frozen 'lbs') so it stays correct
     // if the user later switches display units. The unit-aware weight is shown
     // from state.prs via formatWeight() at display time.
@@ -873,6 +908,18 @@ export function updateStreak() {
   if (state.streak.current === 30) awardAchievement('streak_30', 'Iron Will',     '30-day streak');
 
   save();
+}
+
+// The streak as it stands TODAY. `streak.current` only changes when a session
+// is logged, so after a week off it still read "5 days" on the dashboard. A
+// streak is alive only if the last session was today or yesterday (same UTC
+// day convention as updateStreak).
+export function currentStreak() {
+  const s = state.streak || {};
+  const last = s.lastSessionDate;
+  if (!last) return 0;
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  return last === todayStr() || last === yesterday ? (Number(s.current) || 0) : 0;
 }
 
 export function checkFirstSession() {

@@ -1,5 +1,5 @@
 import { GOAL_OPTIONS, LEVEL_OPTIONS, EQUIPMENT_OPTIONS, DAYS_OPTIONS, CARDIO_OPTIONS } from '../data/exercises.js';
-import { generateProgram } from '../engine/generator.js';
+import { generateProgram, buildPhaseWorkouts } from '../engine/generator.js';
 import { setProfile, setProgram, weightUnitLabel, toStoredWeight } from '../store.js';
 
 const STEPS = [
@@ -57,7 +57,14 @@ const STEPS = [
   },
 ];
 
-export function renderOnboarding(onComplete) {
+// Attribute-safe: the quiz re-renders typed values into value="…" when you go
+// Back, and a name containing a double quote cut itself off there (and could
+// inject markup into the quiz).
+const attr = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+
+// `onCancel` is passed when the quiz is re-run from Settings by someone who
+// already has a program — they need a way back that does not replace it.
+export function renderOnboarding(onComplete, onCancel) {
   const answers = {};
   let currentStep = 0;
 
@@ -77,7 +84,9 @@ export function renderOnboarding(onComplete) {
             <div class="label" style="margin-top:2px">Build your program</div>
           </div>
         </div>
-        <button class="btn btn-ghost btn-sm" onclick="quizQuickStart()" title="Use sensible defaults and start training now">Skip setup →</button>
+        ${onCancel
+          ? `<button class="btn btn-ghost btn-sm" onclick="quizCancel()" title="Keep your current program">✕ Cancel</button>`
+          : `<button class="btn btn-ghost btn-sm" onclick="quizQuickStart()" title="Use sensible defaults and start training now">Skip setup →</button>`}
       </div>
 
       <div class="label" style="margin-bottom:8px">Step ${currentStep + 1} of ${total}</div>
@@ -110,7 +119,7 @@ export function renderOnboarding(onComplete) {
       ${step.type === 'text' ? `
         <input class="input" id="text-input" type="text"
                placeholder="${step.placeholder}"
-               value="${answers[step.id] || ''}"
+               value="${attr(answers[step.id])}"
                style="font-size:18px;padding:14px 16px"
                onkeydown="if(event.key==='Enter') quizNext()"
                oninput="answers_temp_name = this.value"/>
@@ -120,7 +129,7 @@ export function renderOnboarding(onComplete) {
         <div style="display:flex;align-items:center;gap:12px">
           <input class="input" id="num-input" type="number"
                  placeholder="${step.placeholder}"
-                 value="${answers[step.id] || ''}"
+                 value="${attr(answers[step.id])}"
                  style="font-size:18px;padding:14px 16px;max-width:180px"
                  onkeydown="if(event.key==='Enter') quizNext()"/>
           <span class="label">${step.id === 'weight' ? weightUnitLabel() : (step.unit || '')}</span>
@@ -156,6 +165,8 @@ export function renderOnboarding(onComplete) {
     render();
   };
 
+  window.quizCancel = () => { if (onCancel) onCancel(); };
+
   window.quizBack = () => {
     if (currentStep > 0) { currentStep--; render(); }
   };
@@ -182,6 +193,8 @@ export function renderOnboarding(onComplete) {
   window.quizSkip = () => {
     const step = STEPS[currentStep];
     answers[step.id] = step.type === 'number' ? null : '';
+    const inp = document.querySelector('#text-input, #num-input');
+    if (inp) inp.value = '';               // Skip means skip, whatever was typed
     if (currentStep < STEPS.length - 1) { currentStep++; render(); }
     else window.quizNext();
   };
@@ -196,9 +209,16 @@ export function renderOnboarding(onComplete) {
       answers[step.id] = val || '';
     }
     if (step.type === 'number') {
-      const val = document.querySelector('#num-input')?.value;
-      if (val) answers[step.id] = parseFloat(val);
-      // number is optional — allow skip
+      const raw = document.querySelector('#num-input')?.value;
+      const val = parseFloat(raw);
+      // Optional — blank skips. But a typed value must be a real bodyweight:
+      // "-50" used to be stored as 0 and "5000" as 5000 lbs, and every
+      // starting weight in the app is scaled from this number.
+      if (raw !== '' && raw != null) {
+        const lbs = toStoredWeight(val);
+        if (!(lbs >= 60 && lbs <= 700)) { shake(); return; }
+        answers[step.id] = val;
+      } else answers[step.id] = null;
     }
 
     // Validate required options
@@ -248,7 +268,7 @@ export function renderOnboarding(onComplete) {
 
 
 // ── MANUAL BUILDER ──
-export function renderBuilder(onSave) {
+export function renderBuilder(onSave, onCancel) {
   const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
   const sessions = {};
   DAYS.forEach(d => { sessions[d] = { type: 'rest', label: '', exercises: [] }; });
@@ -335,7 +355,7 @@ export function renderBuilder(onSave) {
     </div>
 
     <div style="display:flex;gap:12px;justify-content:flex-end">
-      <button class="btn btn-ghost" onclick="window.navigate && navigate('dashboard')">Cancel</button>
+      <button class="btn btn-ghost" onclick="builderCancel()">Cancel</button>
       <button class="btn btn-fire btn-lg" onclick="builderSave()">Generate My Program 🔥</button>
     </div>
   </div>
@@ -347,13 +367,20 @@ export function renderBuilder(onSave) {
     sessions[day] = { type: val, label: val.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase()) };
   };
 
+  // Cancel used to call navigate('dashboard') — but the builder replaces the
+  // whole app shell, so there was no page to navigate to and the button did
+  // nothing at all.
+  window.builderCancel = () => { if (onCancel) onCancel(); };
+
   window.builderSave = () => {
     const name   = document.getElementById('builder-name')?.value?.trim() || 'Athlete';
     const level  = document.getElementById('builder-level')?.value  || 'intermediate';
     const equip  = document.getElementById('builder-equip')?.value  || 'full_gym';
     const goal   = document.getElementById('builder-goal')?.value   || 'build_muscle';
     const _wRaw = parseFloat(document.getElementById('builder-weight')?.value);
-    const weight = _wRaw ? Math.round(toStoredWeight(_wRaw)) : null;  // store canonical lbs
+    const _wLbs = _wRaw ? toStoredWeight(_wRaw) : 0;
+    if (_wRaw && !(_wLbs >= 60 && _wLbs <= 700)) { alert('Enter a bodyweight between ' + (weightUnitLabel() === 'kg' ? '27 and 317 kg' : '60 and 700 lbs') + ', or leave it blank.'); return; }
+    const weight = _wLbs ? Math.round(_wLbs) : null;  // store canonical lbs
 
     // Convert sessions into a split structure
     const typeToCategory = {
@@ -386,13 +413,18 @@ export function renderBuilder(onSave) {
     }));
 
     const daysPerWeek = splitDays.filter(d => d.type !== 'rest').length;
+    if (!daysPerWeek) { alert('Pick at least one training day.'); return; }
 
     const profile = { name, goal, level, equipment: equip, daysPerWeek, cardioLevel: 'moderate', weight, weeks: 12 };
     const { generateProgram } = window.__forge_gen;
     setProfile(profile);
     const program = generateProgram(profile);
-    // Override split with user's custom one
+    // Override split with user's custom one — and build the workouts FOR it.
+    // Only replacing splitDays left the generator's own sessions in place: a
+    // Monday labelled "Lower Body" served Full Body A, and any day the default
+    // split did not train (a Tuesday "Upper Push") had no exercises at all.
     program.splitDays = splitDays;
+    program.phaseWorkouts = buildPhaseWorkouts(equip, level, goal, splitDays);
     setProgram(program);
     onSave();
   };
