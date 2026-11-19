@@ -5,7 +5,7 @@
 //   normalized to canonical lbs on the way in.
 // ═══════════════════════════════════════════
 
-import { state, save, recordPR } from '../store.js';
+import { state, save, recordPR, cleanText, clampWeight, clampReps } from '../store.js';
 import { EXERCISES } from '../data/exercises.js';
 
 const LBS_PER_KG = 2.20462;
@@ -154,16 +154,29 @@ export function parseWorkoutCSV(text) {
 // unit: the unit the source weights are in ('kg' | 'lbs').
 export function importParsed(parsed, unit) {
   const toLbs = (w) => unit === 'kg' ? w * LBS_PER_KG : w;
-  let sessCount = 0, setCount = 0, prCount = 0, matched = 0, unmatched = 0;
+  let sessCount = 0, setCount = 0, prCount = 0, matched = 0, unmatched = 0, skipped = 0;
+  // Re-importing the same export (or a newer one that overlaps it) used to
+  // double every session. An imported session is identified by day + label.
+  const seen = new Set(state.sessions.filter(x => x?.imported).map(x => `${String(x.date).slice(0, 10)}|${x.workoutLabel}`));
+  const usedIds = new Set([...state.sessions, ...state.workoutLog].map(x => x?.id));
 
   for (const s of parsed.sessions) {
     const byEx = {};
+    // A third-party file is untrusted input: names reach innerHTML, and the
+    // numbers reach volume and PRs (1e308 made volume Infinity, -500 negative).
+    const label = cleanText(s.label, 120) || 'Imported Workout';
     for (const row of s.rows) {
+      row.exName = cleanText(String(row.exName || '').trim(), 120);
       if (!row.exName) continue;
+      const reps = clampReps(row.reps);
+      const lbs = toLbs(row.weight);
+      // Drop, rather than clamp, a set no one lifted: "1e308" would otherwise
+      // become a 5000 lb PR that nothing could ever beat, "-500" a 0 lb set.
+      if (!reps || !Number.isFinite(lbs) || lbs < 0 || lbs > 2000) { skipped++; continue; }
       const exId = _matchExercise(row.exName) || `imp_${row.exName.toLowerCase().replace(/[^a-z0-9]+/g, '_').slice(0, 24)}`;
       exId.startsWith('imp_') ? unmatched++ : matched++;
       (byEx[exId] = byEx[exId] || { exId, exName: EXERCISES[exId]?.name || row.exName, sets: [] }).sets.push({
-        weight: Math.round(toLbs(row.weight)), reps: row.reps, warmup: !!row.warmup, completed: true, rir: null,
+        weight: Math.round(clampWeight(lbs)), reps, warmup: !!row.warmup, completed: true, rir: null,
       });
       setCount++;
     }
@@ -171,28 +184,44 @@ export function importParsed(parsed, unit) {
     if (!exercises.length) continue;
     let vol = 0;
     for (const ex of exercises) for (const st of ex.sets) if (!st.warmup) vol += st.weight * st.reps;
-    const id = Date.parse(s.date + 'T12:00:00') || (1700000000000 + sessCount);
+    // Local noon of the workout's day: Date.parse('YYYY-MM-DD') is UTC
+    // midnight, which west of UTC displayed as the previous day.
+    const day = Date.parse(s.date + 'T12:00:00');
+    if (!Number.isFinite(day)) { skipped++; continue; }
+    const dateIso = new Date(day).toISOString();
+    if (seen.has(`${dateIso.slice(0, 10)}|${label}`)) { skipped++; continue; }
+    seen.add(`${dateIso.slice(0, 10)}|${label}`);
+    // Two workouts on one day shared an id, so sessionId links were ambiguous.
+    let id = day;
+    while (usedIds.has(id)) id++;
+    usedIds.add(id);
     state.sessions.unshift({
-      id, date: new Date((Date.parse(s.date) || id)).toISOString(),
-      workoutLabel: s.label, workoutType: 'strength', exercises,
+      id, date: dateIso,
+      workoutLabel: label, workoutType: 'strength', exercises,
       totalVolume: vol, durationMinutes: 0, notes: `Imported from ${parsed.format}`, imported: true,
     });
     state.workoutLog.unshift({
-      id, date: new Date((Date.parse(s.date) || id)).toISOString(),
-      label: s.label, type: 'strength', phase: state.currentPhase, week: state.currentWeek,
+      id, date: dateIso,
+      label, type: 'strength', phase: state.currentPhase, week: state.currentWeek,
       sessionId: id, totalVolume: vol, duration: 0, notes: `Imported from ${parsed.format}`,
     });
     // Record PRs from the best working set per exercise.
     for (const ex of exercises) {
       const best = ex.sets.filter(st => !st.warmup && st.weight > 0 && st.reps > 0).sort((a, b) => (b.weight * (1 + b.reps / 30)) - (a.weight * (1 + a.reps / 30)))[0];
-      if (best && recordPR(ex.exId, best.weight, best.reps)) prCount++;
+      if (best && recordPR(ex.exId, best.weight, best.reps, dateIso)) prCount++;
     }
     sessCount++;
   }
+  // Everything reads these newest-first (recent sessions, "last time" ghost
+  // values, progression). Imported history was unshifted in file order, so an
+  // old Strong export landed in front of this week's training.
+  const byDateDesc = (a, b) => new Date(b.date) - new Date(a.date);
+  state.sessions.sort(byDateDesc);
+  state.workoutLog.sort(byDateDesc);
   if (state.sessions.length > 400) state.sessions.length = 400;
   if (state.workoutLog.length > 500) state.workoutLog.length = 500;
   save();
-  return { sessCount, setCount, prCount, matched, unmatched };
+  return { sessCount, setCount, prCount, matched, unmatched, skipped };
 }
 
 // ── UI ──
@@ -263,7 +292,7 @@ window.confirmImport = () => {
       <div class="fs13" style="color:var(--forge-green);margin-bottom:6px">✓ Imported ${r.sessCount} sessions</div>
       <div class="dim fs12" style="line-height:1.7">
         ${r.setCount} sets · ${r.prCount} PRs detected<br>
-        ${r.matched} exercises matched${r.unmatched ? ` · ${r.unmatched} kept by name` : ''}
+        ${r.matched} exercises matched${r.unmatched ? ` · ${r.unmatched} kept by name` : ''}${r.skipped ? `<br>${r.skipped} skipped (already imported, undated or impossible numbers)` : ''}
       </div>
       <button class="btn btn-fire w100" style="margin-top:12px" onclick="closeImportDialog();navigate('progress')">View Progress →</button>
     </div>`;
