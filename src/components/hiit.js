@@ -199,7 +199,7 @@ ${_tabs('program')}
         const ek   = eKey(h.currentWeek, di, id);
         const done = !!h.completedExercises[ek];
         return `<div class="hiit-ex-item">
-          <div class="hiit-ex-chk${done?' on':''}" onclick="hiitToggleEx('${ek}',this)"></div>
+          <div class="hiit-ex-chk${done?' on':''}" role="checkbox" tabindex="0" aria-checked="${done}" aria-label="${ex.name} done" onclick="hiitToggleEx('${ek}',this)"></div>
           <div class="hiit-ex-info">
             <div class="hiit-ex-name">${ex.icon} ${ex.name}</div>
             <div class="hiit-ex-meta">${ex.workSecs}s work · ${ex.restSecs}s rest</div>
@@ -276,25 +276,25 @@ ${_tabs('build')}
     <div>
       <label class="label" style="display:block;margin-bottom:6px">Work Time</label>
       <div style="display:flex;align-items:center;gap:8px">
-        <button class="btn" style="padding:4px 10px;font-size:16px" onclick="hiitAdjust('work',-5)">−</button>
+        <button class="btn" aria-label="Less work time" style="padding:4px 10px;font-size:16px" onclick="hiitAdjust('work',-5)">−</button>
         <span id="hiit-work-disp" style="font-size:22px;font-weight:700;color:var(--fire);font-family:var(--ff-mono);min-width:44px;text-align:center">${_customWorkSecs}s</span>
-        <button class="btn" style="padding:4px 10px;font-size:16px" onclick="hiitAdjust('work',5)">+</button>
+        <button class="btn" aria-label="More work time" style="padding:4px 10px;font-size:16px" onclick="hiitAdjust('work',5)">+</button>
       </div>
     </div>
     <div>
       <label class="label" style="display:block;margin-bottom:6px">Rest Time</label>
       <div style="display:flex;align-items:center;gap:8px">
-        <button class="btn" style="padding:4px 10px;font-size:16px" onclick="hiitAdjust('rest',-5)">−</button>
+        <button class="btn" aria-label="Less rest time" style="padding:4px 10px;font-size:16px" onclick="hiitAdjust('rest',-5)">−</button>
         <span id="hiit-rest-disp" style="font-size:22px;font-weight:700;color:var(--steel);font-family:var(--ff-mono);min-width:44px;text-align:center">${_customRestSecs}s</span>
-        <button class="btn" style="padding:4px 10px;font-size:16px" onclick="hiitAdjust('rest',5)">+</button>
+        <button class="btn" aria-label="More rest time" style="padding:4px 10px;font-size:16px" onclick="hiitAdjust('rest',5)">+</button>
       </div>
     </div>
     <div>
       <label class="label" style="display:block;margin-bottom:6px">Rounds</label>
       <div style="display:flex;align-items:center;gap:8px">
-        <button class="btn" style="padding:4px 10px;font-size:16px" onclick="hiitAdjust('rounds',-1)">−</button>
+        <button class="btn" aria-label="Fewer rounds" style="padding:4px 10px;font-size:16px" onclick="hiitAdjust('rounds',-1)">−</button>
         <span id="hiit-rounds-disp" style="font-size:22px;font-weight:700;color:var(--ember);font-family:var(--ff-mono);min-width:32px;text-align:center">${_customRounds}</span>
-        <button class="btn" style="padding:4px 10px;font-size:16px" onclick="hiitAdjust('rounds',1)">+</button>
+        <button class="btn" aria-label="More rounds" style="padding:4px 10px;font-size:16px" onclick="hiitAdjust('rounds',1)">+</button>
       </div>
     </div>
   </div>
@@ -908,7 +908,7 @@ window.hiitSwitchWeek = i => {
 window.hiitToggleEx = (ek, el) => {
   const next = !H().completedExercises[ek];
   H().completedExercises[ek] = next; save();
-  if (el) el.classList.toggle('on', next);
+  if (el) { el.classList.toggle('on', next); el.setAttribute('aria-checked', String(next)); }
 };
 
 window.hiitStartWorkout = (w, d) => _openWorkoutModal(w, d);

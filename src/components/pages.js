@@ -803,7 +803,7 @@ ${(() => {
       <div style="font-size:13px;font-weight:500">Default Rest Time</div>
       <div class="muted fs11" style="margin-top:2px">Auto-starts after each logged set</div>
     </div>
-    <select class="form-input" style="width:120px" onchange="saveRestSetting(this.value)">
+    <select class="form-input" aria-label="Default rest time" style="width:120px" onchange="saveRestSetting(this.value)">
       ${[['60','60 sec'],['90','90 sec'],['120','2 min'],['180','3 min'],['300','5 min']].map(([v,l]) =>
         `<option value="${v}" ${(state.settings?.restSeconds ?? 90) == v ? 'selected' : ''}>${l}</option>`
       ).join('')}
@@ -814,7 +814,7 @@ ${(() => {
       <div style="font-size:13px;font-weight:500">Progression Scheme</div>
       <div class="muted fs11" style="margin-top:2px">How the app suggests your next weight</div>
     </div>
-    <select class="form-input" style="width:150px" onchange="setProgression(this.value)">
+    <select class="form-input" aria-label="Progression scheme" style="width:150px" onchange="setProgression(this.value)">
       ${[['double','Double progression'],['linear','Linear (add each time)'],['greyskull','Greyskull LP']].map(([v,l]) =>
         `<option value="${v}" ${(state.settings?.progression || 'double') === v ? 'selected' : ''}>${l}</option>`
       ).join('')}
@@ -825,7 +825,7 @@ ${(() => {
       <div style="font-size:13px;font-weight:500">Weight Units</div>
       <div class="muted fs11" style="margin-top:2px">How weights are shown across the app</div>
     </div>
-    <select class="form-input" style="width:120px" onchange="setWeightUnit(this.value)">
+    <select class="form-input" aria-label="Weight unit" style="width:120px" onchange="setWeightUnit(this.value)">
       ${[['lbs','Pounds (lbs)'],['kg','Kilograms (kg)']].map(([v,l]) =>
         `<option value="${v}" ${(state.settings?.weightUnit || 'lbs') === v ? 'selected' : ''}>${l}</option>`
       ).join('')}
