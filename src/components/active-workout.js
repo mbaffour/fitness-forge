@@ -819,6 +819,7 @@ function scrollToExercise(exIdx) {
 let _pickerQ = '';
 let _swapIdx = null;   // when set, the picker replaces this exercise instead of adding
 let _swapGroup = '';   // muscle group a swap is restricted to
+let _swapStretch = false;   // swapping a stretch offers stretches, not lifts
 window.pickerSearch = (v) => { _pickerQ = (v || '').trim().toLowerCase(); _renderPickerResults(); };
 
 // Swap an exercise mid-session for a similar one (same primary muscle group,
@@ -834,6 +835,7 @@ window.swapExercise = (exIdx) => {
   const g = (EXERCISES[ex.exId]?.groups || [])[0] || '';
   if (g) {
     _swapGroup = g;
+    _swapStretch = isStretch({ id: ex.exId, ...EXERCISES[ex.exId] });
     const inp = document.querySelector('#exercise-picker .lib-search');
     if (inp) inp.placeholder = `Search ${g} exercises…`;
     _renderPickerResults();
@@ -844,10 +846,11 @@ window.swapExercise = (exIdx) => {
 
 function _pickerList() {
   const inSession = new Set(sessionState.exercises.map(e => e.exId));
-  const base = _swapGroup
-    ? rankedForGroup(Object.entries(EXERCISES).map(([id, ex]) => ({ ...ex, id }))
-        .filter(ex => ex.groups?.[0] === _swapGroup), _swapGroup).map(ex => [ex.id, ex])
-    : Object.entries(EXERCISES);
+  const sameGroup = () => Object.entries(EXERCISES).map(([id, ex]) => ({ ...ex, id }))
+    .filter(ex => ex.groups?.[0] === _swapGroup);
+  const base = !_swapGroup ? Object.entries(EXERCISES)
+    : _swapStretch ? sameGroup().filter(isStretch).map(ex => [ex.id, ex])
+    : rankedForGroup(sameGroup(), _swapGroup).map(ex => [ex.id, ex]);
   return base
     .filter(([id, ex]) => {
       if (inSession.has(id)) return false;
@@ -873,7 +876,7 @@ function _renderPickerResults() {
 function openExercisePicker() {
   document.getElementById('exercise-picker')?.remove();
   _pickerQ = '';
-  _swapGroup = '';
+  _swapGroup = ''; _swapStretch = false;
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
   overlay.id = 'exercise-picker';
@@ -897,7 +900,7 @@ function closeExercisePicker() {
   document.getElementById('exercise-picker')?.remove();
   document.body.style.overflow = '';
   _swapIdx = null;   // cancel any pending swap
-  _swapGroup = '';
+  _swapGroup = ''; _swapStretch = false;
 }
 window.closeExercisePicker = closeExercisePicker;
 
