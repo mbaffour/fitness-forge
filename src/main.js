@@ -28,7 +28,7 @@ import {
   startFast, endFast, getActiveFast,
   addSleepEntry, removeSleepEntry,
   addActivityEntry, removeActivityEntry,
-  formatWeight, weightUnitLabel,
+  formatWeight, weightUnitLabel, currentStreak,
 } from './store.js';
 import { generateProgram } from './engine/generator.js';
 import { EXERCISES } from './data/exercises.js';
@@ -353,7 +353,7 @@ function _buildStatsStrip() {
     fastLabel = `${fast.protocol} · ${Math.floor(rem)}h left`;
   }
   return `
-  <span class="strip-item">🔥 <strong>${state.streak.current}d</strong> streak</span>
+  <span class="strip-item">🔥 <strong>${currentStreak()}d</strong> streak</span>
   <span class="strip-item">⊕ <strong>${calories}</strong> kcal today</span>
   <span class="strip-item">⏱ ${fastLabel}</span>
   <span class="strip-item">🌙 Sleep: <strong>${lastSleep ? lastSleep.score + '/100' : '—'}</strong></span>`;
@@ -447,14 +447,13 @@ function navigate(pageId, pushHistory = true) {
     if (mo) { mo.classList.remove('open'); const mb = document.getElementById('hiit-media-box'); if (mb) mb.innerHTML = ''; }
   }
 
-  if (pageId === 'onboard') {
-    renderOnboarding(() => { currentPage = 'dashboard'; navHistory.length = 0; buildShell(); });
-    return;
-  }
-  if (pageId === 'builder') {
-    renderBuilder(() => { currentPage = 'dashboard'; navHistory.length = 0; buildShell(); });
-    return;
-  }
+  // Both flows replace the whole shell. Done → a fresh dashboard (with the
+  // URL to match, or a refresh reopened the page you started from); Cancel →
+  // the page you came from, program untouched.
+  const done = () => { currentPage = 'dashboard'; navHistory.length = 0; syncHash('dashboard'); buildShell(); };
+  const cancel = () => buildShell();
+  if (pageId === 'onboard') { renderOnboarding(done, cancel); return; }
+  if (pageId === 'builder') { renderBuilder(done, cancel); return; }
   if (!isPage(pageId) || pageId === currentPage) return;
 
   if (pushHistory) {
@@ -489,6 +488,10 @@ function navigate(pageId, pushHistory = true) {
   }
 
   document.getElementById('main-area')?.scrollTo(0, 0);
+  // On mobile it is the window that scrolls, not .main — so a new page opened
+  // at whatever depth the last one was left (bottom of Settings → bottom of
+  // the dashboard).
+  window.scrollTo(0, 0);
 }
 
 // Navigate to a hub — land on the hub's current page if already inside it,
@@ -724,19 +727,25 @@ window.addEventListener('resize', _queueRefocus, { passive: true });
 new MutationObserver(_queueRefocus).observe(document.getElementById('root') || document.body, { childList: true, subtree: true });
 
 // ── BOOT ──
+// Reset All re-runs boot(); one strip timer is enough.
+let _stripTimer = null;
+function _startStripTimer() { if (!_stripTimer) _stripTimer = setInterval(_updateStatsStrip, 30000); }
+
 function boot() {
   if (!state.onboarded || !state.program) {
     renderOnboarding(() => {
       currentPage = 'dashboard';
+      navHistory.length = 0;
+      syncHash('dashboard');
       buildShell();
-      setInterval(_updateStatsStrip, 30000);
+      _startStripTimer();
       maybeShowTour();               // first-run product tour after onboarding
     });
   } else {
     currentPage = pageFromHash();      // deep link / refresh restores the page
     syncHash(currentPage);
     buildShell();
-    setInterval(_updateStatsStrip, 30000);
+    _startStripTimer();
     maybeShowTour();
   }
 }

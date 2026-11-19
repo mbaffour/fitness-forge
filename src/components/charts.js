@@ -3,6 +3,7 @@
 //   All charts use design-system colors
 // ═══════════════════════════════════════════
 import { EXERCISES, isStretch } from '../data/exercises.js';
+import { toDisplayWeight, weightUnitLabel } from '../store.js';
 
 const COLORS = {
   fire:   '#ff6b1a',
@@ -263,8 +264,10 @@ export function initStrengthChart(canvasId, sessions, exId) {
   });
   const weights = relevant.map(s => {
     const ex = s.exercises.find(e => e.exId === exId);
-    const maxW = Math.max(...(ex?.sets || []).filter(s => s.completed).map(s => s.weight || 0));
-    return maxW || null;
+    // Working sets only, in the user's display unit (this plotted raw lbs in
+    // kg mode). An empty list is -Infinity from Math.max, which is truthy.
+    const maxW = Math.max(0, ...(ex?.sets || []).filter(s => s.completed && !s.warmup).map(s => s.weight || 0));
+    return maxW ? toDisplayWeight(maxW) : null;
   });
 
   const chart = new Chart(canvas, {
@@ -716,14 +719,14 @@ export function initVolumeChart(canvasId, sessions) {
     const d = new Date(s.date);
     return `${d.getMonth()+1}/${d.getDate()}`;
   });
-  const volumes = recent.map(s => s.totalVolume || 0);
+  const volumes = recent.map(s => Math.round(toDisplayWeight(s.totalVolume || 0) || 0));   // display unit, not raw lbs
 
   const chart = new Chart(canvas, {
     type: 'bar',
     data: {
       labels,
       datasets: [{
-        label: 'Volume (lbs)',
+        label: `Volume (${weightUnitLabel()})`,
         data: volumes,
         backgroundColor: COLORS.steel + 'bb',
         borderRadius: 3,

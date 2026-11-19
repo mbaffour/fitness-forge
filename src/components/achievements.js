@@ -2,7 +2,7 @@
 //   FITNESS FORGE — Achievements & Streaks
 // ═══════════════════════════════════════════
 
-import { state, formatWeight, weightUnitLabel } from '../store.js';
+import { state, formatWeight, weightUnitLabel, currentStreak } from '../store.js';
 import { estimateOneRepMax } from '../engine/overload.js';
 import { EXERCISES } from '../data/exercises.js';
 import { exThumbHTML } from './modal.js';
@@ -22,7 +22,8 @@ const ALL_ACHIEVEMENTS = [
 ];
 
 export function renderAchievements() {
-  const { achievements, streak, prs, sessions, workoutLog, bodyLog, nutritionLog, cardioLog } = state;
+  const { achievements, prs, sessions, workoutLog, bodyLog, nutritionLog, cardioLog } = state;
+  const streak = { current: currentStreak(), longest: state.streak.longest };
   const unlockedIds = new Set(achievements.map(a => a.id));
 
   // Check for PR achievement
@@ -117,24 +118,30 @@ ${Object.keys(prs).length > 0 ? `
 }
 
 function buildStreakCalendar(workoutLog) {
-  // Build a set of dates that had a workout
+  // Local calendar days throughout: the cells are labelled S–S, so they are
+  // the user's days. Keys used to come from toISOString() on LOCAL midnight,
+  // which east of UTC is the previous day — today's workout lit yesterday.
+  const ymd = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const activeDates = new Set(
-    workoutLog.map(l => new Date(l.date).toISOString().slice(0, 10))
+    workoutLog.map(l => new Date(l.date)).filter(d => !isNaN(d)).map(ymd)
   );
 
-  // 12 weeks × 7 days
+  // 12 weeks × 7 days, starting on a Sunday so each column matches its S M T…
+  // header. It used to start exactly 83 days back, on whatever weekday that
+  // was, so every column sat under the wrong letter.
   const weeks = 12;
-  const days  = weeks * 7;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+  const start = new Date(today);
+  start.setDate(today.getDate() - today.getDay() - (weeks - 1) * 7);
 
   const cells = [];
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(today.getTime() - i * 86400000);
-    const key = d.toISOString().slice(0, 10);
-    const active = activeDates.has(key);
-    const isToday = i === 0;
-    cells.push({ key, active, isToday, dow: d.getDay() });
+  for (let i = 0; i < weeks * 7; i++) {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);          // setDate, not +86400000: DST-safe
+    if (d > today) break;
+    const key = ymd(d);
+    cells.push({ key, active: activeDates.has(key), isToday: key === ymd(today), dow: d.getDay() });
   }
 
   return `
@@ -150,8 +157,8 @@ function buildStreakCalendar(workoutLog) {
   </div>
   <div class="muted fs11" style="margin-top:8px;display:flex;align-items:center;gap:6px">
     <span>Less</span>
-    <span class="cal-cell" style="display:inline-block"></span>
-    <span class="cal-cell active" style="display:inline-block"></span>
+    <span class="cal-cell" style="display:inline-block;width:12px"></span>
+    <span class="cal-cell active" style="display:inline-block;width:12px"></span>
     <span>More</span>
   </div>
 </div>
