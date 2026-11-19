@@ -96,7 +96,7 @@ html[data-theme="day"] {
   --fire:       #c84808;
   --fire-dim:   rgba(200,72,8,0.10);
   --fire-glow:  rgba(200,72,8,0.22);
-  --ember:      #b87800;
+  --ember:      #946000;  /* was #b87800: 2.5–3.2:1 on the cream cards */
   --steel:      #3a7898;
   --forge-green:#007744;
   --danger:     #c02020;
@@ -118,7 +118,7 @@ html[data-theme="ambient"] {
   --border-hi:  #2e2e58;
   --text:       #e4e0fc;
   --text-2:     #8080c0;
-  --text-3:     #404078;
+  --text-3:     #5a5a98;  /* was #404078: ~2:1 on every surface */
   --fire:       #8b74ff;
   --fire-dim:   rgba(139,116,255,0.12);
   --fire-glow:  rgba(139,116,255,0.28);
@@ -139,8 +139,8 @@ html[data-theme="steel"] {
   --border:     #223040;
   --border-hi:  #2c3e52;
   --text:       #c8e2f4;
-  --text-2:     #5888a8;
-  --text-3:     #2e4a60;
+  --text-2:     #6694b4;
+  --text-3:     #46667e;  /* was #2e4a60: 1.5–2:1, section labels vanished */
   --fire:       #36b4e4;
   --fire-dim:   rgba(54,180,228,0.12);
   --fire-glow:  rgba(54,180,228,0.28);
@@ -242,8 +242,11 @@ html[data-theme="vivid"] {
   --surface:#ffffff;
   --border:#e5e5e0; --border-hi:#d2d2ca;
   --text:#12121a; --text-2:#6a6a62; --text-3:#9a9a90;
-  --fire:#ff5a1f; --fire-dim:rgba(255,90,31,0.10); --fire-glow:rgba(255,90,31,0.22); --fire-bright:#ff7a45;
-  --ember:#ff9f1c; --steel:#2f6bff; --forge-green:#16c784; --danger:#e5484d;
+  /* Accents are used as TEXT (active tabs, PRs, success, warnings) on white,
+     where the bright originals read at 1.8–3:1. Darkened to ~4.4:1 or better;
+     the CTA keeps the bright --grad, so buttons look unchanged. */
+  --fire:#d9430c; --fire-dim:rgba(255,90,31,0.10); --fire-glow:rgba(255,90,31,0.22); --fire-bright:#ff7a45;
+  --ember:#a86400; --steel:#2f6bff; --forge-green:#0b8a55; --danger:#c8303a;
   --grad:linear-gradient(92deg,#ff7a1f,#ff5a1f);
   --glow:0 6px 20px rgba(0,0,0,0.06);
   /* Light theme — invert the white artwork to ink on a clean card. */
@@ -3213,7 +3216,7 @@ body.session-active .sidebar { display: none !important; }
      on every set the logger asks you to type. */
   .form-input, .input, .lib-search, .set-input,
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
-  select, textarea { font-size: 16px; }
+  select, textarea { font-size: 16px !important; }  /* beats later page sheets, e.g. programs-polish */
 
   /* Primary controls under ~32px are hard to hit with a thumb at the rack. */
   .wtab, .btn-sm, .seg-btn, .tab-btn, .int-btn, .hiit-wk-btn, .lib-chip, .ex-act-btn, .hiit-demo-btn { min-height: 36px; }

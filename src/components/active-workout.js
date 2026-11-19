@@ -370,7 +370,7 @@ function renderExerciseBlock(ex, exIdx) {
       ${[0,1,2,3,4,5].map(r => `<button class="rir-btn" data-rir="${r}" onclick="setRIR(${exIdx}, ${r})">${r}</button>`).join('')}
     </div>
     <button class="warmup-toggle" id="wu-${exIdx}" title="Mark as warm-up set (excluded from volume & PRs)" onclick="toggleWarmup(${exIdx})">W</button>
-    <button class="btn-log-set" onclick="logSet(${exIdx})">✓</button>
+    <button class="btn-log-set" aria-label="Log set" onclick="logSet(${exIdx})">✓</button>
   </div>
   ` : `<div class="muted fs12" style="padding:8px 0">All target sets logged — use + Set for more.</div>`}
 </div>
@@ -385,7 +385,7 @@ function renderSetRow(exIdx, setIdx, set, isBodyweight) {
   <span class="set-num">${setIdx + 1}</span>
   ${isBodyweight ? '' : `<input type="number" class="set-input" id="edit-w-${exIdx}-${setIdx}" value="${toDisplayWeight(set.weight) || ''}" min="0" step="${weightInputStep()}">`}
   <input type="number" class="set-input" id="edit-r-${exIdx}-${setIdx}" value="${set.timed ? (set.seconds ?? '') : (set.reps ?? '')}" min="1" step="1">
-  <button class="btn-log-set" title="Save" onclick="saveEditSet(${exIdx},${setIdx})">✓</button>
+  <button class="btn-log-set" title="Save" aria-label="Save set" onclick="saveEditSet(${exIdx},${setIdx})">✓</button>
   <button class="ex-act-btn" title="Cancel" onclick="cancelEditSet(${exIdx})">✕</button>
 </div>`;
   }

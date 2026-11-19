@@ -474,7 +474,12 @@ function navigate(pageId, pushHistory = true) {
 
   // Refresh hub sub-tabs + mobile tab-bar active state.
   const sub = document.getElementById('hub-subtabs');
-  if (sub) sub.innerHTML = hubSubtabsHTML(pageId);
+  if (sub) {
+    sub.innerHTML = hubSubtabsHTML(pageId);
+    // On a phone the strip scrolls; keep the current tab in view (Train has 11).
+    const t = sub.querySelector('.hub-tab.active'), strip = t?.parentElement;
+    if (t && strip.scrollWidth > strip.clientWidth) strip.scrollLeft += t.getBoundingClientRect().left - strip.getBoundingClientRect().left - (strip.clientWidth - t.offsetWidth) / 2;
+  }
   const activeHub = hubOf(pageId).id;
   document.querySelectorAll('.tabbar-btn').forEach((btn, i) => {
     btn.classList.toggle('active', HUBS[i]?.id === activeHub);
@@ -722,6 +727,58 @@ document.addEventListener('scroll', _queueRefocus, { capture: true, passive: tru
 window.addEventListener('resize', _queueRefocus, { passive: true });
 // Pages rebuild their markup on navigation; pick a new focus when they do.
 new MutationObserver(_queueRefocus).observe(document.getElementById('root') || document.body, { childList: true, subtree: true });
+
+// ── KEYBOARD + SCREEN-READER BASICS, APPLIED ONCE FOR EVERY PAGE ──
+// Pages render with template literals and many tappable things are a <div> or
+// <span> with an inline onclick (stat tiles, exercise cards, muscle tiles, HIIT
+// checks): unreachable by Tab, silent to a screen reader. And form labels are
+// written as a sibling <label> without `for`, so inputs announce no name.
+// Fixing ~100 call sites one by one would rot the moment a page adds another,
+// so this pass runs after each render and patches the markup in place.
+const NATIVE_CTRL = /^(BUTTON|A|INPUT|SELECT|TEXTAREA|LABEL|SUMMARY|OPTION)$/;
+const IS_CTRL = 'input, select, textarea';
+// Backdrops and stopPropagation wrappers carry onclick but are not controls.
+const NOT_A_CONTROL = /^\s*(event\.stopPropagation\(\);?|if\s*\(\s*event\.target\s*===\s*this\s*\))/;
+function _a11yPass(root) {
+  root.querySelectorAll('[onclick]').forEach(el => {
+    if (NATIVE_CTRL.test(el.tagName) || el.hasAttribute('tabindex') || el.closest('svg')) return;
+    const fn = el.getAttribute('onclick') || '';
+    if (NOT_A_CONTROL.test(fn) || /backdrop|overlay/.test(el.className)) return;
+    // A wordless thumbnail beside a named twin that does the same thing (the
+    // Overload/Equipment media + name pair): one Tab stop, the named one.
+    if (!el.textContent.trim() && !el.hasAttribute('aria-label')) {
+      const twin = [...(el.parentElement?.parentElement || el).querySelectorAll('[onclick]')]
+        .find(o => o !== el && o.getAttribute('onclick') === fn && o.textContent.trim());
+      if (twin) { el.setAttribute('aria-hidden', 'true'); el.tabIndex = -1; return; }
+    }
+    el.tabIndex = 0;
+    // role=button makes children presentational — only safe when there are
+    // no real controls inside to hide.
+    if (!el.hasAttribute('role') && !el.querySelector('button, a, input, select, textarea')) el.setAttribute('role', 'button');
+  });
+  root.querySelectorAll('label:not([for])').forEach(lab => {
+    if (lab.querySelector(IS_CTRL)) return;
+    const next = lab.nextElementSibling;
+    if (!next || !next.matches(IS_CTRL) || next.hasAttribute('aria-label')) return;
+    if (!next.id) next.id = 'ff-ctl-' + Math.random().toString(36).slice(2, 9);
+    lab.htmlFor = next.id;
+  });
+}
+let _a11yQueued = false;
+new MutationObserver(() => {
+  if (_a11yQueued) return;
+  _a11yQueued = true;
+  requestAnimationFrame(() => { _a11yQueued = false; _a11yPass(document.body); });
+}).observe(document.body, { childList: true, subtree: true });
+// Enter / Space on a patched element does what a click does.
+document.addEventListener('keydown', (e) => {
+  if ((e.key !== 'Enter' && e.key !== ' ') || e.defaultPrevented) return;
+  const el = e.target;
+  if (!(el instanceof HTMLElement) || NATIVE_CTRL.test(el.tagName) || !el.hasAttribute('onclick') || el.hasAttribute('onkeydown')) return;
+  if (el.getAttribute('role') !== 'button' && el.getAttribute('role') !== 'checkbox' && el.tabIndex !== 0) return;
+  e.preventDefault();
+  el.click();
+});
 
 // ── BOOT ──
 function boot() {
