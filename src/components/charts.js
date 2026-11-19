@@ -94,8 +94,9 @@ export function initMetricChart(canvasId, { datasets = [], xMin, xMax } = {}) {
   const span = (xMax ?? 0) - (xMin ?? 0);
   const fmtDate = (ms) => {
     const d = new Date(ms);
+    // "Oct '25", not "Oct 25" — the bare form reads as the 25th of October.
     return span > 300 * 864e5
-      ? d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+      ? `${d.toLocaleDateString('en-US', { month: 'short' })} '${String(d.getFullYear()).slice(-2)}`
       : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
   const units = {};
@@ -104,11 +105,11 @@ export function initMetricChart(canvasId, { datasets = [], xMin, xMax } = {}) {
     units[d.axis || 'y'] = d.unit || '';
     const base = { label: d.label, data: d.points, yAxisID: d.axis || 'y', borderColor: color,
                    backgroundColor: color, _unit: d.unit || '', _dec: d.decimals ?? 1, _kind: d.kind };
-    if (d.kind === 'raw')   return { ...base, showLine: false, pointRadius: 2.5, pointHoverRadius: 5,
+    if (d.kind === 'raw')   return { ...base, showLine: false, pointRadius: d.points.length > 150 ? 1.5 : 2.5, pointHoverRadius: 5,
                                      backgroundColor: withAlpha(color, 0.4), borderColor: withAlpha(color, 0.6), order: 3 };
-    if (d.kind === 'trend') return { ...base, pointRadius: 0, pointHoverRadius: 4, borderWidth: 2.5, tension: 0.25, order: 1 };
+    if (d.kind === 'trend') return { ...base, pointRadius: 0, pointHoverRadius: 4, borderWidth: 2.5, tension: 0.25, cubicInterpolationMode: 'monotone', order: 1 };
     if (d.kind === 'goal')  return { ...base, pointRadius: 0, pointHoverRadius: 0, borderWidth: 1.5, borderDash: [6, 5], order: 4 };
-    return { ...base, pointRadius: d.points.length > 60 ? 0 : 2.5, pointHoverRadius: 5, borderWidth: 2, tension: 0.25, order: 2 };
+    return { ...base, pointRadius: d.points.length > 60 ? 0 : 2.5, pointHoverRadius: 5, borderWidth: 2, tension: 0.25, cubicInterpolationMode: 'monotone', order: 2 };
   });
   const tick = (axis) => (v) => `${+(+v).toFixed(2)}${units[axis] ? ' ' + units[axis] : ''}`;
   const scales = {
@@ -127,7 +128,7 @@ export function initMetricChart(canvasId, { datasets = [], xMin, xMax } = {}) {
       maintainAspectRatio: false,
       parsing: false,
       normalized: true,
-      animation: { duration: 250 },
+      animation: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? false : { duration: 250 },
       interaction: { mode: 'nearest', intersect: false, axis: 'x' },
       plugins: {
         legend: { display: ds.length > 1, labels: { boxWidth: 10, boxHeight: 2 } },

@@ -3126,7 +3126,7 @@ body.session-active .sidebar { display: none !important; }
 .bs-top { margin-bottom: 24px; align-items: start; }
 .bs-bigrow { display: flex; align-items: baseline; gap: 8px; margin: 6px 0 4px; }
 .bs-big { font-size: 52px; line-height: 1; }
-.bs-dim { color: var(--text-3); margin: 6px 0 4px; }
+.bs-dim { color: var(--text-3); margin: 6px 0 4px; font-weight: 700; letter-spacing: 0.04em; }
 .bs-unit { font-size: 0.875rem; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.06em; }
 .bs-deltas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px;
   padding-top: 12px; border-top: 1px solid var(--border); }
@@ -3178,6 +3178,9 @@ body.session-active .sidebar { display: none !important; }
 .bs-add-plus { font-size: 1.3rem; color: var(--fire); line-height: 1; }
 .bs-addform { margin: -12px 0 24px; }
 .bs-hist { overflow-x: auto; margin-bottom: 24px; }
+/* The table scrolls inside its card; wrapping instead stacked each date on
+   three lines at phone width ("Nov / 19, / 26"). */
+.bs-hist th, .bs-hist td { white-space: nowrap; }
 .bs-hist tr.is-editing td { background: var(--fire-dim); }
 .bs-note { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bs-rowbtns { white-space: nowrap; text-align: right; }

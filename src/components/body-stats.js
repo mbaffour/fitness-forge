@@ -7,7 +7,7 @@
 
 import {
   state, save, addBodyCheckIn, updateBodyCheckIn, deleteBodyCheckIn, setGoalWeight,
-  addMetricDef, deleteMetricDef, addMetricEntry, deleteMetricEntry, weightUnitLabel,
+  addMetricDef, deleteMetricDef, addMetricEntry, deleteMetricEntry, weightUnitLabel, cleanText,
 } from '../store.js';
 import { initMetricChart } from './charts.js';
 import { pageHeader, sectionHead, segGroup, toast } from './ui.js';
@@ -89,31 +89,44 @@ function daily(items, agg = 'avg') {
 // ── SERIES ───────────────────────────────────────────────────────────────────
 const goalLbs = () => (Number.isFinite(state.settings?.goalWeight) && state.settings.goalWeight > 0 ? state.settings.goalWeight : null);
 
-function weightDir() {
+// Which way is "better" for bodyweight: towards the goal. Judged from the
+// TREND (what the goal card reports), not the last noisy scale reading — that
+// flipped the colours on the day a reading dipped past a goal the trend had
+// not reached. Within the "reached" tolerance neither way is better.
+function weightDir(points) {
   const g = goalLbs();
-  const last = state.bodyLog.find((e) => Number(e?.weight) > 0);
-  if (!g || !last) return 'none';
-  return g < last.weight ? 'down' : g > last.weight ? 'up' : 'none';
+  if (!g || !points.length) return 'none';
+  const now = trendOf(points)[points.length - 1].y;
+  const goal = dispW(g);
+  if (Math.abs(goal - now) < (kgMode() ? 0.25 : 0.5)) return 'none';
+  return goal < now ? 'down' : 'up';
 }
 
-const validWeight = (e) => e && Number(e.weight) > 0 && Number.isFinite(parseWhen(e.date));
+// Plausible stored values (canonical lbs / % / inches) — a little wider than
+// the form accepts. A restored or hand-edited save can hold anything, and one
+// 1e308 "weigh-in" turned the trend into a 300-digit number and flattened the
+// chart; such a value is shown as missing rather than plotted.
+const okW   = (v) => Number(v) >= 20 && Number(v) <= 1500;
+const okBF  = (v) => Number(v) >= 1 && Number(v) <= 80;
+const okLen = (v) => Number(v) >= 1 && Number(v) <= 150;
+const validWeight = (e) => e && okW(e.weight) && Number.isFinite(parseWhen(e.date));
 
 // key → { key, name, unit, dir, decimals, points, custom? }
 export function seriesFor(key) {
   if (key === 'weight') {
-    return { key, name: 'Bodyweight', unit: wUnit(), dir: weightDir(), decimals: 1,
-      points: daily(state.bodyLog.filter(validWeight).map((e) => ({ t: parseWhen(e.date), v: dispW(Number(e.weight)) }))) };
+    const points = daily(state.bodyLog.filter(validWeight).map((e) => ({ t: parseWhen(e.date), v: dispW(Number(e.weight)) })));
+    return { key, name: 'Bodyweight', unit: wUnit(), dir: weightDir(points), decimals: 1, points };
   }
   if (key === 'bodyfat') {
     return { key, name: 'Body fat', unit: '%', dir: 'down', decimals: 1,
-      points: daily(state.bodyLog.filter((e) => Number(e?.bodyFatPct) > 0).map((e) => ({ t: parseWhen(e.date), v: Number(e.bodyFatPct) }))) };
+      points: daily(state.bodyLog.filter((e) => okBF(e?.bodyFatPct)).map((e) => ({ t: parseWhen(e.date), v: Number(e.bodyFatPct) }))) };
   }
   if (key.startsWith('m:')) {
     const id = key.slice(2);
     const m = MEASURES.find(([mid]) => mid === id);
     if (!m) return null;
     return { key, name: m[1], unit: lenUnit(), dir: m[2], decimals: 1,
-      points: daily(state.bodyLog.filter((e) => Number(e?.measurements?.[id]) > 0)
+      points: daily(state.bodyLog.filter((e) => okLen(e?.measurements?.[id]))
         .map((e) => ({ t: parseWhen(e.date), v: dispLen(Number(e.measurements[id])) }))) };
   }
   if (key === 'sleep') {
@@ -207,11 +220,18 @@ export function correlate(a, b) {
 
 const fmt = (v, dec = 1) => (v == null || !Number.isFinite(v) ? '—'
   : v.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec }));
-const signed = (v, dec = 1) => (v == null || !Number.isFinite(v) ? '—' : `${v > 0 ? '+' : v < 0 ? '−' : '±'}${fmt(Math.abs(v), dec)}`);
+// A change that rounds to zero at the precision shown IS zero: printing 0.004
+// as "+0.0" in a good/bad colour reports a move nobody can see.
+const atDec = (v, dec) => Math.round(v * 10 ** dec) / 10 ** dec;
+const signed = (v, dec = 1) => {
+  if (v == null || !Number.isFinite(v)) return '—';
+  const r = atDec(v, dec);
+  return `${r > 0 ? '+' : r < 0 ? '−' : '±'}${fmt(Math.abs(r), dec)}`;
+};
 
 // Good / bad / neutral colouring for a change, given which way is better.
-function toneOf(delta, dir) {
-  if (delta == null || !Number.isFinite(delta) || Math.abs(delta) < 1e-9 || dir === 'none') return 'var(--text-2)';
+function toneOf(delta, dir, dec = 1) {
+  if (delta == null || !Number.isFinite(delta) || atDec(delta, dec) === 0 || dir === 'none') return 'var(--text-2)';
   return (delta < 0) === (dir === 'down') ? 'var(--green)' : 'var(--ember)';
 }
 
@@ -253,10 +273,12 @@ export function weightSummary() {
     const start = s.points[0].y;
     if (Math.abs(start - g) > 0.05) progress = Math.max(0, Math.min(1, (start - now) / (start - g)));
     if (Math.abs(toGo) < (kgMode() ? 0.25 : 0.5)) eta = 'reached';
-    else if (rate != null && Math.abs(rate) >= 0.05 && Math.sign(rate) === Math.sign(toGo)) {
+    else if (rate != null && Math.abs(rate) < (kgMode() ? 0.025 : 0.05)) eta = 'flat';
+    else if (rate != null && Math.sign(rate) === Math.sign(toGo)) {
+      // The trend is as of the last weigh-in, so the projection starts there.
       const days = (toGo / rate) * 7;
-      if (days < 3 * 365) eta = new Date(Date.now() + days * DAY);
-    } else if (rate != null && Math.abs(rate) >= 0.05) eta = 'away';
+      eta = days < 3 * 365 ? new Date(last.x + days * DAY) : 'far';
+    } else if (rate != null) eta = 'away';
   }
   return { s, trend, now, scale: s.points[s.points.length - 1].y, lastAt: last.x,
            d7: at(7), d30: at(30), rate, goal: g, toGo, eta, progress };
@@ -295,7 +317,7 @@ function _weightCardHTML(W) {
     return `
 <div class="card card-fire">
   <div class="label">Trend weight</div>
-  <div class="display bs-big bs-dim">${p != null ? fmt(p, 1) : '—'}</div>
+  <div class="bs-big bs-dim">${p != null ? fmt(p, 1) : '—'}</div>
   <div class="muted fs12 mt8">${p != null ? `${u} · from your profile. ` : ''}Log a check-in to start the trend.</div>
   ${_goalRowHTML(W)}
 </div>`;
@@ -311,7 +333,7 @@ function _weightCardHTML(W) {
   <div class="bs-deltas">
     <div><div class="label">7 days</div><div class="mono" style="color:${toneOf(W.d7, W.s.dir)}">${signed(W.d7)}</div></div>
     <div><div class="label">30 days</div><div class="mono" style="color:${toneOf(W.d30, W.s.dir)}">${signed(W.d30)}</div></div>
-    <div><div class="label">Per week</div><div class="mono" style="color:${toneOf(W.rate, W.s.dir)}">${rateTxt}</div></div>
+    <div><div class="label">Per week</div><div class="mono" style="color:${toneOf(W.rate, W.s.dir, kgMode() ? 2 : 1)}">${rateTxt}</div></div>
   </div>
   ${_goalRowHTML(W)}
 </div>`;
@@ -332,6 +354,8 @@ function _goalRowHTML(W) {
   let etaTxt = '';
   if (W.eta === 'reached') etaTxt = '<span style="color:var(--green)">✓ Goal reached</span>';
   else if (W.eta === 'away') etaTxt = 'Trend is moving away from the goal';
+  else if (W.eta === 'flat') etaTxt = 'Trend is flat — no date to project yet';
+  else if (W.eta === 'far') etaTxt = 'At this pace, more than 3 years out';
   else if (W.eta instanceof Date) etaTxt = `On pace for ~${W.eta.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: W.eta.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined })}`;
   else if (W.now != null) etaTxt = 'A few more weigh-ins to estimate a date';
   return `
@@ -401,7 +425,7 @@ function _chartHTML(primary, compare, cat) {
     stats = `
 <div class="bs-stats">
   <div><span class="label">Latest</span><b class="mono">${fmt(last, d)}</b></div>
-  <div><span class="label">Change</span><b class="mono" style="color:${toneOf(last - first, P.dir)}">${pts.length > 1 ? signed(last - first, d) : '—'}</b></div>
+  <div><span class="label">Change</span><b class="mono" style="color:${toneOf(last - first, P.dir, d)}">${pts.length > 1 ? signed(last - first, d) : '—'}</b></div>
   <div><span class="label">Avg</span><b class="mono">${fmt(ys.reduce((a, b) => a + b, 0) / ys.length, d)}</b></div>
   <div><span class="label">Low</span><b class="mono">${fmt(Math.min(...ys), d)}</b></div>
   <div><span class="label">High</span><b class="mono">${fmt(Math.max(...ys), d)}</b></div>
@@ -414,7 +438,7 @@ function _chartHTML(primary, compare, cat) {
     const { n, r } = correlate(inRange(P.points), inRange(C.points));
     if (r == null) corr = `<div class="bs-corr muted fs12">${n} shared day${n === 1 ? '' : 's'} in range — need 5 to compare ${esc(P.name)} with ${esc(C.name)}.</div>`;
     else {
-      const a = Math.abs(r);
+      const a = Math.abs(+r.toFixed(2));   // judge the r we print: 0.198 shows as 0.20
       const strength = a >= 0.7 ? 'strong' : a >= 0.4 ? 'moderate' : a >= 0.2 ? 'weak' : 'no clear';
       const way = a < 0.2 ? '' : r > 0 ? ' — they tend to rise together' : ' — when one rises the other tends to fall';
       corr = `<div class="bs-corr fs12"><b class="mono">r = ${r.toFixed(2)}</b> over ${n} shared days: ${strength} relationship${way}. Correlation, not cause.</div>`;
@@ -478,7 +502,8 @@ function _metricsGridHTML(cat, primary) {
 <button class="bs-metric${on}" onclick="bsPlot('${s.key}')" aria-pressed="${!!on}">
   <span class="bs-metric-head"><span class="label">${esc(s.name)}</span>${s.custom ? '<span class="tag t-fire bs-tag">custom</span>' : ''}</span>
   <span class="bs-metric-val"><b class="mono">${fmt(last, s.decimals)}</b> <span class="muted fs11">${esc(s.unit)}</span></span>
-  <span class="mono fs11" style="color:${toneOf(delta, s.dir)}">${delta == null ? (s.points.length ? '1 entry in range' : 'No entries yet') : `${signed(delta, s.decimals)} in range`}</span>
+  <span class="mono fs11" style="color:${toneOf(delta, s.dir, s.decimals)}">${delta != null ? `${signed(delta, s.decimals)} in range`
+    : pts.length ? '1 entry in range' : s.points.length ? 'None in range' : 'No entries yet'}</span>
   ${_spark(pts, s.key === primary ? 'var(--fire)' : 'var(--steel)')}
 </button>`;
   }).join('');
@@ -511,7 +536,7 @@ function _addMetricHTML() {
 function _historyHTML() {
   const log = state.bodyLog.filter((e) => e && Number.isFinite(parseWhen(e.date)));
   if (!log.length) return '';
-  const used = MEASURES.filter(([id]) => log.some((e) => Number(e.measurements?.[id]) > 0));
+  const used = MEASURES.filter(([id]) => log.some((e) => okLen(e.measurements?.[id])));
   const rows = _showAll ? log : log.slice(0, 15);
   const lu = lenUnit();
   return `
@@ -522,9 +547,9 @@ ${sectionHead('Check-in history', `${log.length} entr${log.length === 1 ? 'y' : 
     <tbody>${rows.map((e) => `
       <tr${e.id === _editId ? ' class="is-editing"' : ''}>
         <td class="mono muted fs11">${new Date(parseWhen(e.date)).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}</td>
-        <td class="mono fire">${Number(e.weight) > 0 ? fmt(dispW(Number(e.weight)), 1) : '—'}</td>
-        <td class="mono muted fs11">${Number(e.bodyFatPct) > 0 ? fmt(Number(e.bodyFatPct), 1) : '—'}</td>
-        ${used.map(([id]) => `<td class="mono muted fs11">${Number(e.measurements?.[id]) > 0 ? fmt(dispLen(Number(e.measurements[id])), 1) + lu : '—'}</td>`).join('')}
+        <td class="mono fire">${okW(e.weight) ? fmt(dispW(Number(e.weight)), 1) : '—'}</td>
+        <td class="mono muted fs11">${okBF(e.bodyFatPct) ? fmt(Number(e.bodyFatPct), 1) : '—'}</td>
+        ${used.map(([id]) => `<td class="mono muted fs11">${okLen(e.measurements?.[id]) ? fmt(dispLen(Number(e.measurements[id])), 1) + lu : '—'}</td>`).join('')}
         <td class="muted fs11 bs-note">${esc(e.notes || '')}</td>
         <td class="bs-rowbtns"><button class="bs-x" onclick="bsEditCheckIn(${Number(e.id)})" aria-label="Edit check-in">✎</button><button class="bs-x" onclick="bsDeleteCheckIn(${Number(e.id)})" aria-label="Delete check-in">✕</button></td>
       </tr>`).join('')}
@@ -562,9 +587,19 @@ function _drawSeries(canvasId, primaryKey, compareKey, { range = true } = {}) {
   if (compareKey) {
     const C = seriesFor(compareKey);
     const cp = C ? pick(compareKey === 'weight' ? trendOf(C.points) : C.points) : [];
-    if (cp.length) datasets.push({ label: C.name, points: cp, color: '--steel', kind: 'line', axis: 'y2', unit: C.unit, decimals: C.decimals });
+    if (cp.length) datasets.push({ label: C.name, points: cp, color: _compareColor(), kind: 'line', axis: 'y2', unit: C.unit, decimals: C.decimals });
   }
   initMetricChart(canvasId, { datasets, xMin, xMax });
+}
+
+// The compared series must not wear the primary's colour. Some themes alias
+// tokens (instrument sets --steel to its --fire cyan), which drew both lines
+// identically and made a two-series chart unreadable.
+function _compareColor() {
+  const cv = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim().toLowerCase();
+  // …nor the goal line's (steel sets --steel to its --green).
+  const taken = new Set([cv('--fire'), cv('--green')]);
+  return ['--steel', '--ember', '--text-2'].find((t) => cv(t) && !taken.has(cv(t))) || '--text-2';
 }
 
 // Used by Analytics for its bodyweight panel.
@@ -609,10 +644,17 @@ window.saveBodyCheckIn = () => {
   if (date === 'future') return _bad('checkin-date', 'A check-in can’t be in the future');
   const wIn = _num('checkin-weight');
   const bf = _num('checkin-bf');
+  // Editing shows stored values rounded to one decimal in the display unit.
+  // Saving an untouched field must keep the stored number, not the rounded
+  // display one converted back — or every edit in kg/cm nudged the check-in
+  // (182.5 lbs → 182.54, 42 in → 42.01) without the person changing anything.
+  const prev = _editId != null ? state.bodyLog.find((x) => x?.id === _editId) : null;
+  const shown = (stored, conv) => (Number(stored) > 0 ? +conv(Number(stored)).toFixed(1) : null);
   const measurements = {};
   for (const [id, label] of MEASURES) {
     const v = _num(`m-${id}`);
     if (v == null) continue;
+    if (prev && v === shown(prev.measurements?.[id], dispLen)) { measurements[id] = Number(prev.measurements[id]); continue; }
     const inch = storeLen(v);
     if (!Number.isFinite(inch) || inch < 2 || inch > 100) return _bad(`m-${id}`, `${label} looks off — check the number (${lenUnit()})`);
     measurements[id] = Math.round(inch * 100) / 100;
@@ -623,7 +665,7 @@ window.saveBodyCheckIn = () => {
     if (!Number.isFinite(lbs) || lbs < 50 || lbs > 1000) {
       return _bad('checkin-weight', kgMode() ? 'Weight should be between 23 and 450 kg' : 'Weight should be between 50 and 1000 lbs');
     }
-    weight = Math.round(lbs * 100) / 100;
+    weight = prev && wIn === shown(prev.weight, dispW) ? Number(prev.weight) : Math.round(lbs * 100) / 100;
   }
   if (bf != null && (!Number.isFinite(bf) || bf < 2 || bf > 75)) return _bad('checkin-bf', 'Body fat should be between 2 and 75%');
   if (weight == null && bf == null && !Object.keys(measurements).length) {
@@ -633,7 +675,6 @@ window.saveBodyCheckIn = () => {
   const entry = { date, weight, bodyFatPct: bf ?? null, measurements, notes };
   let ok;
   if (_editId != null) {
-    const prev = state.bodyLog.find((x) => x?.id === _editId);
     // Keep the original time of day when the date was not changed.
     if (prev && localKey(parseWhen(prev.date)) === localKey(parseWhen(date))) entry.date = prev.date;
     ok = updateBodyCheckIn(_editId, entry);
@@ -702,11 +743,18 @@ function _created(id) {
   toast(`✓ ${state.metricDefs[id].name} added — log your first value`, { type: 'green' });
   setTimeout(() => { const el = document.getElementById('bs-mval'); el?.scrollIntoView({ behavior: 'smooth', block: 'center' }); el?.focus(); }, 50);
 }
-window.bsAddPreset = (i) => { const p = PRESETS[i]; if (p) _created(addMetricDef(p)); };
+window.bsAddPreset = (i) => {
+  const p = PRESETS[i];
+  if (!p || Object.values(state.metricDefs).some((d) => d.name.toLowerCase() === p.name.toLowerCase())) return;
+  _created(addMetricDef(p));
+};
 window.bsAddMetric = () => {
   const name = (document.getElementById('bs-mname')?.value || '').trim();
   if (!name) return _bad('bs-mname', 'Give the metric a name');
-  if (Object.values(state.metricDefs).some((d) => d.name.toLowerCase() === name.toLowerCase())) return _bad('bs-mname', 'You already track a metric with that name');
+  // Compare the name as it will be STORED: cleaning turns " into ″, so a raw
+  // comparison let the same name be created twice.
+  const key = cleanText(name, 40).toLowerCase();
+  if (Object.values(state.metricDefs).some((d) => d.name.toLowerCase() === key)) return _bad('bs-mname', 'You already track a metric with that name');
   _created(addMetricDef({ name, unit: (document.getElementById('bs-munit')?.value || '').trim(),
     dir: document.getElementById('bs-mdir')?.value || 'none', decimals: 1 }));
 };

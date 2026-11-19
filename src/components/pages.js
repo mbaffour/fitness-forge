@@ -1015,6 +1015,16 @@ window.exportData = () => {
 };
 
 window.exportCSV = (type) => {
+  // The LOCAL calendar day a timestamp falls on. Slicing the ISO string gives
+  // the UTC day, so an 11pm weigh-in in California exported as tomorrow.
+  const localDay = (v) => {
+    const s = String(v || '');
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    const t = Date.parse(s);
+    if (!Number.isFinite(t)) return s.slice(0, 10);
+    const d = new Date(t);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
   const exporters = {
     food: () => {
       const rows = [['Date','Meal','Name','Calories','Protein','Carbs','Fat']];
@@ -1038,7 +1048,7 @@ window.exportCSV = (type) => {
       const M = ['chest','waist','hips','leftArm','rightArm','leftThigh','neck'];
       const rows = [['Date','Weight(lbs)','BodyFat(%)', ...M.map((m) => `${m}(in)`), 'Notes']];
       state.bodyLog.forEach(e => {
-        rows.push([String(e.date || '').slice(0, 10), e.weight ?? '', e.bodyFatPct ?? '',
+        rows.push([localDay(e.date), e.weight ?? '', e.bodyFatPct ?? '',
           ...M.map((m) => e.measurements?.[m] ?? ''), e.notes || '']);
       });
       return rows;
@@ -1047,7 +1057,7 @@ window.exportCSV = (type) => {
       const rows = [['Date','Metric','Value','Unit']];
       state.metricLog.forEach(e => {
         const d = state.metricDefs[e.metric];
-        if (d) rows.push([String(e.date).slice(0, 10), d.name, e.value, d.unit]);
+        if (d) rows.push([localDay(e.date), d.name, e.value, d.unit]);
       });
       return rows;
     },
