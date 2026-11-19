@@ -5,6 +5,7 @@
 import { state, getTodayNutrition, addFoodEntry, removeFoodEntry, logWater, updateProfile } from '../store.js';
 import { calcBMR, calcTDEE, calcMacros, ACTIVITY_MULTIPLIERS } from '../engine/bmr.js';
 import { initMacroDonut, initCalorieChart, initMacroStackedChart } from './charts.js';
+import { toast } from './ui.js';
 
 export function renderNutrition() {
   const { profile, nutritionLog } = state;
@@ -223,7 +224,7 @@ function renderWaterTracker(current) {
   <div class="label" style="margin-bottom:8px">Water — ${current} / ${goal} glasses</div>
   <div class="water-glasses">
     ${Array.from({ length: goal }, (_, i) => `
-      <button class="water-glass ${i < current ? 'filled' : ''}" onclick="setWater(${i + 1})" title="${i+1} glass${i > 0 ? 'es' : ''}">
+      <button class="water-glass ${i < current ? 'filled' : ''}" onclick="setWater(${i + 1 === current ? i : i + 1})" title="${i + 1 === current ? 'Tap to undo' : `${i + 1} glass${i > 0 ? 'es' : ''}`}">
         ${i < current ? '🥤' : '🫙'}
       </button>
     `).join('')}
@@ -245,6 +246,16 @@ window.addFood = () => {
 
   if (!name && !cal) {
     document.getElementById('food-name')?.focus();
+    return;
+  }
+  // `min="0"` does not stop a typed "-500"; it was stored and pulled the
+  // day's totals negative. Re-prompt instead of guessing what was meant.
+  const neg = [['food-cal', cal], ['food-pro', pro], ['food-car', car], ['food-fat', fat]].find(([, v]) => v < 0);
+  if (neg) {
+    const el = document.getElementById(neg[0]);
+    el?.classList.add('input-error');
+    setTimeout(() => el?.classList.remove('input-error'), 400);
+    toast('Values cannot be negative.', { type: 'danger' });
     return;
   }
 

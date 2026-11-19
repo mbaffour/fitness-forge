@@ -1,4 +1,4 @@
-import { state, save, setPhase, setWeek, logWorkout, clearLog, resetAll, updateProfile, formatWeight, displayName, pruneIdMap, cleanCustomExercise } from '../store.js';
+import { state, save, setPhase, setWeek, logWorkout, clearLog, resetAll, updateProfile, formatWeight, toDisplayWeight, toStoredWeight, weightUnitLabel, displayName, currentStreak, localDateStr, pruneIdMap, cleanCustomExercise, cleanMetricDefs, cleanMetricLog } from '../store.js';
 import { GOAL_OPTIONS, LEVEL_OPTIONS, PHASE_NAMES, PHASE_DESCS, EXERCISES, MUSCLE_GROUPS } from '../data/exercises.js';
 import { calcBMR, calcTDEE, calcMacros, ACTIVITY_MULTIPLIERS } from '../engine/bmr.js';
 import { renderCardioLog, scheduleCardioCharts } from './cardio-log.js';
@@ -62,7 +62,11 @@ ${(() => {
   const heroEx = todayEx.map(e => EXERCISES[e.id]).find(e => e?.imgKey);
   const heroPhoto = heroEx ? exPhotoURL(heroEx, 0) : '';
   const heroPhotoAlt = heroEx ? `${heroEx.name} — today's first movement` : '';
-  const cta = type === 'strength'
+  // Once today's session is logged the hero should say so, not keep asking.
+  const trainedToday = (workoutLog || []).some(l => l?.date && localDateStr(new Date(l.date)) === localDateStr());
+  const cta = type === 'strength' && trainedToday
+    ? `<button class="btn btn-ghost btn-lg w100" onclick="navigate('workout')">✓ Done for today · view session</button>`
+    : type === 'strength'
     ? `<button class="btn btn-fire btn-lg w100" onclick="navigate('workout')">${icon} Start Today's Workout</button>`
     : type === 'cardio'
       ? `<button class="btn btn-fire btn-lg w100" onclick="navigate('cardio')">${icon} Log Cardio</button>`
@@ -75,7 +79,7 @@ ${(() => {
   <div class="hero-meta">
     <div><span class="k">Focus</span><span class="v">${focus}</span></div>
     <div><span class="k">Program</span><span class="v">${pct}% done</span></div>
-    <div><span class="k">Streak</span><span class="v">${streak.current} <span class="streak-flame">🔥</span></span></div>
+    <div><span class="k">Streak</span><span class="v">${currentStreak()} <span class="streak-flame">🔥</span></span></div>
     <div><span class="k">Sessions</span><span class="v">${totalSessions}</span></div>
   </div>
   ${cta}
@@ -123,15 +127,15 @@ ${(() => {
   </div>
   <div class="stat s-green" style="cursor:pointer" onclick="navigate('achievements')">
     <div class="label">Streak</div>
-    <div class="display" style="font-size:28px;margin-top:6px">${streak.current}d</div>
+    <div class="display" style="font-size:28px;margin-top:6px">${currentStreak()}d</div>
   </div>
-  <div class="stat s-steel" style="cursor:pointer" onclick="navigate('body')">
+  <div class="stat s-steel" style="cursor:pointer" onclick="navigate('achievements')">
     <div class="label">PRs</div>
     <div class="display" style="font-size:28px;margin-top:6px">${Object.keys(state.prs).length}</div>
   </div>
   <div class="stat s-ember" style="cursor:pointer" onclick="navigate('nutrition')">
     <div class="label">Today kcal</div>
-    <div class="display" style="font-size:28px;margin-top:6px">${state.nutritionLog.find(d => d.date === new Date().toISOString().slice(0,10))?.calories || 0}</div>
+    <div class="display" style="font-size:28px;margin-top:6px">${state.nutritionLog.find(d => d.date === localDateStr())?.calories || 0}</div>
   </div>
 </div>
 
@@ -147,7 +151,7 @@ ${(() => {
       <div class="label" style="color:${isActive ? 'var(--fire)' : isDone ? 'var(--forge-green)' : 'var(--text-3)'}">
         ${isDone ? '✓ ' : isActive ? '→ ' : ''}Phase ${n}
       </div>
-      <div class="display" style="font-size:22px;margin:6px 0;color:${isActive ? 'var(--text)' : 'var(--text-2)'}">
+      <div class="display" style="font-size:clamp(15px,4.4vw,22px);overflow-wrap:anywhere;margin:6px 0;color:${isActive ? 'var(--text)' : 'var(--text-2)'}">
         ${name.toUpperCase()}
       </div>
       <div class="muted" style="font-size:11px">Weeks ${(n-1)*4+1}–${n*4}</div>
@@ -339,7 +343,9 @@ function renderNonStrengthDay(sched, program) {
 <div class="card tc" style="padding:48px">
   <div style="font-size:44px;margin-bottom:16px">${sched.type === 'cardio' ? '🏃' : '⚽'}</div>
   <div class="display" style="font-size:30px;margin-bottom:8px">${sched.label.toUpperCase()}</div>
-  <div class="dim fs13">See your cardio prescription below ↓</div>
+  <div class="dim fs13">${sched.type === 'cardio' && program?.cardioPrescriptions?.length
+    ? 'See your cardio prescription below ↓'
+    : 'Easy movement or full rest — log any cardio you do.'}</div>
   <button class="btn btn-green btn-sm" style="margin-top:16px" onclick="navigate('cardio');setTimeout(()=>switchLogTab('cardio'),100)">+ Log Cardio →</button>
 </div>`;
 }
@@ -427,7 +433,8 @@ export function renderSchedule() {
 // ── PROGRESS ──
 // ── Training consistency heatmap (GitHub-style, last 16 weeks) ──
 // Counts any logged training day: workouts (incl. sessions), cardio, activity,
-// and HIIT logs. Uses the app's UTC-ISO date convention (toISOString).
+// and HIIT logs. Keyed by LOCAL calendar day, like the log pages and streak —
+// a UTC key put an evening session in Los Angeles on tomorrow's square.
 function _activeDayCounts() {
   const counts = {};
   const add = (d) => {
@@ -436,7 +443,7 @@ function _activeDayCounts() {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) {
       const t = new Date(d);
       if (isNaN(t)) return;
-      key = t.toISOString().slice(0, 10);
+      key = localDateStr(t);
     }
     counts[key] = (counts[key] || 0) + 1;
   };
@@ -449,19 +456,19 @@ function _activeDayCounts() {
 
 function _heatmapHTML() {
   const counts   = _activeDayCounts();
-  const todayKey = new Date().toISOString().slice(0, 10);
-  const todayUTC = new Date(`${todayKey}T00:00:00Z`);
-  const dow      = todayUTC.getUTCDay();               // 0 = Sun
+  const todayKey = localDateStr();
+  const today    = new Date(); today.setHours(12, 0, 0, 0);
+  const dow      = today.getDay();                     // 0 = Sun
   const weeks    = 16;
-  const start    = new Date(todayUTC.getTime() - (7 * (weeks - 1) + dow) * 86400000);
 
   let cells = '';
   let activeDays = 0;
   for (let i = 0; i < weeks * 7; i++) {
-    const d   = new Date(start.getTime() + i * 86400000);
-    const key = d.toISOString().slice(0, 10);
+    // Calendar steps, not 24h steps: across a DST change those drift a day.
+    const d   = new Date(today); d.setDate(today.getDate() - (7 * (weeks - 1) + dow) + i);
+    const key = localDateStr(d);
     const n   = counts[key] || 0;
-    const future = d > todayUTC;
+    const future = key > todayKey;
     if (n > 0 && !future) activeDays++;
     const lvl = n >= 3 ? 'l3' : n === 2 ? 'l2' : n === 1 ? 'l1' : '';
     cells += `<span class="hm-cell ${lvl}${future ? ' future' : ''}${key === todayKey ? ' today' : ''}" title="${key}${n ? ` · ${n} ${n === 1 ? 'entry' : 'entries'}` : ''}"></span>`;
@@ -532,7 +539,7 @@ ${sessions.length >= 2 ? `
 ` : ''}
 
 ${prKeys.length > 0 ? `
-<div class="sec-head" style="margin-bottom:12px">Strength Trend — ${(state.prs[prKeys[0]] ? (state.prs[prKeys[0]].weight + 'lb ' + prKeys[0].replace(/_/g,' ')) : '')}</div>
+<div class="sec-head" style="margin-bottom:12px">Strength Trend — ${EXERCISES[prKeys[0]]?.name || prKeys[0].replace(/_/g,' ')} · PR ${formatWeight(state.prs[prKeys[0]]?.weight)}</div>
 <div class="card mb24" style="margin-bottom:24px">
   <div class="chart-wrap" style="height:180px" id="strength-chart-1-wrap"><canvas id="strength-chart-1"></canvas></div>
 </div>
@@ -769,6 +776,8 @@ ${(() => {
       <button class="btn btn-ghost btn-sm" onclick="exportCSV('food')">📊 Food Log</button>
       <button class="btn btn-ghost btn-sm" onclick="exportCSV('sleep')">📊 Sleep Log</button>
       <button class="btn btn-ghost btn-sm" onclick="exportCSV('activity')">📊 Activity Log</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportCSV('body')">📊 Body Log</button>
+      <button class="btn btn-ghost btn-sm" onclick="exportCSV('metrics')">📊 Custom Metrics</button>
     </div>
   </div>
 </div>
@@ -801,7 +810,7 @@ ${(() => {
       <div style="font-size:13px;font-weight:500">Default Rest Time</div>
       <div class="muted fs11" style="margin-top:2px">Auto-starts after each logged set</div>
     </div>
-    <select class="form-input" style="width:120px" onchange="saveRestSetting(this.value)">
+    <select class="form-input" aria-label="Default rest time" style="width:120px" onchange="saveRestSetting(this.value)">
       ${[['60','60 sec'],['90','90 sec'],['120','2 min'],['180','3 min'],['300','5 min']].map(([v,l]) =>
         `<option value="${v}" ${(state.settings?.restSeconds ?? 90) == v ? 'selected' : ''}>${l}</option>`
       ).join('')}
@@ -812,7 +821,7 @@ ${(() => {
       <div style="font-size:13px;font-weight:500">Progression Scheme</div>
       <div class="muted fs11" style="margin-top:2px">How the app suggests your next weight</div>
     </div>
-    <select class="form-input" style="width:150px" onchange="setProgression(this.value)">
+    <select class="form-input" aria-label="Progression scheme" style="width:150px" onchange="setProgression(this.value)">
       ${[['double','Double progression'],['linear','Linear (add each time)'],['greyskull','Greyskull LP']].map(([v,l]) =>
         `<option value="${v}" ${(state.settings?.progression || 'double') === v ? 'selected' : ''}>${l}</option>`
       ).join('')}
@@ -823,9 +832,20 @@ ${(() => {
       <div style="font-size:13px;font-weight:500">Weight Units</div>
       <div class="muted fs11" style="margin-top:2px">How weights are shown across the app</div>
     </div>
-    <select class="form-input" style="width:120px" onchange="setWeightUnit(this.value)">
+    <select class="form-input" aria-label="Weight unit" style="width:120px" onchange="setWeightUnit(this.value)">
       ${[['lbs','Pounds (lbs)'],['kg','Kilograms (kg)']].map(([v,l]) =>
         `<option value="${v}" ${(state.settings?.weightUnit || 'lbs') === v ? 'selected' : ''}>${l}</option>`
+      ).join('')}
+    </select>
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
+    <div>
+      <div style="font-size:13px;font-weight:500">Distance Units</div>
+      <div class="muted fs11" style="margin-top:2px">Cardio and activity distances and pace</div>
+    </div>
+    <select class="form-input" aria-label="Distance unit" style="width:120px" onchange="setDistanceUnit(this.value)">
+      ${[['miles','Miles (mi)'],['km','Kilometres (km)']].map(([v,l]) =>
+        `<option value="${v}" ${(state.settings?.distanceUnit === 'km' ? 'km' : 'miles') === v ? 'selected' : ''}>${l}</option>`
       ).join('')}
     </select>
   </div>
@@ -870,6 +890,10 @@ ${(() => {
     <div>
       <label class="label">Height (in)</label>
       <input type="number" id="pf-in" class="form-input" placeholder="10" min="0" max="11" value="${profile?.heightIn || ''}" style="width:100%;margin-top:4px;box-sizing:border-box">
+    </div>
+    <div>
+      <label class="label">Bodyweight (${weightUnitLabel()})</label>
+      <input type="number" id="pf-weight" class="form-input" placeholder="${weightUnitLabel() === 'kg' ? '80' : '180'}" value="${profile?.weight ? toDisplayWeight(profile.weight) : ''}" style="width:100%;margin-top:4px;box-sizing:border-box">
     </div>
     <div>
       <label class="label">Age</label>
@@ -967,18 +991,26 @@ window.saveBMR = () => {
   const age      = parseInt(document.getElementById('pf-age')?.value)      || 0;
   const sex      = document.getElementById('pf-sex')?.value;
   const activity = document.getElementById('pf-activity')?.value;
+  // Bodyweight lives here too: someone who skipped it during onboarding had
+  // no way to set it, and the button reported "BMR: null · TDEE: null".
+  const wRaw     = parseFloat(document.getElementById('pf-weight')?.value);
+  const weight   = wRaw ? Math.round(toStoredWeight(wRaw)) : 0;
 
-  if (!ft || !age || !sex || !activity) {
-    alert('Please fill in height, age, sex, and activity level.');
+  if (!ft || !age || !sex || !activity || !weight) {
+    alert('Please fill in height, bodyweight, age, sex, and activity level.');
+    return;
+  }
+  if (weight < 60 || weight > 700 || age < 13 || age > 100 || ft < 3 || ft > 8 || inches < 0 || inches > 11) {
+    alert('Those numbers look off — check height, bodyweight and age.');
     return;
   }
 
   const heightCm = Math.round((ft * 12 + inches) * 2.54);
-  const patches  = { heightFt: ft, heightIn: inches, height: heightCm, age, sex, activityLevel: activity };
+  const patches  = { heightFt: ft, heightIn: inches, height: heightCm, age, sex, activityLevel: activity, weight };
   const tmpProfile = { ...state.profile, ...patches };
   const bmr  = calcBMR(tmpProfile);
   const tdee = calcTDEE(bmr, activity);
-  const macros = state.profile ? calcMacros(tdee, state.profile.goal, state.profile.weight) : null;
+  const macros = state.profile ? calcMacros(tdee, state.profile.goal, weight) : null;
 
   updateProfile({ ...patches, bmr, tdee, ...(macros || {}) });
 
@@ -1013,6 +1045,16 @@ window.exportData = () => {
 };
 
 window.exportCSV = (type) => {
+  // The LOCAL calendar day a timestamp falls on. Slicing the ISO string gives
+  // the UTC day, so an 11pm weigh-in in California exported as tomorrow.
+  const localDay = (v) => {
+    const s = String(v || '');
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    const t = Date.parse(s);
+    if (!Number.isFinite(t)) return s.slice(0, 10);
+    const d = new Date(t);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
   const exporters = {
     food: () => {
       const rows = [['Date','Meal','Name','Calories','Protein','Carbs','Fat']];
@@ -1030,10 +1072,29 @@ window.exportCSV = (type) => {
       });
       return rows;
     },
+    body: () => {
+      // Canonical units (lbs, inches), labelled, so a re-import or a
+      // spreadsheet never has to guess which unit a number was in.
+      const M = ['chest','waist','hips','leftArm','rightArm','leftThigh','neck'];
+      const rows = [['Date','Weight(lbs)','BodyFat(%)', ...M.map((m) => `${m}(in)`), 'Notes']];
+      state.bodyLog.forEach(e => {
+        rows.push([localDay(e.date), e.weight ?? '', e.bodyFatPct ?? '',
+          ...M.map((m) => e.measurements?.[m] ?? ''), e.notes || '']);
+      });
+      return rows;
+    },
+    metrics: () => {
+      const rows = [['Date','Metric','Value','Unit']];
+      state.metricLog.forEach(e => {
+        const d = state.metricDefs[e.metric];
+        if (d) rows.push([localDay(e.date), d.name, e.value, d.unit]);
+      });
+      return rows;
+    },
     activity: () => {
       const rows = [['Date','Type','Duration(min)','Intensity','Calories','Distance','HR','Notes']];
       state.activityLog.forEach(e => {
-        rows.push([e.date, e.type, e.durationMin, e.intensity, e.calories, e.distance || '', e.hr || '', e.notes || '']);
+        rows.push([e.date, e.type, e.durationMin, e.intensity, e.calories, e.distance ? `${e.distance} mi` : '', e.hr || '', e.notes || '']);
       });
       return rows;
     },
@@ -1069,7 +1130,11 @@ const BACKUP_KEYS = [
   'workoutLog', 'sessions', 'cardioLog', 'nutritionLog', 'bodyLog', 'sleepLog',
   'activityLog', 'achievements', 'prs', 'customExercises', 'streak', 'settings',
   'gymProfiles', 'activeGymId', 'goalProgram', 'challenge', 'bodyMapTray',
-  'bodyMapSel', 'fasting',
+  'bodyMapSel', 'metricDefs', 'metricLog',
+  // These four were missing — the list said 'fasting', a key the app never
+  // writes — so restoring a backup silently dropped the whole fasting history,
+  // any fast in progress, HIIT progress and the Overload rotation.
+  'fastingLog', 'activeFast', 'hiitState', 'overloadState',
 ];
 function sanitizeBackup(parsed) {
   const out = {};
@@ -1083,11 +1148,16 @@ function sanitizeBackup(parsed) {
     const clean = cleanCustomExercise(ex);
     if (clean) out.customExercises[id] = clean; else delete out.customExercises[id];
   }
+  out.metricDefs = cleanMetricDefs(out.metricDefs);
+  out.metricLog = cleanMetricLog(out.metricLog, out.metricDefs);
   return out;
 }
 
 window.importData = (evt) => {
   const file = evt.target.files?.[0];
+  // Clear the picker, or choosing the same file again (after cancelling the
+  // confirm, say) fires no change event and nothing happens.
+  evt.target.value = '';
   if (!file) return;
   const reader = new FileReader();
   reader.onload = (e) => {

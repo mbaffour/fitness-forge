@@ -96,7 +96,7 @@ html[data-theme="day"] {
   --fire:       #c84808;
   --fire-dim:   rgba(200,72,8,0.10);
   --fire-glow:  rgba(200,72,8,0.22);
-  --ember:      #b87800;
+  --ember:      #946000;  /* was #b87800: 2.5–3.2:1 on the cream cards */
   --steel:      #3a7898;
   --forge-green:#007744;
   --danger:     #c02020;
@@ -118,7 +118,7 @@ html[data-theme="ambient"] {
   --border-hi:  #2e2e58;
   --text:       #e4e0fc;
   --text-2:     #8080c0;
-  --text-3:     #404078;
+  --text-3:     #5a5a98;  /* was #404078: ~2:1 on every surface */
   --fire:       #8b74ff;
   --fire-dim:   rgba(139,116,255,0.12);
   --fire-glow:  rgba(139,116,255,0.28);
@@ -139,8 +139,8 @@ html[data-theme="steel"] {
   --border:     #223040;
   --border-hi:  #2c3e52;
   --text:       #c8e2f4;
-  --text-2:     #5888a8;
-  --text-3:     #2e4a60;
+  --text-2:     #6694b4;
+  --text-3:     #46667e;  /* was #2e4a60: 1.5–2:1, section labels vanished */
   --fire:       #36b4e4;
   --fire-dim:   rgba(54,180,228,0.12);
   --fire-glow:  rgba(54,180,228,0.28);
@@ -242,8 +242,11 @@ html[data-theme="vivid"] {
   --surface:#ffffff;
   --border:#e5e5e0; --border-hi:#d2d2ca;
   --text:#12121a; --text-2:#6a6a62; --text-3:#9a9a90;
-  --fire:#ff5a1f; --fire-dim:rgba(255,90,31,0.10); --fire-glow:rgba(255,90,31,0.22); --fire-bright:#ff7a45;
-  --ember:#ff9f1c; --steel:#2f6bff; --forge-green:#16c784; --danger:#e5484d;
+  /* Accents are used as TEXT (active tabs, PRs, success, warnings) on white,
+     where the bright originals read at 1.8–3:1. Darkened to ~4.4:1 or better;
+     the CTA keeps the bright --grad, so buttons look unchanged. */
+  --fire:#d9430c; --fire-dim:rgba(255,90,31,0.10); --fire-glow:rgba(255,90,31,0.22); --fire-bright:#ff7a45;
+  --ember:#a86400; --steel:#2f6bff; --forge-green:#0b8a55; --danger:#c8303a;
   --grad:linear-gradient(92deg,#ff7a1f,#ff5a1f);
   --glow:0 6px 20px rgba(0,0,0,0.06);
   /* Light theme — invert the white artwork to ink on a clean card. */
@@ -1451,7 +1454,7 @@ select.form-input option { background: var(--bg-3); }
 }
 .set-input:focus { outline: none; border-color: var(--fire); }
 .set-input.input-error { border-color: var(--danger); animation: shake 0.3s; }
-.rir-selector { display: flex; gap: 3px; width: 90px; flex-shrink: 0; }
+.rir-selector { display: flex; gap: 3px; flex-shrink: 0; }  /* a fixed 90px pushed RIR 4–5 under the W toggle */
 .rir-btn {
   padding: 5px 6px; background: var(--bg-3); border: 1px solid var(--border);
   color: var(--text-3); font-family: var(--ff-mono); font-size: 9px;
@@ -1582,6 +1585,9 @@ select.form-input option { background: var(--bg-3); }
 }
 .cal-cell.active { background: var(--fire); border-color: var(--fire); opacity: 0.8; }
 .cal-cell.today  { border-color: var(--forge-green) !important; }
+/* Cap the cells: 7 fluid columns made each day a ~100px tile on desktop and
+   the 12-week calendar over a thousand pixels tall. */
+.cal-dow-labels, .cal-grid { grid-template-columns: repeat(7, minmax(12px, 28px)); }
 
 /* ── CARDIO LOG ── */
 .cardio-entry-row {
@@ -1861,6 +1867,8 @@ details[open] .ex-cues summary::before { transform: rotate(90deg); }
 /* On mobile, pages need extra top padding for topbar + strip */
 @media (max-width: 768px) {
   .page { padding-top: 110px !important; }
+  /* Pages under a hub sub-tab row: the row clears the bar instead (see the
+     mobile #hub-subtabs rule with the focus-visible styles below). */
 }
 
 /* ── FASTING RING ── */
@@ -1933,6 +1941,13 @@ details[open] .ex-cues summary::before { transform: rotate(90deg); }
   flex-direction: column;
   align-items: center;
   gap: 6px;
+}
+/* On a phone the rings shared a line with the score, got ~100px, and stacked
+   one per row — a report card four screens tall. Give them their own row of
+   four, scaled to fit. */
+@media (max-width: 768px) {
+  .goal-rings-row { flex: 1 1 100% !important; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .goal-ring-wrap svg { width: 100%; height: auto; max-width: 90px; }
 }
 .goal-ring-label {
   font-family: var(--ff-mono);
@@ -2472,6 +2487,14 @@ details[open] summary span:last-child { transform: rotate(180deg); display: inli
 }
 .hub-tab:hover { color: var(--text); }
 .hub-tab.active { color: var(--fire); border-bottom-color: var(--fire); }
+/* The sub-tab row sits above the active .page, outside its padding. On
+   mobile that put it under the fixed topbar + sticky stats strip — fully
+   hidden, so Progress / Analytics / Achievements could not be switched
+   between without the drawer — and on desktop it hugged the sidebar edge,
+   out of line with the page. Give it the page's gutters and take the page's
+   top padding over for it. */
+#hub-subtabs:not(:empty) { padding: 20px 48px 0; max-width: 1080px; }
+#hub-subtabs:not(:empty) ~ .page { padding-top: 8px; }
 
 /* ── Bottom tab bar (mobile) ── */
 .tabbar { display: none; }
@@ -2495,9 +2518,16 @@ details[open] summary span:last-child { transform: rotate(180deg); display: inli
   /* Hide the desktop sidebar drawer trigger overlap handled elsewhere */
 }
 /* Focus mode: hide all nav chrome during an active workout */
+/* The mobile bar is .mobile-topbar — `.topbar` matched nothing, so the
+   hamburger stayed on screen mid-session and opened a blurred backdrop over a
+   drawer this rule hides. */
 body.session-active .tabbar,
-body.session-active .topbar,
+body.session-active .mobile-topbar,
+body.session-active .sidebar-backdrop,
 body.session-active .sidebar { display: none !important; }
+@media (max-width: 768px) {
+  body.session-active .active-session-overlay { padding-top: calc(16px + env(safe-area-inset-top, 0px)); }
+}
 
 /* ── Hero "Today's Workout" card ── */
 .hero-card {
@@ -3118,3 +3148,124 @@ body.session-active .sidebar { display: none !important; }
 .pr-tl-name.is-tappable { display: flex; align-items: center; gap: 8px; }
 .pr-tl-name .ex-thumb { width: 26px; height: 26px; }
 .freestyle-ex-card .ex-thumb, .cali-ex-card .ex-thumb { width: 34px; height: 34px; }
+
+/* ══ BODY & METRICS (v3.37) ══ */
+.bs-top { margin-bottom: 24px; align-items: start; }
+.bs-bigrow { display: flex; align-items: baseline; gap: 8px; margin: 6px 0 4px; }
+.bs-big { font-size: 52px; line-height: 1; }
+.bs-dim { color: var(--text-3); margin: 6px 0 4px; font-weight: 700; letter-spacing: 0.04em; }
+.bs-unit { font-size: 0.875rem; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.06em; }
+.bs-deltas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px;
+  padding-top: 12px; border-top: 1px solid var(--border); }
+.bs-deltas .mono { font-size: 1rem; margin-top: 2px; }
+.bs-goal { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 8px; }
+.bs-goal-head { display: flex; justify-content: space-between; align-items: center; }
+.bs-goal-form { display: flex; gap: 8px; }
+.bs-goal-form .form-input { flex: 1; min-width: 0; }
+.bs-bar { height: 6px; background: var(--bg-2); border-radius: var(--r-sm); overflow: hidden; }
+.bs-bar i { display: block; height: 100%; background: var(--grad, var(--fire)); transition: width 400ms ease; }
+.bs-link { background: none; border: 0; padding: 0; color: var(--fire); font: inherit; font-size: 0.7rem;
+  letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; text-decoration: none; }
+.bs-link:hover { text-decoration: underline; }
+.bs-form { display: flex; flex-direction: column; gap: 10px; }
+.bs-form-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+.bs-field { display: flex; flex-direction: column; gap: 4px; flex: 1 1 130px; min-width: 0; }
+.bs-field .form-input { width: 100%; box-sizing: border-box; }
+.bs-summary { cursor: pointer; user-select: none; }
+.bs-actions { display: flex; gap: 8px; margin-top: 4px; }
+.bs-chart-card { margin-bottom: 24px; }
+.bs-controls { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.bs-nodata { padding: 40px 8px; text-align: center; }
+.bs-stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 14px;
+  padding-top: 12px; border-top: 1px solid var(--border); }
+.bs-stats > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.bs-stats b { font-weight: 400; font-size: 0.95rem; }
+.bs-corr { margin-top: 12px; padding: 10px 12px; background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-md); line-height: 1.5; }
+.bs-log { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.bs-log .bs-form-row { width: 100%; }
+.bs-logbtn { flex: 0 0 auto; }
+.bs-entries { display: flex; flex-direction: column; width: 100%; }
+.bs-entry { display: grid; grid-template-columns: 80px 1fr auto; align-items: center; gap: 8px;
+  padding: 6px 0; border-bottom: 1px solid var(--border); }
+.bs-entry:last-child { border-bottom: 0; }
+.bs-x { background: none; border: 1px solid transparent; color: var(--text-3); border-radius: var(--r-sm);
+  min-width: 32px; min-height: 32px; cursor: pointer; font: inherit; font-size: 0.8rem; }
+.bs-x:hover { color: var(--text); border-color: var(--border-hi); }
+.bs-metrics { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; margin-bottom: 24px; }
+.bs-metric { display: flex; flex-direction: column; gap: 4px; text-align: left; padding: 12px; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); color: var(--text); font: inherit; min-width: 0; }
+.bs-metric:hover { border-color: var(--border-hi); }
+.bs-metric.is-on { border-color: var(--fire); border-left: 3px solid var(--fire); padding-left: 10px; }
+.bs-metric-head { display: flex; justify-content: space-between; align-items: center; gap: 6px; min-width: 0; }
+.bs-metric-head .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bs-tag { font-size: 0.55rem; padding: 1px 5px; }
+.bs-metric-val b { font-size: 1.25rem; font-weight: 500; }
+.bs-spark { width: 100%; height: 28px; margin-top: 4px; display: block; }
+.bs-add { align-items: flex-start; justify-content: center; border-style: dashed; background: transparent; }
+.bs-add-plus { font-size: 1.3rem; color: var(--fire); line-height: 1; }
+.bs-addform { margin: -12px 0 24px; }
+.bs-hist { overflow-x: auto; margin-bottom: 24px; }
+/* The table scrolls inside its card; wrapping instead stacked each date on
+   three lines at phone width ("Nov / 19, / 26"). */
+.bs-hist th, .bs-hist td { white-space: nowrap; }
+.bs-hist tr.is-editing td { background: var(--fire-dim); }
+.bs-note { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bs-rowbtns { white-space: nowrap; text-align: right; }
+.bs-empty { padding: 32px; margin-bottom: 24px; }
+@media (max-width: 768px) {
+  .bs-stats { grid-template-columns: repeat(3, 1fr); }
+  .bs-big { font-size: 44px; }
+  .bs-metrics { grid-template-columns: repeat(2, 1fr); }
+}
+/* Two selects side by side truncated their labels ("Bodyweight (…") on a phone. */
+@media (max-width: 520px) { .bs-controls .bs-field { flex-basis: 100%; } }
+@media (prefers-reduced-motion: reduce) { .bs-bar i { transition: none; } }
+/* ══ CROSS-CUTTING: KEYBOARD, MOBILE ERGONOMICS ══ */
+
+/* One visible focus ring for keyboard users, in the only interactive accent.
+   :where() keeps this at the specificity of the pseudo-class alone, so a
+   component that already draws its own focus state (inputs turn their border
+   fire, .mm-tap, .is-tappable) still wins. Mouse and touch never trigger
+   :focus-visible on buttons, so nothing changes for them. */
+:where(button, a, summary, select, [tabindex], [role="button"], [role="checkbox"]):focus-visible {
+  outline: 2px solid var(--fire);
+  outline-offset: 2px;
+}
+
+@media (max-width: 768px) {
+  /* Hub sub-tabs sat at the top of <main>, which on mobile begins under the
+     fixed 56px topbar and the sticky stats strip — so the Train / Log /
+     Progress sub-tabs (the only in-page route to 10 Train pages) were never
+     visible. Push them below the bar and let them, not the page, clear it. */
+  #hub-subtabs:not(:empty) { padding: 64px 16px 0; }
+  #hub-subtabs:not(:empty) ~ .page { padding-top: 0 !important; }
+
+  /* A 12-letter title ("ACHIEVEMENTS", "CALISTHENICS") at 48px Fira Code is
+     wider than a 360px screen and was clipped mid-letter. */
+  .page-title { font-size: clamp(30px, 11vw, 48px); overflow-wrap: anywhere; }
+
+  /* iOS Safari zooms the whole page when an input under 16px takes focus —
+     on every set the logger asks you to type. */
+  .form-input, .input, .lib-search, .set-input,
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
+  select, textarea { font-size: 16px !important; }  /* beats later page sheets, e.g. programs-polish */
+
+  /* Primary controls under ~32px are hard to hit with a thumb at the rack. */
+  .wtab, .btn-sm, .seg-btn, .tab-btn, .int-btn, .hiit-wk-btn, .lib-chip, .ex-act-btn, .hiit-demo-btn { min-height: 36px; }
+  .ex-act-btn { min-width: 36px; }
+  .rir-btn { min-width: 32px; min-height: 32px; font-size: 11px; }
+  .hiit-ex-chk { width: 28px; height: 28px; }
+  .hiit-ex-chk.on::after { font-size: 14px; }
+
+  /* Focus mode: the rule below the tab bar hides `.topbar`, but the mobile bar
+     is `.mobile-topbar`, so the hamburger stayed live over the workout and
+     could open the drawer mid-set. */
+  body.session-active .mobile-topbar,
+  body.session-active .stats-strip { display: none !important; }
+  body.session-active .active-session-overlay { padding-top: 20px; }
+
+  /* HIIT's four view tabs are wider than a phone; scroll them like hub tabs
+     instead of pushing the page sideways. */
+  .hiit-tabs { overflow-x: auto; scrollbar-width: none; }
+  .hiit-tab { flex: 0 0 auto; white-space: nowrap; padding: 10px 14px; }
+}

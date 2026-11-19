@@ -204,6 +204,7 @@ export function exThumbHTML(ex) {
 export function showExerciseModal(ex) {
   // Remove any existing modal
   disposeExerciseVideo();
+  _wasOpen = !!document.getElementById('ex-modal');
   document.getElementById('ex-modal')?.remove();
 
   const mf          = ex.musclesFull || {};
@@ -326,14 +327,51 @@ export function showExerciseModal(ex) {
   `;
 
   overlay.addEventListener('click', () => closeExModal());
+  // Dialog semantics + keyboard: announce it as a modal dialog named by the
+  // exercise, move focus into it, keep Tab inside it, and hand focus back to
+  // whatever opened it on close. Opening one modal from another (a related
+  // exercise) keeps the original opener and scroll state.
+  if (!_wasOpen) {
+    _opener = document.activeElement;
+    _prevOverflow = document.body.style.overflow;
+  }
+  const dialog = overlay.querySelector('.modal');
+  dialog.setAttribute('role', 'dialog');
+  dialog.setAttribute('aria-modal', 'true');
+  const title = dialog.querySelector('.modal-head .display');
+  if (title) { title.id = 'ex-modal-title'; dialog.setAttribute('aria-labelledby', 'ex-modal-title'); }
+  overlay.addEventListener('keydown', _trapTab);
   document.body.appendChild(overlay);
   disposeExerciseVideo = mountExerciseVideo(overlay, ex);
   document.body.style.overflow = 'hidden';
+  overlay.querySelector('.modal-close')?.focus({ preventScroll: true });
+}
+
+let _opener = null;
+let _prevOverflow = '';
+let _wasOpen = false;
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), iframe, [tabindex]:not([tabindex="-1"])';
+
+function _trapTab(e) {
+  if (e.key !== 'Tab') return;
+  const items = [...e.currentTarget.querySelectorAll(FOCUSABLE)].filter(el => el.getClientRects().length);
+  if (!items.length) return;
+  const first = items[0], last = items[items.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
 }
 
 export function closeExModal() {
-  document.getElementById('ex-modal')?.remove();
-  document.body.style.overflow = '';
+  const overlay = document.getElementById('ex-modal');
+  if (!overlay) return;
+  disposeExerciseVideo();
+  disposeExerciseVideo = () => {};
+  overlay.remove();
+  document.body.style.overflow = _prevOverflow;
+  // The opener can be gone if the page re-rendered underneath; then there is
+  // nothing sensible to return to.
+  if (_opener?.isConnected) _opener.focus({ preventScroll: true });
+  _opener = null;
 }
 
 export function loadVideo(youtubeId, exId) {
@@ -352,9 +390,22 @@ export function loadVideo(youtubeId, exId) {
 window.closeExModal = closeExModal;
 window.loadVideo    = loadVideo;
 
-// ESC key to close
+// ESC closes the topmost dialog. Only the exercise modal listened before, so
+// the picker, plate calculator, import, create-exercise and HIIT dialogs could
+// only be dismissed by finding their close button or the backdrop.
+const ESC_CLOSERS = [
+  ['ex-modal',            () => closeExModal()],
+  ['plate-calc-modal',    () => window.closePlateCalc?.()],
+  ['exercise-picker',     () => window.closeExercisePicker?.()],
+  ['create-ex-modal',     () => window.libCloseCreate?.()],
+  ['import-modal',        () => window.closeImportDialog?.()],
+];
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeExModal();
+  if (e.key !== 'Escape') return;
+  for (const [id, close] of ESC_CLOSERS) {
+    if (document.getElementById(id)) { e.preventDefault(); close(); return; }
+  }
+  if (document.querySelector('#hiit-modal-overlay.open')) { e.preventDefault(); window.hiitModalClose?.(); }
 });
 
 // Playback controls affect only their own exercise illustration.

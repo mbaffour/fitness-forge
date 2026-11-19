@@ -2,8 +2,9 @@
 //   FITNESS FORGE — Activity Tracker
 // ═══════════════════════════════════════════
 
-import { state, addActivityEntry, removeActivityEntry } from '../store.js';
+import { state, addActivityEntry, removeActivityEntry, localDateStr, distUnitLabel, toDisplayDist, toStoredDist } from '../store.js';
 import { initActivityStackedBar } from './charts.js';
+import { toast } from './ui.js';
 
 const ACTIVITY_TYPES = [
   { id: 'Walking',       icon: '🚶', met: 3.5 },
@@ -28,7 +29,7 @@ const INTENSITY_MULS   = { Low: 0.8, Moderate: 1.0, High: 1.2, Max: 1.4 };
 const MET_VALUES = Object.fromEntries(ACTIVITY_TYPES.map(a => [a.id, a.met]));
 
 function _todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  return localDateStr();
 }
 
 function _previewCalories(type, durationMin, intensity) {
@@ -40,8 +41,9 @@ function _previewCalories(type, durationMin, intensity) {
 }
 
 function _computeWeeklyStats(activityLog) {
-  const sevenDaysAgo = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
-  const recent = activityLog.filter(e => e.date >= sevenDaysAgo);
+  const sevenDaysAgo = localDateStr(new Date(Date.now() - 6 * 86400000));
+  const today = localDateStr();
+  const recent = activityLog.filter(e => e.date >= sevenDaysAgo && e.date <= today);
   return {
     totalMin: recent.reduce((a, e) => a + (e.durationMin || 0), 0),
     sessions: recent.length,
@@ -67,10 +69,13 @@ function _renderHeatmap(activityLog) {
     dayMap[e.date] = (dayMap[e.date] || 0) + (e.durationMin || 0);
   });
 
-  const cells = [];
+  // Pad so each cell sits under its weekday letter; the grid used to start
+  // on whatever weekday was 34 days ago, so S M T W … labelled nothing.
+  const lead = new Date(Date.now() - 34 * 86400000).getDay();
+  const cells = Array.from({ length: lead }, () => `<div class="sleep-cell" style="visibility:hidden"></div>`);
   for (let i = 34; i >= 0; i--) {
     const d = new Date(Date.now() - i * 86400000);
-    const key = d.toISOString().slice(0, 10);
+    const key = localDateStr(d);
     const mins = dayMap[key] || 0;
     const bg = mins === 0 ? 'var(--bg-3)'
       : mins <= 30 ? 'color-mix(in srgb, var(--steel) 30%, transparent)'
@@ -147,8 +152,8 @@ export function renderActivity() {
       <input type="date" id="act-date" class="form-input" value="${today}" style="width:100%;margin-top:4px;box-sizing:border-box">
     </div>
     <div>
-      <label class="label">Distance (optional)</label>
-      <input type="number" id="act-dist" class="form-input" placeholder="3.1 mi" min="0" step="0.1" style="width:100%;margin-top:4px;box-sizing:border-box">
+      <label class="label">Distance (${distUnitLabel()}, optional)</label>
+      <input type="number" id="act-dist" class="form-input" placeholder="${distUnitLabel() === 'km' ? '5.0' : '3.1'}" min="0" step="0.1" style="width:100%;margin-top:4px;box-sizing:border-box">
     </div>
     <div>
       <label class="label">Avg HR bpm (opt.)</label>
@@ -165,7 +170,7 @@ export function renderActivity() {
   </div>
   <div style="display:flex;align-items:center;gap:16px">
     <button class="btn btn-fire" onclick="logActivity()">+ Log Activity</button>
-    <div class="muted fs12" id="cal-preview"></div>
+    <div class="muted fs12" id="cal-preview">≈ ${_previewCalories('Walking', 30, 'Moderate')} calories</div>
   </div>
 </div>
 
@@ -202,7 +207,7 @@ ${activityLog.length > 0 ? `
         <span style="font-size:20px">${_getIcon(e.type)}</span>
         <div>
           <div style="font-size:13px;font-weight:500">${e.type}</div>
-          <div class="muted fs11">${e.durationMin}min · ${e.intensity} · ${e.calories} cal${e.distance ? ' · ' + e.distance + 'mi' : ''}${e.hr ? ' · ' + e.hr + 'bpm' : ''}</div>
+          <div class="muted fs11">${e.durationMin}min · ${e.intensity} · ${e.calories} cal${e.distance ? ' · ' + toDisplayDist(e.distance) + ' ' + distUnitLabel() : ''}${e.hr ? ' · ' + e.hr + 'bpm' : ''}</div>
         </div>
       </div>
       <button class="btn-remove" onclick="deleteActivity(${e.id})" title="Remove">✕</button>
@@ -244,7 +249,7 @@ ${bestKeys.length > 0 ? `
           <td>${icon} ${type}</td>
           <td class="mono fs11">${b.longestMin}min</td>
           <td class="mono fs11">${b.mostCalories} cal</td>
-          <td class="mono fs11">${b.bestDistance ? b.bestDistance + 'mi' : '—'}</td>
+          <td class="mono fs11">${b.bestDistance ? toDisplayDist(b.bestDistance) + ' ' + distUnitLabel() : '—'}</td>
         </tr>`;
       }).join('')}
     </tbody>
@@ -279,19 +284,30 @@ window.logActivity = () => {
   const type      = document.getElementById('act-type')?.value;
   const durationMin = parseInt(document.getElementById('act-dur')?.value) || 0;
   const intensity = document.getElementById('act-intensity')?.value || 'Moderate';
-  const date      = document.getElementById('act-date')?.value || new Date().toISOString().slice(0, 10);
+  const date      = document.getElementById('act-date')?.value || _todayStr();
   const distance  = parseFloat(document.getElementById('act-dist')?.value) || null;
   const hr        = parseInt(document.getElementById('act-hr')?.value) || null;
-  const calories  = document.getElementById('act-cal')?.value ? parseInt(document.getElementById('act-cal').value) : null;
+  // Number(), not parseInt(): parseInt('1e3') is 1.
+  const calRaw    = document.getElementById('act-cal')?.value;
+  const calories  = calRaw ? Number(calRaw) : null;
   const notes     = document.getElementById('act-notes')?.value?.trim() || '';
 
-  if (!type || !durationMin) {
-    alert('Please select an activity and enter duration.');
+  // A typed negative is a typo, not a value to quietly store: -20 min passed
+  // the old `!durationMin` check and went straight into the weekly totals.
+  const bad = [['act-dur', durationMin < 1], ['act-dist', distance < 0], ['act-hr', hr < 0], ['act-cal', calories < 0]]
+    .find(([, isBad]) => isBad);
+  if (!type || bad) {
+    const el = document.getElementById(bad ? bad[0] : 'act-dur');
+    el?.classList.add('input-error');
+    setTimeout(() => el?.classList.remove('input-error'), 400);
+    toast(bad && bad[0] !== 'act-dur' ? 'Values cannot be negative.' : 'Enter a duration of at least 1 minute.', { type: 'danger' });
     return;
   }
 
   const met = MET_VALUES[type] || 5.0;
-  addActivityEntry({ type, durationMin, intensity, date, distance, hr, calories, notes, met });
+  // Stored in miles whatever the display unit (store clamps the range).
+  const distMi = distance ? Math.round(toStoredDist(distance) * 1000) / 1000 : null;
+  addActivityEntry({ type, durationMin, intensity, date, distance: distMi, hr, calories, notes, met });
   _refreshActivityPage();
 };
 

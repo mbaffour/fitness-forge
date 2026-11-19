@@ -2,13 +2,14 @@
 //   FITNESS FORGE — Analytics Dashboard
 // ═══════════════════════════════════════════
 
-import { state, toDisplayWeight, weightUnitLabel, formatWeight } from '../store.js';
+import { state, toDisplayWeight, weightUnitLabel, formatWeight, localDateStr } from '../store.js';
 import { EXERCISES, isStretch, REGIONS, SUB_REGIONS, targetsOf, subOf } from '../data/exercises.js';
 import { pushPullOf } from '../engine/overload.js';
 import { BODY_FRONT, BODY_BACK, BODY_VIEWBOX_FRONT, BODY_VIEWBOX_BACK,
          BODY_OUTLINE_FRONT, BODY_OUTLINE_BACK } from '../data/body-model.js';
 import { exThumbHTML } from './modal.js';
-import { initAnalyticsTrendChart, initWeightTrendChart, toggleChartSeries, initVolumeBarChart, initE1rmChart } from './charts.js';
+import { initAnalyticsTrendChart, toggleChartSeries, initVolumeBarChart, initE1rmChart } from './charts.js';
+import { drawWeightChart } from './body-stats.js';
 
 // ── STRENGTH ANALYTICS (v3.4) ──
 const _WEEK_MS = 604800000;
@@ -316,10 +317,14 @@ function _startOfWeek() {
 
 function _computeWeekReport() {
   const startOfWeek = _startOfWeek();
-  const startStr = startOfWeek.toISOString().slice(0, 10);
+  // Local calendar day. Log dates are either a bare local 'YYYY-MM-DD'
+  // (sleep, nutrition) or a full ISO timestamp (workouts) — compare each the
+  // way it was written, never a UTC slice against a local key.
+  const startStr = localDateStr(startOfWeek);
+  const sinceStart = (d) => (/^\d{4}-\d{2}-\d{2}$/.test(String(d)) ? d >= startStr : Date.parse(d) >= startOfWeek.getTime());
 
   // Workouts
-  const workoutsCompleted = state.workoutLog.filter(l => l.date >= startStr).length;
+  const workoutsCompleted = state.workoutLog.filter(l => sinceStart(l.date)).length;
   const workoutsPlanned = state.program?.splitDays?.filter(d => d.type !== 'rest').length || 4;
 
   // Sleep
@@ -402,8 +407,9 @@ function _computeCorrelations() {
   if (state.sleepLog.length >= 5 && state.sessions.length >= 5) {
     const sleepByDate = {};
     state.sleepLog.forEach(e => { sleepByDate[e.date] = e.score; });
-    const goodSleepSessions = state.sessions.filter(s => sleepByDate[s.date?.slice(0,10)] >= 80);
-    const poorSleepSessions = state.sessions.filter(s => sleepByDate[s.date?.slice(0,10)] < 60 && sleepByDate[s.date?.slice(0,10)] != null);
+    const dayOf = (s) => (s.date ? localDateStr(new Date(s.date)) : '');
+    const goodSleepSessions = state.sessions.filter(s => sleepByDate[dayOf(s)] >= 80);
+    const poorSleepSessions = state.sessions.filter(s => sleepByDate[dayOf(s)] < 60 && sleepByDate[dayOf(s)] != null);
     if (goodSleepSessions.length && poorSleepSessions.length) {
       const goodRPE = goodSleepSessions.reduce((a,s) => a + (s.rpe || 7), 0) / goodSleepSessions.length;
       const poorRPE = poorSleepSessions.reduce((a,s) => a + (s.rpe || 7), 0) / poorSleepSessions.length;
@@ -431,7 +437,7 @@ function _computeCorrelations() {
     const daysAfterFast = state.nutritionLog.filter(d => {
       const prev = new Date(d.date + 'T12:00');
       prev.setDate(prev.getDate() - 1);
-      return completedFastDates.has(prev.toISOString().slice(0, 10));
+      return completedFastDates.has(localDateStr(prev));
     });
     if (daysAfterFast.length >= 2) {
       const avgAdherence = daysAfterFast.filter(d => {
@@ -459,15 +465,15 @@ function _buildTrendData() {
   const fastingPcts = [];
 
   for (let i = 29; i >= 0; i--) {
-    const d = new Date(Date.now() - i * 86400000);
-    const dateStr = d.toISOString().slice(0, 10);
+    const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - i);
+    const dateStr = localDateStr(d);
     const dt = new Date(d);
     labels.push(`${dt.getMonth()+1}/${dt.getDate()}`);
 
     const sleepEntry = state.sleepLog.find(e => e.date === dateStr);
     sleepScores.push(sleepEntry ? sleepEntry.score : null);
 
-    const session = state.sessions.find(s => s.date?.slice(0,10) === dateStr);
+    const session = state.sessions.find(s => s.date && localDateStr(new Date(s.date)) === dateStr);
     rpeValues.push(session?.rpe ? session.rpe * 10 : null);
 
     const nutDay = state.nutritionLog.find(d2 => d2.date === dateStr);
@@ -549,9 +555,9 @@ export function renderAnalytics() {
   <div class="chart-wrap" style="height:220px"><canvas id="analytics-trend-chart"></canvas></div>
 </div>
 
-${state.bodyLog.length >= 2 ? `
+${state.bodyLog.filter(e => Number(e?.weight) > 0).length >= 2 ? `
 <!-- BODY WEIGHT TREND -->
-<div class="sec-head" style="margin-bottom:12px">Body Weight Trend</div>
+<div class="sec-head" style="margin-bottom:12px">Body Weight Trend<i class="sec-note"><a href="#body" class="bs-link">open Body &amp; Metrics →</a></i></div>
 <div class="card mb24" style="margin-bottom:24px">
   <div class="chart-wrap" style="height:180px"><canvas id="analytics-weight-chart"></canvas></div>
 </div>
@@ -579,9 +585,7 @@ export function scheduleAnalyticsCharts() {
   setTimeout(() => {
     const trendData = _buildTrendData();
     initAnalyticsTrendChart('analytics-trend-chart', trendData);
-    if (state.bodyLog.length >= 2) {
-      initWeightTrendChart('analytics-weight-chart', state.bodyLog);
-    }
+    if (document.getElementById('analytics-weight-chart')) drawWeightChart('analytics-weight-chart');
     // Strength charts
     if ((state.sessions || []).length) {
       const unit = weightUnitLabel();

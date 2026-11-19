@@ -2,8 +2,9 @@
 //   FITNESS FORGE — Sleep Tracker
 // ═══════════════════════════════════════════
 
-import { state, addSleepEntry, removeSleepEntry } from '../store.js';
+import { state, addSleepEntry, removeSleepEntry, localDateStr } from '../store.js';
 import { initSleepBarChart } from './charts.js';
+import { toast } from './ui.js';
 
 let _sleepQuality = 3;
 let _sleepFeeling = 3;
@@ -12,7 +13,7 @@ const FEELINGS = ['😴','😐','🙂','😄','⚡'];
 const FEELING_LABELS = ['Exhausted','Groggy','OK','Rested','Energized'];
 
 function _todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  return localDateStr();
 }
 
 function _scoreColor(score) {
@@ -45,7 +46,7 @@ function _buildInsights(sleepLog) {
   if (!sleepLog.length) return null;
 
   const today = _todayStr();
-  const sevenDaysAgo = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
+  const sevenDaysAgo = localDateStr(new Date(Date.now() - 6 * 86400000));
   const last7 = sleepLog.filter(e => e.date >= sevenDaysAgo);
   const avgScore = last7.length ? Math.round(last7.reduce((a, e) => a + e.score, 0) / last7.length) : null;
 
@@ -63,11 +64,15 @@ function _buildInsights(sleepLog) {
     if (avg > bestAvg) { bestAvg = avg; bestDOW = parseInt(d); }
   });
 
-  // Most consistent bedtime
+  // Average bedtime. Clock times wrap at midnight, so a plain mean of 23:30
+  // and 01:00 came out as 12:15 — midday. Times before noon are counted as
+  // the small hours of the same night (+24h) before averaging.
   const bedtimes = sleepLog.slice(0, 14).map(e => {
-    const [h, m] = e.bedtime.split(':').map(Number);
-    return h * 60 + m;
-  });
+    const [h, m] = String(e.bedtime || '').split(':').map(Number);
+    if (!Number.isFinite(h) || !Number.isFinite(m)) return null;
+    const mins = h * 60 + m;
+    return mins < 720 ? mins + 1440 : mins;
+  }).filter(v => v != null);
   const avgBedMins = bedtimes.length ? Math.round(bedtimes.reduce((a,b) => a+b, 0) / bedtimes.length) : null;
   const avgBedHour = avgBedMins != null ? `${String(Math.floor(avgBedMins / 60) % 24).padStart(2,'0')}:${String(avgBedMins % 60).padStart(2,'0')}` : null;
 
@@ -77,10 +82,13 @@ function _buildInsights(sleepLog) {
 }
 
 function _renderHeatmap(sleepLog) {
-  const cells = [];
+  // Pad so each cell sits under its weekday letter; the grid used to start
+  // on whatever weekday was 34 days ago, so S M T W … labelled nothing.
+  const lead = new Date(Date.now() - 34 * 86400000).getDay();
+  const cells = Array.from({ length: lead }, () => `<div class="sleep-cell" style="visibility:hidden"></div>`);
   for (let i = 34; i >= 0; i--) {
     const d = new Date(Date.now() - i * 86400000);
-    const key = d.toISOString().slice(0, 10);
+    const key = localDateStr(d);
     const entry = sleepLog.find(e => e.date === key);
     const score = entry?.score;
     const bg = !score ? 'var(--bg-3)'
@@ -235,8 +243,8 @@ ${sleepLog.length > 0 ? `
   ${sleepLog.slice(0, 14).map(e => `
   <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border)">
     <div>
-      <div style="font-size:13px;font-weight:500">${e.date} <span style="font-size:11px;color:var(--text-3);margin-left:4px">${e.bedtime} → ${e.wakeTime}</span></div>
-      <div class="muted fs11" style="margin-top:3px">${_fmtDuration(e.durationHours)} · ${FEELINGS[e.feeling-1] || ''} ${FEELING_LABELS[(e.feeling||3)-1]}${e.notes ? ' · ' + e.notes.slice(0,40) : ''}</div>
+      <div style="font-size:13px;font-weight:500">${e.date} <span style="font-size:11px;color:var(--text-3);margin-left:4px">${e.bedtime || "—"} → ${e.wakeTime || "—"}</span></div>
+      <div class="muted fs11" style="margin-top:3px">${_fmtDuration(e.durationHours)} · ${FEELINGS[e.feeling-1] || ''} ${FEELING_LABELS[(e.feeling||3)-1] || ""}${e.notes ? ' · ' + e.notes.slice(0,40) : ''}</div>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
       <span class="tag ${_scoreTag(e.score)}">${e.score}</span>
@@ -281,11 +289,19 @@ window.setSleepFeeling = (n) => {
 window.logSleep = () => {
   const bedtime = document.getElementById('sleep-bed')?.value;
   const wakeTime = document.getElementById('sleep-wake')?.value;
-  const date = document.getElementById('sleep-date')?.value || new Date().toISOString().slice(0, 10);
+  const date = document.getElementById('sleep-date')?.value || _todayStr();
   const notes = document.getElementById('sleep-notes')?.value?.trim() || '';
 
   if (!bedtime || !wakeTime) {
-    alert('Please enter bedtime and wake time.');
+    toast('Enter a bedtime and a wake time.', { type: 'danger' });
+    return;
+  }
+  // Equal times compute to 0h, which was logged as a night of no sleep and
+  // dragged every average and the debt figure with it.
+  if (bedtime === wakeTime) {
+    toast('Bedtime and wake time are the same — check the times.', { type: 'danger' });
+    document.getElementById('sleep-wake')?.classList.add('input-error');
+    setTimeout(() => document.getElementById('sleep-wake')?.classList.remove('input-error'), 400);
     return;
   }
 

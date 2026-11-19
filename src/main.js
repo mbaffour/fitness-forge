@@ -12,6 +12,7 @@ import { showExerciseModal, closeExModal, loadVideo } from './components/modal.j
 import { renderFasting, scheduleFastingTimer } from './components/fasting.js';
 import { renderSleep, scheduleSleepCharts } from './components/sleep.js';
 import { renderActivity, scheduleActivityCharts } from './components/activity.js';
+import { scheduleCardioCharts } from './components/cardio-log.js';
 import { renderAnalytics, scheduleAnalyticsCharts } from './components/analytics.js';
 import { renderHIIT, scheduleHIITCharts } from './components/hiit.js';
 import { renderOverloadMode } from './components/overload-mode.js';
@@ -28,11 +29,11 @@ import {
   startFast, endFast, getActiveFast,
   addSleepEntry, removeSleepEntry,
   addActivityEntry, removeActivityEntry,
-  formatWeight, weightUnitLabel,
+  formatWeight, weightUnitLabel, localDateStr, currentStreak,
 } from './store.js';
 import { generateProgram } from './engine/generator.js';
 import { EXERCISES } from './data/exercises.js';
-import { startActiveWorkout } from './components/active-workout.js';
+import { startActiveWorkout, resumeActiveWorkout } from './components/active-workout.js';
 
 // ── THEME ──
 // 'forge' is the base (no attribute = Machinist). 'heat' is the default look.
@@ -79,6 +80,12 @@ window.setWeightUnit = (unit) => {
   state.settings.weightUnit = u;
   save();
   // Re-render the current page so weight displays pick up the new unit.
+  refreshCurrentPage();
+};
+
+window.setDistanceUnit = (unit) => {
+  state.settings.distanceUnit = unit === 'km' ? 'km' : 'miles';
+  save();
   refreshCurrentPage();
 };
 
@@ -173,7 +180,7 @@ const PAGE_META = {
   fasting:      { label: 'Fasting',      icon: '⏱' },
   sleep:        { label: 'Sleep',        icon: '🌙' },
   activity:     { label: 'Activity',     icon: '⚑' },
-  body:         { label: 'Body Stats',   icon: '◉' },
+  body:         { label: 'Body & Metrics', icon: '◉' },
   cardio:       { label: 'Cardio',       icon: '≡' },
   achievements: { label: 'Achievements', icon: '★' },
   analytics:    { label: 'Analytics',    icon: '◎' },
@@ -234,6 +241,15 @@ function hubSubtabsHTML(pageId) {
     </button>`).join('')}</div>`;
 }
 
+// The Train hub has eleven sub-tabs; on a phone the active one (HIIT, Library…)
+// sat off-screen to the right, so nothing showed where you were. Centre it.
+function revealActiveSubtab() {
+  const bar = document.querySelector('#hub-subtabs .hub-tabs');
+  const tab = bar?.querySelector('.hub-tab.active');
+  if (!bar || !tab || bar.scrollWidth <= bar.clientWidth) return;
+  bar.scrollLeft = tab.offsetLeft - bar.offsetLeft - (bar.clientWidth - tab.offsetWidth) / 2;
+}
+
 // Mobile bottom tab bar (one entry per hub).
 function tabbarHTML(pageId) {
   const activeHub = hubOf(pageId).id;
@@ -250,6 +266,7 @@ const CHART_PAGES = {
   sleep:      scheduleSleepCharts,
   fasting:    scheduleFastingTimer,
   activity:   scheduleActivityCharts,
+  cardio:     scheduleCardioCharts,
   analytics:  scheduleAnalyticsCharts,
   hiit:       scheduleHIITCharts,
 };
@@ -318,7 +335,7 @@ const PAGE_LABELS = {
   schedule:     'Schedule',
   nutrition:    'Nutrition',    fasting:      'Fasting',
   sleep:        'Sleep',        activity:     'Activity',
-  body:         'Body Stats',   cardio:       'Cardio Log',
+  body:         'Body & Metrics', cardio:       'Cardio Log',
   achievements: 'Achievements', analytics:    'Analytics',
   progress:     'Progress',     settings:     'Settings',
 };
@@ -342,27 +359,41 @@ function updateTopbar(pageId) {
 
 // ── STATS STRIP ──
 function _buildStatsStrip() {
-  const today = new Date().toISOString().slice(0, 10);
-  const calories = state.nutritionLog.find(d => d.date === today)?.calories || 0;
-  const lastSleep = state.sleepLog[0];
+  // Local day, matching the Nutrition page (which keys days by local date).
+  const today = localDateStr();
+  const calories = Math.round(state.nutritionLog.find(d => d?.date === today)?.calories || 0);
+  // Latest night by date, and only an entry that actually has a score — a
+  // sleep entry without one used to render "Sleep: undefined/100".
+  const lastSleep = state.sleepLog.find(e => Number.isFinite(e?.score));
   const fast = state.activeFast;
   let fastLabel = 'Not fasting';
   if (fast) {
     const elapsed = (Date.now() - new Date(fast.startTime).getTime()) / 3600000;
-    const rem = Math.max(fast.plannedHours - elapsed, 0);
-    fastLabel = `${fast.protocol} · ${Math.floor(rem)}h left`;
+    const rem = Math.max((Number(fast.plannedHours) || 0) - elapsed, 0);
+    fastLabel = rem > 0
+      ? `${fast.protocol} · ${rem < 1 ? Math.max(1, Math.round(rem * 60)) + 'm' : Math.ceil(rem) + 'h'} left`
+      : `${fast.protocol} · goal reached ✓`;
   }
   return `
-  <span class="strip-item">🔥 <strong>${state.streak.current}d</strong> streak</span>
+  <span class="strip-item">🔥 <strong>${currentStreak()}d</strong> streak</span>
   <span class="strip-item">⊕ <strong>${calories}</strong> kcal today</span>
   <span class="strip-item">⏱ ${fastLabel}</span>
-  <span class="strip-item">🌙 Sleep: <strong>${lastSleep ? lastSleep.score + '/100' : '—'}</strong></span>`;
+  <span class="strip-item">🌙 Sleep: <strong>${lastSleep ? Math.round(lastSleep.score) + '/100' : '—'}</strong></span>`;
 }
 
 function _updateStatsStrip() {
   const el = document.getElementById('stats-strip');
   if (el) el.innerHTML = _buildStatsStrip();
 }
+// The strip summarises state, so refresh it whenever state is written — it
+// used to update only on a 30s timer, so logging food, sleep or a fast left
+// it showing the old numbers. Coalesced to one rebuild per frame.
+let _stripQueued = false;
+window.addEventListener('forge:saved', () => {
+  if (_stripQueued) return;
+  _stripQueued = true;
+  requestAnimationFrame(() => { _stripQueued = false; _updateStatsStrip(); });
+});
 
 // ── SHELL ──
 function buildShell() {
@@ -434,6 +465,7 @@ function buildShell() {
 ${tabbarHTML(currentPage)}
   `;
 
+  revealActiveSubtab();
   chartFor(currentPage)?.();
 }
 
@@ -447,14 +479,13 @@ function navigate(pageId, pushHistory = true) {
     if (mo) { mo.classList.remove('open'); const mb = document.getElementById('hiit-media-box'); if (mb) mb.innerHTML = ''; }
   }
 
-  if (pageId === 'onboard') {
-    renderOnboarding(() => { currentPage = 'dashboard'; navHistory.length = 0; buildShell(); });
-    return;
-  }
-  if (pageId === 'builder') {
-    renderBuilder(() => { currentPage = 'dashboard'; navHistory.length = 0; buildShell(); });
-    return;
-  }
+  // Both flows replace the whole shell. Done → a fresh dashboard (with the
+  // URL to match, or a refresh reopened the page you started from); Cancel →
+  // the page you came from, program untouched.
+  const done = () => { currentPage = 'dashboard'; navHistory.length = 0; syncHash('dashboard'); buildShell(); };
+  const cancel = () => buildShell();
+  if (pageId === 'onboard') { renderOnboarding(done, cancel); return; }
+  if (pageId === 'builder') { renderBuilder(done, cancel); return; }
   if (!isPage(pageId) || pageId === currentPage) return;
 
   if (pushHistory) {
@@ -474,7 +505,7 @@ function navigate(pageId, pushHistory = true) {
 
   // Refresh hub sub-tabs + mobile tab-bar active state.
   const sub = document.getElementById('hub-subtabs');
-  if (sub) sub.innerHTML = hubSubtabsHTML(pageId);
+  if (sub) { sub.innerHTML = hubSubtabsHTML(pageId); revealActiveSubtab(); }
   const activeHub = hubOf(pageId).id;
   document.querySelectorAll('.tabbar-btn').forEach((btn, i) => {
     btn.classList.toggle('active', HUBS[i]?.id === activeHub);
@@ -488,7 +519,10 @@ function navigate(pageId, pushHistory = true) {
     chartFor(pageId)?.();
   }
 
+  // The window is the scroller, not #main-area (which never overflows), so a
+  // page used to open wherever the previous one had been scrolled to.
   document.getElementById('main-area')?.scrollTo(0, 0);
+  window.scrollTo(0, 0);
 }
 
 // Navigate to a hub — land on the hub's current page if already inside it,
@@ -613,9 +647,9 @@ window.resetProgram = () => {
 };
 
 // ── ACTIVE WORKOUT ──
-window.startActiveWorkout = (workoutId, workoutLabel, exercises, workoutType) => {
-  startActiveWorkout(workoutId, workoutLabel, exercises, workoutType);
-};
+// Pass every argument through: Programs sends a 5th (programContext — its
+// overload rule and rest period), which this wrapper used to drop.
+window.startActiveWorkout = (...args) => startActiveWorkout(...args);
 
 // ── KEYBOARD SHORTCUT: "/" jumps to the Exercise Library search ──
 document.addEventListener('keydown', (e) => {
@@ -723,21 +757,80 @@ window.addEventListener('resize', _queueRefocus, { passive: true });
 // Pages rebuild their markup on navigation; pick a new focus when they do.
 new MutationObserver(_queueRefocus).observe(document.getElementById('root') || document.body, { childList: true, subtree: true });
 
+// ── KEYBOARD + SCREEN-READER BASICS, APPLIED ONCE FOR EVERY PAGE ──
+// Pages render with template literals and many tappable things are a <div> or
+// <span> with an inline onclick (stat tiles, exercise cards, muscle tiles, HIIT
+// checks): unreachable by Tab, silent to a screen reader. And form labels are
+// written as a sibling <label> without `for`, so inputs announce no name.
+// Fixing ~100 call sites one by one would rot the moment a page adds another,
+// so this pass runs after each render and patches the markup in place.
+const NATIVE_CTRL = /^(BUTTON|A|INPUT|SELECT|TEXTAREA|LABEL|SUMMARY|OPTION)$/;
+const IS_CTRL = 'input, select, textarea';
+// Backdrops and stopPropagation wrappers carry onclick but are not controls.
+const NOT_A_CONTROL = /^\s*(event\.stopPropagation\(\);?|if\s*\(\s*event\.target\s*===\s*this\s*\))/;
+function _a11yPass(root) {
+  root.querySelectorAll('[onclick]').forEach(el => {
+    if (NATIVE_CTRL.test(el.tagName) || el.hasAttribute('tabindex') || el.closest('svg')) return;
+    const fn = el.getAttribute('onclick') || '';
+    if (NOT_A_CONTROL.test(fn) || /backdrop|overlay/.test(el.className)) return;
+    // A wordless thumbnail beside a named twin that does the same thing (the
+    // Overload/Equipment media + name pair): one Tab stop, the named one.
+    if (!el.textContent.trim() && !el.hasAttribute('aria-label')) {
+      const twin = [...(el.parentElement?.parentElement || el).querySelectorAll('[onclick]')]
+        .find(o => o !== el && o.getAttribute('onclick') === fn && o.textContent.trim());
+      if (twin) { el.setAttribute('aria-hidden', 'true'); el.tabIndex = -1; return; }
+    }
+    el.tabIndex = 0;
+    // role=button makes children presentational — only safe when there are
+    // no real controls inside to hide.
+    if (!el.hasAttribute('role') && !el.querySelector('button, a, input, select, textarea')) el.setAttribute('role', 'button');
+  });
+  root.querySelectorAll('label:not([for])').forEach(lab => {
+    if (lab.querySelector(IS_CTRL)) return;
+    const next = lab.nextElementSibling;
+    if (!next || !next.matches(IS_CTRL) || next.hasAttribute('aria-label')) return;
+    if (!next.id) next.id = 'ff-ctl-' + Math.random().toString(36).slice(2, 9);
+    lab.htmlFor = next.id;
+  });
+}
+let _a11yQueued = false;
+new MutationObserver(() => {
+  if (_a11yQueued) return;
+  _a11yQueued = true;
+  requestAnimationFrame(() => { _a11yQueued = false; _a11yPass(document.body); });
+}).observe(document.body, { childList: true, subtree: true });
+// Enter / Space on a patched element does what a click does.
+document.addEventListener('keydown', (e) => {
+  if ((e.key !== 'Enter' && e.key !== ' ') || e.defaultPrevented) return;
+  const el = e.target;
+  if (!(el instanceof HTMLElement) || NATIVE_CTRL.test(el.tagName) || !el.hasAttribute('onclick') || el.hasAttribute('onkeydown')) return;
+  if (el.getAttribute('role') !== 'button' && el.getAttribute('role') !== 'checkbox' && el.tabIndex !== 0) return;
+  e.preventDefault();
+  el.click();
+});
+
 // ── BOOT ──
+// Reset All re-runs boot(); one strip timer is enough.
+let _stripTimer = null;
+function _startStripTimer() { if (!_stripTimer) _stripTimer = setInterval(_updateStatsStrip, 30000); }
+
 function boot() {
   if (!state.onboarded || !state.program) {
     renderOnboarding(() => {
       currentPage = 'dashboard';
+      navHistory.length = 0;
+      syncHash('dashboard');
       buildShell();
-      setInterval(_updateStatsStrip, 30000);
+      _startStripTimer();
       maybeShowTour();               // first-run product tour after onboarding
     });
   } else {
     currentPage = pageFromHash();      // deep link / refresh restores the page
     syncHash(currentPage);
     buildShell();
-    setInterval(_updateStatsStrip, 30000);
+    _startStripTimer();
     maybeShowTour();
+    resumeActiveWorkout();           // a reload mid-session picks the workout back up
   }
 }
 

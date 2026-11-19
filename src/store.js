@@ -8,6 +8,14 @@ import { upsertExercise, removeExercise, EQUIP_ITEMS } from './data/exercises.js
 
 const KEY = 'fitness_forge_v1';
 
+// Declared up here, not beside the metric functions that use them: the boot
+// scrub below runs at module evaluation and calls those (hoisted) functions,
+// and a `const` declared further down is still in its temporal dead zone then.
+// That exact ReferenceError once disabled the scrub silently (v3.35).
+const METRIC_DIRS = new Set(['up', 'down', 'none']);
+const METRIC_LOG_MAX = 5000;
+const _idSeq = { n: 0 };
+
 const defaultState = {
   onboarded:    false,
   profile:      null,   // set after quiz
@@ -51,7 +59,15 @@ const defaultState = {
   goalProgram: null,    // { id, startedAt, done:[] } — active curated goal program
   bodyMapSel:  [],      // muscle-group ids currently targeted on the Body Map
   challenge:   null,    // { id, startedAt, done:[dayIndex] } — active daily challenge
+  // ── v3.37 additions ──
+  metricDefs:  {},      // { m_id: { name, unit, dir:'up'|'down'|'none', decimals } } — user-defined metrics
+  metricLog:   [],      // [{ id, metric, value, date }] — values logged against metricDefs
 };
+
+// A deep copy. `{ ...defaultState }` shared every array and nested object with
+// defaultState itself, so a first-run user's workouts were pushed INTO the
+// defaults — and "Reset All Data" then restored the same arrays, still full.
+function freshState() { return JSON.parse(JSON.stringify(defaultState)); }
 
 export const state = (() => {
   try {
@@ -68,10 +84,10 @@ export const state = (() => {
       const obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
       for (const k of ['workoutLog', 'sessions', 'cardioLog', 'nutritionLog', 'bodyLog',
                        'achievements', 'fastingLog', 'sleepLog', 'activityLog',
-                       'gymProfiles', 'bodyMapTray', 'bodyMapSel']) {
+                       'gymProfiles', 'bodyMapTray', 'bodyMapSel', 'metricLog']) {
         parsed[k] = arr(parsed[k]);
       }
-      for (const k of ['prs', 'customExercises']) parsed[k] = obj(parsed[k]);
+      for (const k of ['prs', 'customExercises', 'metricDefs']) parsed[k] = obj(parsed[k]);
 
       return {
         ...defaultState,
@@ -88,11 +104,13 @@ export const state = (() => {
         goalProgram: parsed.goalProgram ?? null,
         bodyMapSel: parsed.bodyMapSel,
         challenge: parsed.challenge ?? null,
+        metricDefs: parsed.metricDefs,
+        metricLog: parsed.metricLog,
       };
     }
-    return { ...defaultState };
+    return freshState();
   } catch {
-    return { ...defaultState };
+    return freshState();
   }
 })();
 
@@ -109,6 +127,7 @@ let _lastSaveOk = true;
 export function save() {
   try {
     localStorage.setItem(KEY, JSON.stringify(state));
+    window.dispatchEvent?.(new CustomEvent('forge:saved'));
     if (!_lastSaveOk) {
       _lastSaveOk = true;
       window.dispatchEvent?.(new CustomEvent('forge:save-recovered'));
@@ -135,11 +154,39 @@ export function stateBytes() {
   try { return JSON.stringify(state).length; } catch { return 0; }
 }
 
+function _deepClean(v, depth) {
+  if (v == null || depth > 16) return v;
+  if (typeof v === 'string') return /[<>"\u0000]/.test(v) ? cleanText(v, 100000) : v;
+  if (typeof v === 'object') for (const k of Object.keys(v)) v[k] = _deepClean(v[k], depth + 1);
+  return v;
+}
+
 // One-time sweep of free text already in storage. A payload that arrived via
 // an imported backup before input cleaning existed would otherwise keep firing
 // on every page load.
 (function scrubExistingText() {
   try {
+    // Every string, everywhere. The targeted passes below only ever covered
+    // the fields a form writes, but a restored backup controls ALL of state —
+    // `profile.goal`, a log entry's `phase`, a PR's `reps`, `streak.current`,
+    // the program's day labels — and each of those is interpolated into
+    // innerHTML somewhere. All of them executed. Nothing the app writes itself
+    // contains `<`, `>` or `"`, so this is a no-op for honest data.
+    _deepClean(state, 0);
+    // Numbers that are rendered raw must be numbers.
+    const int = (v, lo, hi, d) => { const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.min(Math.max(n, lo), hi) : d; };
+    state.currentPhase = int(state.currentPhase, 1, 4, 1);
+    state.currentWeek  = int(state.currentWeek, 1, 52, 1);
+    state.streak.current = int(state.streak.current, 0, 100000, 0);
+    state.streak.longest = int(state.streak.longest, 0, 100000, 0);
+    // Ids that reach single-quoted or unquoted inline handlers. Cleaning text
+    // cannot help there — an apostrophe or a bracket is enough — so validate.
+    state.sessions.forEach((s) => {
+      if (s && Array.isArray(s.exercises)) s.exercises = s.exercises.filter((x) => x && isValidId(x.exId));
+    });
+    state.bodyMapSel = state.bodyMapSel.filter(isValidId);
+    state.gymProfiles = state.gymProfiles.filter((g) => g && Number.isFinite(g.id) && Array.isArray(g.items));
+    if (state.activeGymId != null && !Number.isFinite(state.activeGymId)) state.activeGymId = null;
     if (state.profile) state.profile.name = cleanText(state.profile.name, 60);
     (state.gymProfiles || []).forEach((g) => { g.name = cleanText(g.name, 40); });
     // Keys first: these two maps are keyed by exercise id and those ids reach
@@ -161,9 +208,51 @@ export function stateBytes() {
         (e.exercises || []).forEach((x) => { if (x?.exName != null) x.exName = cleanText(x.exName, 120); });
       });
     }
+    // Food items live in `entries`. This used to clean `meals`, a key the app
+    // never writes, so a food name like `<img onerror=…>` kept firing on every
+    // load of the Nutrition page.
     (state.nutritionLog || []).forEach((d) => {
-      (d?.meals || []).forEach((m) => { if (m?.name != null) m.name = cleanText(m.name, 120); });
+      for (const list of ['entries', 'meals']) {
+        (d?.[list] || []).forEach((m) => {
+          if (m?.name != null) m.name = cleanText(m.name, 120);
+          if (m?.meal != null) m.meal = cleanText(m.meal, 30);
+        });
+      }
     });
+    // 5:2 used to store its weekly plan AS the active fast (plannedHours 0),
+    // which hid the timer for every protocol with no way back. Move it out.
+    if (state.activeFast?.protocol === '5:2') {
+      state.settings.fasting52Days = Array.isArray(state.activeFast.fasting52Days) ? state.activeFast.fasting52Days : [];
+      state.activeFast = null;
+    }
+    // A sleep entry from an import, an older build or a hand-edited backup can
+    // lack its derived fields; the status bar then read "Sleep: undefined/100"
+    // and the Sleep page printed "undefined" / "NaN". Re-derive what is missing.
+    (state.sleepLog || []).forEach((e) => {
+      if (!e || typeof e !== 'object') return;
+      const hhmm = /^\d{1,2}:\d{2}$/;
+      if (!Number.isFinite(e.durationHours)) {
+        e.durationHours = hhmm.test(e.bedtime) && hhmm.test(e.wakeTime) ? _calcSleepDuration(e.bedtime, e.wakeTime) : 0;
+      }
+      if (!Number.isFinite(e.score)) e.score = e.durationHours > 0 ? _calcSleepScore(e.durationHours, e.quality) : 0;
+    });
+    // Newest first, by date — the order every reader assumes.
+    const byDateDesc = (x, y) => String(y?.date || '').localeCompare(String(x?.date || ''));
+    state.sleepLog?.sort(byDateDesc);
+    state.activityLog?.sort(byDateDesc);
+    // Check-ins are edited and deleted by id, and the id reaches an inline
+    // handler — a restored entry without a numeric one could not be touched.
+    const seen = new Set();
+    state.bodyLog.forEach((e) => {
+      if (!e || typeof e !== 'object') return;
+      if (!Number.isFinite(Number(e.id)) || seen.has(Number(e.id))) e.id = _uid();
+      else e.id = Number(e.id);
+      seen.add(e.id);
+    });
+    _sortBodyLog();
+    // Metric ids reach inline handlers just as exercise ids do.
+    state.metricDefs = cleanMetricDefs(state.metricDefs);
+    state.metricLog = cleanMetricLog(state.metricLog, state.metricDefs);
   } catch (err) {
     // Never let a scrub failure stop the app booting — but never let one pass
     // unnoticed either. This catch previously hid a ReferenceError that
@@ -186,7 +275,7 @@ export function addCustomExercise(ex) {
     muscle: cleanText(ex.muscle, 60) || '',
     groups: ex.groups || [],
     equip:  ex.equip  || ['full_gym'],
-    requires: ex.requires || [],
+    requires: _customRequires(ex),
     type:   ex.type   || 'compound',
     diff:   ex.diff   || 'int',
     cues:   (ex.cues || []).map((c) => cleanText(c, 200)),
@@ -292,6 +381,18 @@ export function pruneIdMap(obj) {
 // is otherwise merged into the shared EXERCISES map wholesale, so a tampered
 // backup could add an `imgKey` of `" onerror=…` — which lands inside the
 // double-quoted `src` of every thumbnail built for it.
+// Custom exercises created before the form asked for a piece of kit were all
+// saved with `requires: []`, which the engine reads as bodyweight — no weight
+// field in the logger. Recover a loaded default from the preset they picked.
+function _customRequires(ex) {
+  const req = Array.isArray(ex.requires) ? ex.requires.filter((x) => typeof x === 'string').slice(0, 20) : [];
+  if (req.length) return req;
+  const preset = Array.isArray(ex.equip) ? ex.equip[0] : null;
+  if (preset === 'dumbbells' || preset === 'home_basic') return ['dumbbells'];
+  if (preset === 'full_gym') return ['barbell'];
+  return [];
+}
+
 export function cleanCustomExercise(ex) {
   if (!ex || typeof ex !== 'object') return null;
   const str = (v, n) => (v == null ? '' : cleanText(v, n));
@@ -301,7 +402,7 @@ export function cleanCustomExercise(ex) {
     muscle:   str(ex.muscle, 60),
     groups:   arr(ex.groups),
     equip:    arr(ex.equip).length ? arr(ex.equip) : ['full_gym'],
-    requires: arr(ex.requires),
+    requires: _customRequires(ex),
     type:     ex.type === 'isolation' ? 'isolation' : 'compound',
     diff:     ['beg', 'int', 'adv'].includes(ex.diff) ? ex.diff : 'int',
     cues:     arr(ex.cues).map((c) => cleanText(c, 200)),
@@ -318,8 +419,8 @@ export function cleanCustomExercise(ex) {
 //
 // Every path that records a set funnels through these, so the logger, the
 // edit-set form and the CSV importer are all covered.
-const MAX_WEIGHT_LB = 5000;    // ~2.3x the heaviest ratified deadlift
-const MAX_REPS      = 300;     // a very high bodyweight set; beyond this it is a typo
+export const MAX_WEIGHT_LB = 5000;    // ~2.3x the heaviest ratified deadlift
+export const MAX_REPS      = 300;     // a very high bodyweight set; beyond this it is a typo
 const MAX_SECONDS   = 24 * 3600;
 
 export function clampWeight(lbs) {
@@ -348,6 +449,24 @@ export function toDisplayWeight(lbs) {
   const val = kg ? lbs / LBS_PER_KG : lbs;
   const step = kg ? 0.5 : 1;
   return Math.round(val / step) * step;
+}
+
+// ── DISTANCE ──
+// Stored canonically in MILES (cardioLog.distanceMiles, activityLog.distance);
+// shown in the unit picked in Settings. `settings.distanceUnit` existed from the
+// start but nothing read it and there was no control, so km users got miles.
+const KM_PER_MILE = 1.609344;
+const _km = () => state.settings?.distanceUnit === 'km';
+export function distUnitLabel() { return _km() ? 'km' : 'mi'; }
+export function toDisplayDist(mi) {
+  const n = Number(mi);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.round((_km() ? n * KM_PER_MILE : n) * 100) / 100;
+}
+export function toStoredDist(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return NaN;
+  return _km() ? n / KM_PER_MILE : n;
 }
 
 // Sensible increment for a weight input in the current unit (kg plates are finer).
@@ -398,8 +517,10 @@ export function clearLog() {
 }
 
 export function resetAll() {
-  Object.assign(state, { ...defaultState });
-  localStorage.removeItem(KEY);
+  for (const id of Object.keys(state.customExercises || {})) removeExercise(id);
+  for (const k of Object.keys(state)) delete state[k];
+  Object.assign(state, freshState());
+  try { localStorage.removeItem(KEY); } catch { /* storage blocked: state is reset in memory regardless */ }
 }
 
 // ── NEW: PROFILE ──
@@ -449,6 +570,15 @@ export function saveGymProfile(name, items) {
 export function setActiveGym(id) {
   state.activeGymId = id;
   save();
+}
+
+export function renameGymProfile(id, name) {
+  const gp = state.gymProfiles.find(p => p.id === id);
+  const label = cleanText(name, 40);
+  if (!gp || !label) return false;
+  gp.name = label;
+  save();
+  return true;
 }
 
 export function deleteGymProfile(id) {
@@ -506,20 +636,66 @@ export function getSessionsForExercise(exId, limit = 10) {
 // ── NEW: CARDIO LOG ──
 
 export function addCardioEntry(entry) {
-  state.cardioLog.unshift({ id: Date.now(), ...entry });
+  if (entry && typeof entry === 'object') {
+    if (entry.notes != null) entry.notes = cleanText(entry.notes, 2000);
+    if (entry.type  != null) entry.type  = cleanText(entry.type, 60);
+    if (entry.distanceMiles != null) entry.distanceMiles = clampAmount(entry.distanceMiles, 1000, 2) || null;
+    if (entry.durationMinutes != null) {
+      entry.durationMinutes = clampAmount(entry.durationMinutes, 1440, 1);
+      entry.durationSeconds = Math.round(entry.durationMinutes * 60);
+    }
+    if (entry.avgHR != null) entry.avgHR = clampAmount(entry.avgHR, 250, 0) || null;
+  }
+  state.cardioLog.unshift({ id: _uniqueId(state.cardioLog), ...entry });
   if (state.cardioLog.length > 200) state.cardioLog.length = 200;
   updateStreak();
   save();
 }
 
+export function removeCardioEntry(id) {
+  state.cardioLog = state.cardioLog.filter(e => e.id !== id);
+  save();
+}
+
+// ── LOG-HUB HELPERS ──
+
+// The calendar day in the user's own timezone. `toISOString().slice(0,10)` is
+// the UTC day: in Los Angeles everything logged after 4pm landed on tomorrow
+// (and today's food log emptied itself mid-afternoon); in Tokyo breakfast was
+// filed under yesterday.
+export function localDateStr(d = new Date()) {
+  const dt = d instanceof Date ? d : new Date(d);
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+}
+
+// A finite number in [0, max], rounded to `dp` decimals; anything else is 0.
+// `min="0"` on an input stops neither a typed "-500" nor "1e308".
+export function clampAmount(v, max, dp = 1) {
+  const n = Number(v);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  const f = 10 ** dp;
+  return Math.round(Math.min(n, max) * f) / f;
+}
+
+// Date.now() collides when two entries are written in the same millisecond
+// (a double-tapped button), and then deleting one deletes both.
+function _uniqueId(list) {
+  let id = Date.now();
+  while (list.some(e => e?.id === id)) id++;
+  return id;
+}
+
 // ── NEW: NUTRITION ──
 
+// Streak days are LOCAL calendar days, like every log page. They used to be
+// UTC days, so in Los Angeles an evening session counted toward tomorrow and
+// the streak disagreed with the 7-day strip for a third of every day.
 function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  return localDateStr();
 }
 
 export function getTodayNutrition() {
-  const today = todayStr();
+  const today = localDateStr();
   if (!Array.isArray(state.nutritionLog)) state.nutritionLog = [];
   let day = state.nutritionLog.find(d => d?.date === today);
   // A day that came from an older save or a restored backup may be missing
@@ -561,14 +737,28 @@ function _calcNutritionTarget() {
   return { calories: cal, protein, carbs: Math.max(carbs, 50), fat };
 }
 
+const _MACRO_MAX = { calories: 10000, protein: 1000, carbs: 1000, fat: 1000 };
+
+// Totals are re-derived and rounded rather than accumulated: repeated
+// `+= 3.3` / `-= 8` left fat at 0.30000000000000007g after a delete.
+function _addMacros(day, item, sign) {
+  for (const k of Object.keys(_MACRO_MAX)) {
+    const v = (Number(day[k]) || 0) + sign * (Number(item[k]) || 0);
+    day[k] = Math.max(0, Math.round(v * 10) / 10);
+  }
+}
+
 export function addFoodEntry(entry) {
   const day = getTodayNutrition();
-  const item = { id: Date.now(), time: new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}), ...entry };
+  const item = {
+    id: _uniqueId(day.entries),
+    time: new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}),
+    name: cleanText(entry.name || 'Food item', 120),
+    meal: cleanText(entry.meal || 'Snack', 30),
+  };
+  for (const [k, max] of Object.entries(_MACRO_MAX)) item[k] = clampAmount(entry[k], max, k === 'calories' ? 0 : 1);
   day.entries.unshift(item);
-  day.calories += entry.calories || 0;
-  day.protein  += entry.protein  || 0;
-  day.carbs    += entry.carbs    || 0;
-  day.fat      += entry.fat      || 0;
+  _addMacros(day, item, 1);
   save();
   return day;
 }
@@ -578,21 +768,27 @@ export function removeFoodEntry(entryId) {
   const idx = day.entries.findIndex(e => e.id === entryId);
   if (idx < 0) return;
   const item = day.entries[idx];
-  day.calories -= item.calories || 0;
-  day.protein  -= item.protein  || 0;
-  day.carbs    -= item.carbs    || 0;
-  day.fat      -= item.fat      || 0;
+  _addMacros(day, item, -1);
   day.entries.splice(idx, 1);
   save();
 }
 
 export function logWater(glasses) {
   const day = getTodayNutrition();
-  day.water = glasses;
+  day.water = Math.max(0, Math.min(Math.round(Number(glasses) || 0), 30));
   save();
 }
 
 // ── NEW: BODY LOG ──
+
+// Newest first, by the date the check-in is FOR — not when it was typed. A
+// check-in can be back-dated ("I weighed in yesterday"), so insertion order is
+// no longer date order and everything reading bodyLog[0] as "latest" would lie.
+function _sortBodyLog() {
+  state.bodyLog.sort((a, b) => (Date.parse(b?.date) || 0) - (Date.parse(a?.date) || 0));
+}
+
+const BODY_LOG_MAX = 1500;   // ~4 years of daily weigh-ins; entries are ~100 bytes
 
 export function addBodyCheckIn(entry) {
   if (entry && typeof entry === 'object') {
@@ -600,18 +796,117 @@ export function addBodyCheckIn(entry) {
     if (entry.label != null) entry.label = cleanText(entry.label, 120);
     if (entry.type  != null) entry.type  = cleanText(entry.type, 60);
   }
-  state.bodyLog.unshift({ id: Date.now(), ...entry });
-  if (state.bodyLog.length > 365) state.bodyLog.length = 365;
+  state.bodyLog.unshift({ id: _uid(), ...entry });
+  _sortBodyLog();
+  if (state.bodyLog.length > BODY_LOG_MAX) state.bodyLog.length = BODY_LOG_MAX;
+  return save();
+}
+
+export function updateBodyCheckIn(id, patch) {
+  const e = state.bodyLog.find((x) => x?.id === id);
+  if (!e) return false;
+  if (patch.notes != null) patch.notes = cleanText(patch.notes, 2000);
+  Object.assign(e, patch);
+  _sortBodyLog();
+  return save();
+}
+
+export function deleteBodyCheckIn(id) {
+  const n = state.bodyLog.length;
+  state.bodyLog = state.bodyLog.filter((x) => x?.id !== id);
+  if (state.bodyLog.length === n) return false;
+  return save();
+}
+
+// Goal bodyweight, canonical lbs (or null to clear).
+export function setGoalWeight(lbs) {
+  const n = Number(lbs);
+  state.settings.goalWeight = Number.isFinite(n) && n > 0 ? Math.min(n, 1500) : null;
+  return save();
+}
+
+// ── CUSTOM METRICS (v3.37) ──
+// Anything a person wants to watch over time that the app does not already
+// track: resting heart rate, steps, HRV, blood pressure, energy, mood. Each is a
+// definition plus a flat log of dated values, plotted on the Body & Metrics page.
+
+function _uid() { return Date.now() * 100 + (_idSeq.n++ % 100); }
+
+function _cleanMetricDef(d) {
+  if (!d || typeof d !== 'object') return null;
+  const name = cleanText(String(d.name ?? '').trim(), 40);
+  if (!name) return null;
+  const dec = Number(d.decimals);
+  return {
+    name,
+    unit: cleanText(String(d.unit ?? '').trim(), 12) || '',
+    dir: METRIC_DIRS.has(d.dir) ? d.dir : 'none',
+    decimals: Number.isInteger(dec) && dec >= 0 && dec <= 2 ? dec : 1,
+  };
+}
+
+export function cleanMetricDefs(defs) {
+  const out = {};
+  for (const [id, d] of Object.entries(pruneIdMap(defs))) {
+    if (!id.startsWith('m_')) continue;
+    const c = _cleanMetricDef(d);
+    if (c) out[id] = c;
+  }
+  return out;
+}
+
+export function cleanMetricLog(log, defs) {
+  if (!Array.isArray(log)) return [];
+  return log.filter((e) => e && typeof e === 'object'
+      && Object.prototype.hasOwnProperty.call(defs, e.metric)
+      && Number.isFinite(Number(e.value)) && Math.abs(Number(e.value)) < 1e7
+      && Number.isFinite(Date.parse(e.date)))
+    .map((e) => ({ id: Number.isFinite(Number(e.id)) ? Number(e.id) : _uid(),
+                   metric: e.metric, value: Number(e.value), date: String(e.date) }));
+}
+
+export function addMetricDef(def) {
+  const clean = _cleanMetricDef(def);
+  if (!clean) return null;
+  const base = clean.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 24) || 'metric';
+  let id = `m_${base}`, n = 2;
+  while (state.metricDefs[id]) id = `m_${base}_${n++}`;
+  state.metricDefs[id] = clean;
   save();
+  return id;
+}
+
+export function deleteMetricDef(id) {
+  if (!Object.prototype.hasOwnProperty.call(state.metricDefs, id)) return false;
+  delete state.metricDefs[id];
+  state.metricLog = state.metricLog.filter((e) => e.metric !== id);
+  return save();
+}
+
+export function addMetricEntry(metric, value, date) {
+  const v = Number(value);
+  if (!Object.prototype.hasOwnProperty.call(state.metricDefs, metric)) return false;
+  if (!Number.isFinite(v) || Math.abs(v) >= 1e7) return false;
+  if (!Number.isFinite(Date.parse(date))) return false;
+  state.metricLog.unshift({ id: _uid(), metric, value: v, date });
+  state.metricLog.sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
+  if (state.metricLog.length > METRIC_LOG_MAX) state.metricLog.length = METRIC_LOG_MAX;
+  return save();
+}
+
+export function deleteMetricEntry(id) {
+  const n = state.metricLog.length;
+  state.metricLog = state.metricLog.filter((e) => e.id !== id);
+  return state.metricLog.length !== n && save();
 }
 
 // ── NEW: PERSONAL RECORDS ──
 
-export function recordPR(exId, weight, reps) {
+export function recordPR(exId, weight, reps, date) {
   const e1rm = Math.round(weight * (1 + reps / 30));
   const prev = state.prs[exId];
   if (!prev || e1rm > prev.e1rm) {
-    state.prs[exId] = { weight, reps, date: new Date().toISOString(), e1rm };
+    state.prs[exId] = { weight, reps, date: date || new Date().toISOString(), e1rm };   // date: imported history keeps its own
     // Store the description unit-neutrally (no frozen 'lbs') so it stays correct
     // if the user later switches display units. The unit-aware weight is shown
     // from state.prs via formatWeight() at display time.
@@ -638,7 +933,7 @@ export function updateStreak() {
   const last  = state.streak.lastSessionDate;
   if (last === today) return; // already counted today
 
-  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const yesterday = _localYesterday();
   if (last === yesterday) {
     state.streak.current += 1;
   } else if (last !== today) {
@@ -655,6 +950,24 @@ export function updateStreak() {
   if (state.streak.current === 30) awardAchievement('streak_30', 'Iron Will',     '30-day streak');
 
   save();
+}
+
+// The streak as it stands TODAY. `streak.current` only changes when a session
+// is logged, so after a week off it still read "5 days" on the dashboard. A
+// streak is alive only if the last session was today or yesterday (local days,
+// same convention as updateStreak).
+// Calendar arithmetic, not `now - 24h`: across a DST change 24 hours back can
+// land on the same local day (or skip one).
+function _localYesterday() {
+  const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() - 1);
+  return localDateStr(d);
+}
+
+export function currentStreak() {
+  const s = state.streak || {};
+  const last = s.lastSessionDate;
+  if (!last) return 0;
+  return last === todayStr() || last === _localYesterday() ? (Number(s.current) || 0) : 0;
 }
 
 export function checkFirstSession() {
@@ -677,7 +990,7 @@ export function endFast() {
   const actual = parseFloat(((end - start) / 3600000).toFixed(2));
   const entry  = {
     id: Date.now(),
-    date: start.toISOString().slice(0, 10),
+    date: localDateStr(start),
     protocol: state.activeFast.protocol,
     plannedHours: state.activeFast.plannedHours,
     startTime: state.activeFast.startTime,
@@ -690,6 +1003,13 @@ export function endFast() {
   state.activeFast = null;
   save();
   return entry;
+}
+
+// Abandon the running fast without logging it — a mis-tap on Start otherwise
+// leaves a permanent 0h "Partial" row in the history.
+export function cancelFast() {
+  state.activeFast = null;
+  save();
 }
 
 export function getActiveFast() {
@@ -706,8 +1026,12 @@ export function addSleepEntry(entry) {
   }
   const dur   = _calcSleepDuration(entry.bedtime, entry.wakeTime);
   const score = _calcSleepScore(dur, entry.quality);
-  const full  = { id: Date.now(), ...entry, durationHours: dur, score };
-  state.sleepLog.unshift(full);
+  const full  = { id: _uniqueId(state.sleepLog), ...entry, durationHours: dur, score };
+  // Keep newest night first. A back-dated entry used to be unshifted to the
+  // front, so the chart ran out of order and the status bar's "last sleep"
+  // was whichever entry was typed last, not the latest night.
+  const at = state.sleepLog.findIndex(e => !(String(e?.date || '') > String(full.date || '')));
+  state.sleepLog.splice(at < 0 ? state.sleepLog.length : at, 0, full);
   if (state.sleepLog.length > 365) state.sleepLog.length = 365;
   save();
   return full;
@@ -760,9 +1084,16 @@ export function addActivityEntry(entry) {
     if (entry.label != null) entry.label = cleanText(entry.label, 120);
     if (entry.type  != null) entry.type  = cleanText(entry.type, 60);
   }
-  const calories = entry.calories != null && entry.calories !== '' ? Number(entry.calories) : _calcActivityCalories(entry);
-  const full = { id: Date.now(), ...entry, calories };
-  state.activityLog.unshift(full);
+  entry.durationMin = clampAmount(entry.durationMin, 1440, 0);
+  if (entry.distance != null) entry.distance = clampAmount(entry.distance, 1000, 2) || null;
+  if (entry.hr != null) entry.hr = clampAmount(entry.hr, 250, 0) || null;
+  const calories = entry.calories != null && entry.calories !== ''
+    ? clampAmount(entry.calories, 20000, 0)
+    : _calcActivityCalories(entry);
+  const full = { id: _uniqueId(state.activityLog), ...entry, calories };
+  // Newest day first, so back-dated entries group under their own date.
+  const at = state.activityLog.findIndex(e => !(String(e?.date || '') > String(full.date || '')));
+  state.activityLog.splice(at < 0 ? state.activityLog.length : at, 0, full);
   if (state.activityLog.length > 500) state.activityLog.length = 500;
   updateStreak();
   save();

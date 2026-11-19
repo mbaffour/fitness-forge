@@ -3,6 +3,7 @@
 //   All charts use design-system colors
 // ═══════════════════════════════════════════
 import { EXERCISES, isStretch } from '../data/exercises.js';
+import { toDisplayWeight, weightUnitLabel } from '../store.js';
 
 const COLORS = {
   fire:   '#ff6b1a',
@@ -55,47 +56,96 @@ function ensureDefaults() {
   if (window.Chart) applyGlobalDefaults();
 }
 
-// ── WEIGHT TREND LINE CHART ──
-export function initWeightTrendChart(canvasId, bodyLog) {
+// A token can resolve to #rgb, #rrggbb or rgb(); appending hex alpha to the
+// last two is not a colour at all and Chart.js silently draws nothing.
+function withAlpha(c, a) {
+  const s = String(c || '').trim();
+  let m = s.match(/^#([0-9a-f])([0-9a-f])([0-9a-f])$/i);
+  if (m) return `rgba(${parseInt(m[1] + m[1], 16)},${parseInt(m[2] + m[2], 16)},${parseInt(m[3] + m[3], 16)},${a})`;
+  m = s.match(/^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+  if (m) return `rgba(${parseInt(m[1], 16)},${parseInt(m[2], 16)},${parseInt(m[3], 16)},${a})`;
+  m = s.match(/^rgba?\(([^)]+)\)$/i);
+  if (m) { const p = m[1].split(',').slice(0, 3).join(','); return `rgba(${p},${a})`; }
+  return s;
+}
+
+// ── METRIC CHART (v3.37) ──
+// One time-series chart for every tracked metric: bodyweight, body fat,
+// measurements, sleep, nutrition, training volume and custom metrics.
+//
+// The x axis is TIME, not a list of labels. The old weight chart plotted
+// check-ins as evenly spaced categories, so a two-week gap between weigh-ins
+// drew exactly as wide as one day and the slope of the line meant nothing.
+// Points carry `x` in epoch ms on a linear scale (no date adapter needed).
+//
+// datasets: [{ label, points:[{x,y}], color, axis:'y'|'y2', kind, unit, decimals }]
+//   kind 'raw'   — dim dots (actual scale readings)
+//   kind 'trend' — solid smoothed line
+//   kind 'line'  — plain line with points
+//   kind 'goal'  — dashed horizontal reference
+export function initMetricChart(canvasId, { datasets = [], xMin, xMax } = {}) {
   ensureDefaults();
-  if (!window.Chart) return;
+  if (!window.Chart) return null;
   destroyIfExists(canvasId);
-
   const canvas = document.getElementById(canvasId);
-  if (!canvas) return;
+  if (!canvas) return null;
 
-  const sorted = [...bodyLog].reverse().slice(-60); // last 60 check-ins
-  const labels = sorted.map(e => {
-    const d = new Date(e.date);
-    return `${d.getMonth()+1}/${d.getDate()}`;
+  const border = cssVar('--border') || COLORS.border;
+  const resolve = (c) => (c && c.startsWith('--') ? (cssVar(c) || COLORS.fire) : c || cssVar('--fire') || COLORS.fire);
+  const span = (xMax ?? 0) - (xMin ?? 0);
+  const fmtDate = (ms) => {
+    const d = new Date(ms);
+    // "Oct '25", not "Oct 25" — the bare form reads as the 25th of October.
+    return span > 300 * 864e5
+      ? `${d.toLocaleDateString('en-US', { month: 'short' })} '${String(d.getFullYear()).slice(-2)}`
+      : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+  const units = {};
+  const ds = datasets.filter((d) => d.points?.length).map((d) => {
+    const color = resolve(d.color);
+    units[d.axis || 'y'] = d.unit || '';
+    const base = { label: d.label, data: d.points, yAxisID: d.axis || 'y', borderColor: color,
+                   backgroundColor: color, _unit: d.unit || '', _dec: d.decimals ?? 1, _kind: d.kind };
+    if (d.kind === 'raw')   return { ...base, showLine: false, pointRadius: d.points.length > 150 ? 1.5 : 2.5, pointHoverRadius: 5,
+                                     backgroundColor: withAlpha(color, 0.4), borderColor: withAlpha(color, 0.6), order: 3 };
+    if (d.kind === 'trend') return { ...base, pointRadius: 0, pointHoverRadius: 4, borderWidth: 2.5, tension: 0.25, cubicInterpolationMode: 'monotone', order: 1 };
+    if (d.kind === 'goal')  return { ...base, pointRadius: 0, pointHoverRadius: 0, borderWidth: 1.5, borderDash: [6, 5], order: 4 };
+    return { ...base, pointRadius: d.points.length > 60 ? 0 : 2.5, pointHoverRadius: 5, borderWidth: 2, tension: 0.25, cubicInterpolationMode: 'monotone', order: 2 };
   });
-  const weights = sorted.map(e => e.weight);
-
+  const tick = (axis) => (v) => `${+(+v).toFixed(2)}${units[axis] ? ' ' + units[axis] : ''}`;
+  const scales = {
+    x: { type: 'linear', min: xMin, max: xMax, grid: { color: border },
+         ticks: { maxTicksLimit: 7, maxRotation: 0, callback: (v) => fmtDate(v) } },
+    y: { grid: { color: border }, ticks: { maxTicksLimit: 6, callback: tick('y') } },
+  };
+  if (ds.some((d) => d.yAxisID === 'y2')) {
+    scales.y2 = { position: 'right', grid: { drawOnChartArea: false }, ticks: { maxTicksLimit: 6, callback: tick('y2') } };
+  }
   const chart = new Chart(canvas, {
     type: 'line',
-    data: {
-      labels,
-      datasets: [{
-        data: weights,
-        borderColor: COLORS.fire,
-        backgroundColor: 'rgba(255,107,26,0.08)',
-        pointBackgroundColor: COLORS.fire,
-        pointRadius: 3,
-        pointHoverRadius: 5,
-        tension: 0.3,
-        fill: true,
-      }],
-    },
+    data: { datasets: ds },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      scales: {
-        x: { grid: { color: COLORS.border }, ticks: { maxRotation: 45, maxTicksLimit: 12 } },
-        y: { grid: { color: COLORS.border }, ticks: { callback: v => v + ' lbs' } },
+      parsing: false,
+      normalized: true,
+      animation: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? false : { duration: 250 },
+      interaction: { mode: 'nearest', intersect: false, axis: 'x' },
+      plugins: {
+        legend: { display: ds.length > 1, labels: { boxWidth: 10, boxHeight: 2 } },
+        tooltip: {
+          filter: (item) => item.dataset._kind !== 'goal',
+          callbacks: {
+            title: (items) => items.length ? new Date(items[0].parsed.x).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : '',
+            label: (item) => `${item.dataset.label}: ${(+item.parsed.y).toFixed(item.dataset._dec)}${item.dataset._unit ? ' ' + item.dataset._unit : ''}`,
+          },
+        },
       },
+      scales,
     },
   });
   chartInstances.set(canvasId, chart);
+  return chart;
 }
 
 // ── WEEKLY TRAINING-VOLUME BAR CHART (v3.4) ──
@@ -180,7 +230,8 @@ export function initMacroDonut(canvasId, { protein, carbs, fat }) {
         legend: { display: true, position: 'bottom', labels: { color: COLORS.text2, padding: 14, font: { size: 10 } } },
         tooltip: {
           callbacks: {
-            label: ctx => ` ${ctx.label}: ${Math.round(ctx.raw / 4 || ctx.raw / 9)}g (${ctx.raw} kcal)`,
+            // Fat is 9 kcal/g; `raw / 4 || raw / 9` always took the /4 branch.
+            label: ctx => ` ${ctx.label}: ${Math.round(ctx.raw / (ctx.dataIndex === 2 ? 9 : 4))}g (${Math.round(ctx.raw)} kcal)`,
           },
         },
       },
@@ -215,8 +266,10 @@ export function initStrengthChart(canvasId, sessions, exId) {
   });
   const weights = relevant.map(s => {
     const ex = s.exercises.find(e => e.exId === exId);
-    const maxW = Math.max(...(ex?.sets || []).filter(s => s.completed).map(s => s.weight || 0));
-    return maxW || null;
+    // Working sets only, in the user's display unit (this plotted raw lbs in
+    // kg mode). An empty list is -Infinity from Math.max, which is truthy.
+    const maxW = Math.max(0, ...(ex?.sets || []).filter(s => s.completed && !s.warmup).map(s => s.weight || 0));
+    return maxW ? toDisplayWeight(maxW) : null;
   });
 
   const chart = new Chart(canvas, {
@@ -302,7 +355,8 @@ export function initCalorieChart(canvasId, nutritionLog) {
 }
 
 // ── CARDIO DISTANCE BAR CHART ──
-export function initCardioChart(canvasId, cardioLog) {
+// `toUnit` converts stored miles to the display unit; `unit` labels it.
+export function initCardioChart(canvasId, cardioLog, { toUnit = (mi) => mi, unit = 'mi' } = {}) {
   ensureDefaults();
   if (!window.Chart) return;
   destroyIfExists(canvasId);
@@ -316,7 +370,7 @@ export function initCardioChart(canvasId, cardioLog) {
     const d = new Date(e.date);
     return `${d.getMonth()+1}/${d.getDate()}`;
   });
-  const distances = sorted.map(e => e.distanceMiles || 0);
+  const distances = sorted.map(e => (e.distanceMiles ? toUnit(e.distanceMiles) : 0));
   const colors    = sorted.map(e => {
     const map = { run: COLORS.fire, bike: COLORS.green, swim: COLORS.steel, row: COLORS.ember };
     return map[e.type] || COLORS.fire;
@@ -327,7 +381,7 @@ export function initCardioChart(canvasId, cardioLog) {
     data: {
       labels,
       datasets: [{
-        label: 'Distance (mi)',
+        label: `Distance (${unit})`,
         data: distances,
         backgroundColor: colors,
         borderRadius: 3,
@@ -338,7 +392,7 @@ export function initCardioChart(canvasId, cardioLog) {
       maintainAspectRatio: false,
       scales: {
         x: { grid: { color: COLORS.border } },
-        y: { grid: { color: COLORS.border }, beginAtZero: true, ticks: { callback: v => v + ' mi' } },
+        y: { grid: { color: COLORS.border }, beginAtZero: true, ticks: { callback: v => `${v} ${unit}` } },
       },
     },
   });
@@ -668,14 +722,14 @@ export function initVolumeChart(canvasId, sessions) {
     const d = new Date(s.date);
     return `${d.getMonth()+1}/${d.getDate()}`;
   });
-  const volumes = recent.map(s => s.totalVolume || 0);
+  const volumes = recent.map(s => Math.round(toDisplayWeight(s.totalVolume || 0) || 0));   // display unit, not raw lbs
 
   const chart = new Chart(canvas, {
     type: 'bar',
     data: {
       labels,
       datasets: [{
-        label: 'Volume (lbs)',
+        label: `Volume (${weightUnitLabel()})`,
         data: volumes,
         backgroundColor: COLORS.steel + 'bb',
         borderRadius: 3,

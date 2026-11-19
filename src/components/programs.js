@@ -97,7 +97,7 @@ function activeHTML() {
       <div class="pg-coach-head"><b>${prog.overload === 'linear' ? 'Linear progression' : 'Double progression'}</b><span class="tag t-fire">${prescribedSession(prog, 0, viewWeek, trainingProfile()).deload ? 'Recovery week' : 'Build week'}</span></div>
       <div class="pg-cycle"><span>01 · Log working sets</span><span>02 · Build reps / load</span><span>03 · Recover every 4th week</span></div>
       <p>${prog.schedule}</p>
-      ${prog.personalized ? `<p>${trainingProfile().weight ? `Starting estimates use your latest recorded bodyweight: ${formatWeight(trainingProfile().weight)}. Experience: ${trainingProfile().level}. Calibrate after your first set.` : 'Add your bodyweight in Profile or Body Stats for an initial load estimate. Start with a comfortable load until then.'} Reps follow your training goal and experience.</p>` : ''}
+      ${prog.personalized ? `<p>${trainingProfile().weight ? `Starting estimates use your latest recorded bodyweight: ${formatWeight(trainingProfile().weight)}. Experience: ${trainingProfile().level}. Calibrate after your first set.` : 'Add your bodyweight in Profile or Body &amp; Metrics for an initial load estimate. Start with a comfortable load until then.'} Reps follow your training goal and experience.</p>` : ''}
       <p>${prescribedSession(prog, 0, viewWeek, trainingProfile()).deload ? 'About half the normal sets. Keep the last working load and leave 3–4 reps in reserve.' : 'Leave about two reps in reserve. The logger suggests your next target from saved working sets.'}</p>
     </div>` : ''}
     ${programVisualsHTML(prog, EXERCISES, trainingProfile(), viewWeek)}
