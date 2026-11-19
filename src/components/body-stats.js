@@ -385,7 +385,7 @@ function _checkInCardHTML() {
         <input type="date" id="checkin-date" class="form-input" value="${date}" max="${todayKey()}"></label>
       <label class="bs-field"><span class="label">Weight (${wUnit()})</span>
         <input type="number" id="checkin-weight" class="form-input" inputmode="decimal" step="0.1"
-          value="${val(e?.weight, dispW)}" placeholder="${kgMode() ? '80.0' : '175.0'}"></label>
+          value="${val(e?.weight, dispW)}" placeholder="${(() => { const last = state.bodyLog.find((x) => Number(x?.weight) > 0); return last ? `last ${fmt(dispW(Number(last.weight)), 1)}` : (kgMode() ? 'e.g. 80.0' : 'e.g. 175.0'); })()}"></label>
     </div>
     <div class="bs-form-row">
       <label class="bs-field"><span class="label">Body fat %</span>

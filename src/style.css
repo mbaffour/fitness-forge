@@ -3217,6 +3217,8 @@ body.session-active .sidebar { display: none !important; }
   .bs-big { font-size: 44px; }
   .bs-metrics { grid-template-columns: repeat(2, 1fr); }
 }
+/* Two selects side by side truncated their labels ("Bodyweight (…") on a phone. */
+@media (max-width: 520px) { .bs-controls .bs-field { flex-basis: 100%; } }
 @media (prefers-reduced-motion: reduce) { .bs-bar i { transition: none; } }
 /* ══ CROSS-CUTTING: KEYBOARD, MOBILE ERGONOMICS ══ */
 
