@@ -28,7 +28,7 @@ import {
   startFast, endFast, getActiveFast,
   addSleepEntry, removeSleepEntry,
   addActivityEntry, removeActivityEntry,
-  formatWeight, weightUnitLabel,
+  formatWeight, weightUnitLabel, localDateStr,
 } from './store.js';
 import { generateProgram } from './engine/generator.js';
 import { EXERCISES } from './data/exercises.js';
@@ -342,27 +342,41 @@ function updateTopbar(pageId) {
 
 // ── STATS STRIP ──
 function _buildStatsStrip() {
-  const today = new Date().toISOString().slice(0, 10);
-  const calories = state.nutritionLog.find(d => d.date === today)?.calories || 0;
-  const lastSleep = state.sleepLog[0];
+  // Local day, matching the Nutrition page (which keys days by local date).
+  const today = localDateStr();
+  const calories = Math.round(state.nutritionLog.find(d => d?.date === today)?.calories || 0);
+  // Latest night by date, and only an entry that actually has a score — a
+  // sleep entry without one used to render "Sleep: undefined/100".
+  const lastSleep = state.sleepLog.find(e => Number.isFinite(e?.score));
   const fast = state.activeFast;
   let fastLabel = 'Not fasting';
   if (fast) {
     const elapsed = (Date.now() - new Date(fast.startTime).getTime()) / 3600000;
-    const rem = Math.max(fast.plannedHours - elapsed, 0);
-    fastLabel = `${fast.protocol} · ${Math.floor(rem)}h left`;
+    const rem = Math.max((Number(fast.plannedHours) || 0) - elapsed, 0);
+    fastLabel = rem > 0
+      ? `${fast.protocol} · ${rem < 1 ? Math.max(1, Math.round(rem * 60)) + 'm' : Math.floor(rem) + 'h'} left`
+      : `${fast.protocol} · goal reached ✓`;
   }
   return `
   <span class="strip-item">🔥 <strong>${state.streak.current}d</strong> streak</span>
   <span class="strip-item">⊕ <strong>${calories}</strong> kcal today</span>
   <span class="strip-item">⏱ ${fastLabel}</span>
-  <span class="strip-item">🌙 Sleep: <strong>${lastSleep ? lastSleep.score + '/100' : '—'}</strong></span>`;
+  <span class="strip-item">🌙 Sleep: <strong>${lastSleep ? Math.round(lastSleep.score) + '/100' : '—'}</strong></span>`;
 }
 
 function _updateStatsStrip() {
   const el = document.getElementById('stats-strip');
   if (el) el.innerHTML = _buildStatsStrip();
 }
+// The strip summarises state, so refresh it whenever state is written — it
+// used to update only on a 30s timer, so logging food, sleep or a fast left
+// it showing the old numbers. Coalesced to one rebuild per frame.
+let _stripQueued = false;
+window.addEventListener('forge:saved', () => {
+  if (_stripQueued) return;
+  _stripQueued = true;
+  requestAnimationFrame(() => { _stripQueued = false; _updateStatsStrip(); });
+});
 
 // ── SHELL ──
 function buildShell() {

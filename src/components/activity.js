@@ -2,8 +2,9 @@
 //   FITNESS FORGE — Activity Tracker
 // ═══════════════════════════════════════════
 
-import { state, addActivityEntry, removeActivityEntry } from '../store.js';
+import { state, addActivityEntry, removeActivityEntry, localDateStr } from '../store.js';
 import { initActivityStackedBar } from './charts.js';
+import { toast } from './ui.js';
 
 const ACTIVITY_TYPES = [
   { id: 'Walking',       icon: '🚶', met: 3.5 },
@@ -28,7 +29,7 @@ const INTENSITY_MULS   = { Low: 0.8, Moderate: 1.0, High: 1.2, Max: 1.4 };
 const MET_VALUES = Object.fromEntries(ACTIVITY_TYPES.map(a => [a.id, a.met]));
 
 function _todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  return localDateStr();
 }
 
 function _previewCalories(type, durationMin, intensity) {
@@ -40,8 +41,9 @@ function _previewCalories(type, durationMin, intensity) {
 }
 
 function _computeWeeklyStats(activityLog) {
-  const sevenDaysAgo = new Date(Date.now() - 6 * 86400000).toISOString().slice(0, 10);
-  const recent = activityLog.filter(e => e.date >= sevenDaysAgo);
+  const sevenDaysAgo = localDateStr(new Date(Date.now() - 6 * 86400000));
+  const today = localDateStr();
+  const recent = activityLog.filter(e => e.date >= sevenDaysAgo && e.date <= today);
   return {
     totalMin: recent.reduce((a, e) => a + (e.durationMin || 0), 0),
     sessions: recent.length,
@@ -70,7 +72,7 @@ function _renderHeatmap(activityLog) {
   const cells = [];
   for (let i = 34; i >= 0; i--) {
     const d = new Date(Date.now() - i * 86400000);
-    const key = d.toISOString().slice(0, 10);
+    const key = localDateStr(d);
     const mins = dayMap[key] || 0;
     const bg = mins === 0 ? 'var(--bg-3)'
       : mins <= 30 ? 'color-mix(in srgb, var(--steel) 30%, transparent)'
@@ -165,7 +167,7 @@ export function renderActivity() {
   </div>
   <div style="display:flex;align-items:center;gap:16px">
     <button class="btn btn-fire" onclick="logActivity()">+ Log Activity</button>
-    <div class="muted fs12" id="cal-preview"></div>
+    <div class="muted fs12" id="cal-preview">≈ ${_previewCalories('Walking', 30, 'Moderate')} calories</div>
   </div>
 </div>
 
@@ -279,14 +281,23 @@ window.logActivity = () => {
   const type      = document.getElementById('act-type')?.value;
   const durationMin = parseInt(document.getElementById('act-dur')?.value) || 0;
   const intensity = document.getElementById('act-intensity')?.value || 'Moderate';
-  const date      = document.getElementById('act-date')?.value || new Date().toISOString().slice(0, 10);
+  const date      = document.getElementById('act-date')?.value || _todayStr();
   const distance  = parseFloat(document.getElementById('act-dist')?.value) || null;
   const hr        = parseInt(document.getElementById('act-hr')?.value) || null;
-  const calories  = document.getElementById('act-cal')?.value ? parseInt(document.getElementById('act-cal').value) : null;
+  // Number(), not parseInt(): parseInt('1e3') is 1.
+  const calRaw    = document.getElementById('act-cal')?.value;
+  const calories  = calRaw ? Number(calRaw) : null;
   const notes     = document.getElementById('act-notes')?.value?.trim() || '';
 
-  if (!type || !durationMin) {
-    alert('Please select an activity and enter duration.');
+  // A typed negative is a typo, not a value to quietly store: -20 min passed
+  // the old `!durationMin` check and went straight into the weekly totals.
+  const bad = [['act-dur', durationMin < 1], ['act-dist', distance < 0], ['act-hr', hr < 0], ['act-cal', calories < 0]]
+    .find(([, isBad]) => isBad);
+  if (!type || bad) {
+    const el = document.getElementById(bad ? bad[0] : 'act-dur');
+    el?.classList.add('input-error');
+    setTimeout(() => el?.classList.remove('input-error'), 400);
+    toast(bad && bad[0] !== 'act-dur' ? 'Values cannot be negative.' : 'Enter a duration of at least 1 minute.', { type: 'danger' });
     return;
   }
 

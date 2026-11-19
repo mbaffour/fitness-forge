@@ -180,7 +180,8 @@ export function initMacroDonut(canvasId, { protein, carbs, fat }) {
         legend: { display: true, position: 'bottom', labels: { color: COLORS.text2, padding: 14, font: { size: 10 } } },
         tooltip: {
           callbacks: {
-            label: ctx => ` ${ctx.label}: ${Math.round(ctx.raw / 4 || ctx.raw / 9)}g (${ctx.raw} kcal)`,
+            // Fat is 9 kcal/g; `raw / 4 || raw / 9` always took the /4 branch.
+            label: ctx => ` ${ctx.label}: ${Math.round(ctx.raw / (ctx.dataIndex === 2 ? 9 : 4))}g (${Math.round(ctx.raw)} kcal)`,
           },
         },
       },

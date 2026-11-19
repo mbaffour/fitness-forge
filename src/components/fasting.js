@@ -2,7 +2,8 @@
 //   FITNESS FORGE — Fasting Tracker
 // ═══════════════════════════════════════════
 
-import { state, startFast, endFast } from '../store.js';
+import { state, save, startFast, endFast, cancelFast } from '../store.js';
+import { toast } from './ui.js';
 
 const PROTOCOLS = [
   { id: '12:12', label: '12:12', fastHours: 12, eatHours: 12, desc: 'Beginner-friendly. Aligns with natural circadian rhythm.' },
@@ -121,7 +122,7 @@ function _renderMetabolicTimeline(elapsedHours) {
 
 function _render52View() {
   const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-  const fast52Days = state.activeFast?.fasting52Days || [];
+  const fast52Days = state.settings.fasting52Days || [];
   return `
 <div class="card" style="margin-bottom:24px">
   <div class="label" style="margin-bottom:12px">5:2 — Weekly Fasting Days</div>
@@ -163,9 +164,24 @@ function _renderHistory() {
 </div>`;
 }
 
+function _renderHeroCard(fast, proto, elapsedHours) {
+  return `
+  <div class="card" style="margin-bottom:24px">
+    ${_renderRing(elapsedHours, proto.fastHours)}
+    <div style="display:flex;justify-content:center;align-items:center;gap:12px;flex-wrap:wrap;margin-top:16px">
+      <button class="btn ${fast ? 'btn-danger' : 'btn-fire'}" style="min-width:180px;padding:14px 24px;font-size:14px" onclick="toggleFast()">
+        ${fast ? '⏹ End Fast' : '▶ Start Fast'}
+      </button>
+      ${fast ? `<button class="btn btn-ghost btn-sm" onclick="cancelActiveFast()" title="Discard without logging it">✕ Cancel</button>` : ''}
+    </div>
+    ${_renderMetabolicTimeline(elapsedHours)}
+  </div>`;
+}
+
 export function renderFasting() {
   const fast = state.activeFast;
-  const proto = _getProtocol(fast?.protocol || _selectedProtocol);
+  // While a fast runs, its own protocol is what is shown; otherwise the pick.
+  const proto = _getProtocol(fast ? fast.protocol : _selectedProtocol);
   const elapsedHours = _getElapsedHours();
   const is52 = proto.weekly;
 
@@ -190,17 +206,7 @@ export function renderFasting() {
 
 ${is52 ? _render52View() : `
 <!-- FAST RING HERO -->
-<div id="fast-hero">
-  <div class="card" style="margin-bottom:24px">
-    ${_renderRing(elapsedHours, proto.fastHours)}
-    <div style="display:flex;justify-content:center;margin-top:16px">
-      <button class="btn ${fast ? 'btn-danger' : 'btn-fire'}" style="min-width:180px;padding:14px 24px;font-size:14px" onclick="toggleFast()">
-        ${fast ? '⏹ End Fast' : '▶ Start Fast'}
-      </button>
-    </div>
-    ${_renderMetabolicTimeline(elapsedHours)}
-  </div>
-</div>
+<div id="fast-hero">${_renderHeroCard(fast, proto, elapsedHours)}</div>
 `}
 
 ${_renderHistory()}
@@ -212,18 +218,7 @@ function _updateFastingHero() {
   if (!heroEl) return;
   const fast = state.activeFast;
   if (!fast) return;
-  const proto = _getProtocol(fast.protocol);
-  const elapsed = _getElapsedHours();
-  heroEl.innerHTML = `
-<div class="card" style="margin-bottom:24px">
-  ${_renderRing(elapsed, proto.fastHours)}
-  <div style="display:flex;justify-content:center;margin-top:16px">
-    <button class="btn btn-danger" style="min-width:180px;padding:14px 24px;font-size:14px" onclick="toggleFast()">
-      ⏹ End Fast
-    </button>
-  </div>
-  ${_renderMetabolicTimeline(elapsed)}
-</div>`;
+  heroEl.innerHTML = _renderHeroCard(fast, _getProtocol(fast.protocol), _getElapsedHours());
 }
 
 export function scheduleFastingTimer() {
@@ -252,21 +247,32 @@ window.toggleFast = () => {
 };
 
 window.setFastProtocol = (id) => {
+  // Mid-fast the pick used to change silently and then apply to the NEXT
+  // fast, while the screen kept showing the running one.
+  if (state.activeFast && id !== state.activeFast.protocol) {
+    toast('End or cancel the current fast to switch protocol.');
+    return;
+  }
   _selectedProtocol = id;
   window.refreshFastingPage();
 };
 
+window.cancelActiveFast = () => {
+  if (!state.activeFast) return;
+  if (!confirm('Discard this fast? It will not be added to your history.')) return;
+  cancelFast();
+  window.refreshFastingPage();
+};
+
+// The 5:2 plan is a weekly schedule, not a running fast. It used to be stored
+// AS the active fast (plannedHours 0), which replaced the timer for every
+// protocol with the 5:2 grid and left no way to start or end a timed fast.
 window.toggle52Day = (dayIndex) => {
-  if (!state.activeFast) {
-    const proto = _getProtocol('5:2');
-    startFast(proto.id, 0);
-  }
-  const days = state.activeFast.fasting52Days || [];
+  const days = Array.isArray(state.settings.fasting52Days) ? state.settings.fasting52Days : [];
   const idx = days.indexOf(dayIndex);
   if (idx >= 0) days.splice(idx, 1); else days.push(dayIndex);
-  state.activeFast.fasting52Days = days;
-  const { save } = window.__forge_store || {};
-  if (save) save(); else localStorage.setItem('fitness_forge_v1', JSON.stringify(state));
+  state.settings.fasting52Days = days;
+  save();
   window.refreshFastingPage();
 };
 

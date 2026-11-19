@@ -109,6 +109,7 @@ let _lastSaveOk = true;
 export function save() {
   try {
     localStorage.setItem(KEY, JSON.stringify(state));
+    window.dispatchEvent?.(new CustomEvent('forge:saved'));
     if (!_lastSaveOk) {
       _lastSaveOk = true;
       window.dispatchEvent?.(new CustomEvent('forge:save-recovered'));
@@ -161,9 +162,38 @@ export function stateBytes() {
         (e.exercises || []).forEach((x) => { if (x?.exName != null) x.exName = cleanText(x.exName, 120); });
       });
     }
+    // Food items live in `entries`. This used to clean `meals`, a key the app
+    // never writes, so a food name like `<img onerror=…>` kept firing on every
+    // load of the Nutrition page.
     (state.nutritionLog || []).forEach((d) => {
-      (d?.meals || []).forEach((m) => { if (m?.name != null) m.name = cleanText(m.name, 120); });
+      for (const list of ['entries', 'meals']) {
+        (d?.[list] || []).forEach((m) => {
+          if (m?.name != null) m.name = cleanText(m.name, 120);
+          if (m?.meal != null) m.meal = cleanText(m.meal, 30);
+        });
+      }
     });
+    // 5:2 used to store its weekly plan AS the active fast (plannedHours 0),
+    // which hid the timer for every protocol with no way back. Move it out.
+    if (state.activeFast?.protocol === '5:2') {
+      state.settings.fasting52Days = Array.isArray(state.activeFast.fasting52Days) ? state.activeFast.fasting52Days : [];
+      state.activeFast = null;
+    }
+    // A sleep entry from an import, an older build or a hand-edited backup can
+    // lack its derived fields; the status bar then read "Sleep: undefined/100"
+    // and the Sleep page printed "undefined" / "NaN". Re-derive what is missing.
+    (state.sleepLog || []).forEach((e) => {
+      if (!e || typeof e !== 'object') return;
+      const hhmm = /^\d{1,2}:\d{2}$/;
+      if (!Number.isFinite(e.durationHours)) {
+        e.durationHours = hhmm.test(e.bedtime) && hhmm.test(e.wakeTime) ? _calcSleepDuration(e.bedtime, e.wakeTime) : 0;
+      }
+      if (!Number.isFinite(e.score)) e.score = e.durationHours > 0 ? _calcSleepScore(e.durationHours, e.quality) : 0;
+    });
+    // Newest first, by date — the order every reader assumes.
+    const byDateDesc = (x, y) => String(y?.date || '').localeCompare(String(x?.date || ''));
+    state.sleepLog?.sort(byDateDesc);
+    state.activityLog?.sort(byDateDesc);
   } catch (err) {
     // Never let a scrub failure stop the app booting — but never let one pass
     // unnoticed either. This catch previously hid a ReferenceError that
@@ -506,10 +536,47 @@ export function getSessionsForExercise(exId, limit = 10) {
 // ── NEW: CARDIO LOG ──
 
 export function addCardioEntry(entry) {
-  state.cardioLog.unshift({ id: Date.now(), ...entry });
+  if (entry && typeof entry === 'object') {
+    if (entry.notes != null) entry.notes = cleanText(entry.notes, 2000);
+    if (entry.type  != null) entry.type  = cleanText(entry.type, 60);
+  }
+  state.cardioLog.unshift({ id: _uniqueId(state.cardioLog), ...entry });
   if (state.cardioLog.length > 200) state.cardioLog.length = 200;
   updateStreak();
   save();
+}
+
+export function removeCardioEntry(id) {
+  state.cardioLog = state.cardioLog.filter(e => e.id !== id);
+  save();
+}
+
+// ── LOG-HUB HELPERS ──
+
+// The calendar day in the user's own timezone. `toISOString().slice(0,10)` is
+// the UTC day: in Los Angeles everything logged after 4pm landed on tomorrow
+// (and today's food log emptied itself mid-afternoon); in Tokyo breakfast was
+// filed under yesterday.
+export function localDateStr(d = new Date()) {
+  const dt = d instanceof Date ? d : new Date(d);
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+}
+
+// A finite number in [0, max], rounded to `dp` decimals; anything else is 0.
+// `min="0"` on an input stops neither a typed "-500" nor "1e308".
+export function clampAmount(v, max, dp = 1) {
+  const n = Number(v);
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  const f = 10 ** dp;
+  return Math.round(Math.min(n, max) * f) / f;
+}
+
+// Date.now() collides when two entries are written in the same millisecond
+// (a double-tapped button), and then deleting one deletes both.
+function _uniqueId(list) {
+  let id = Date.now();
+  while (list.some(e => e?.id === id)) id++;
+  return id;
 }
 
 // ── NEW: NUTRITION ──
@@ -519,7 +586,7 @@ function todayStr() {
 }
 
 export function getTodayNutrition() {
-  const today = todayStr();
+  const today = localDateStr();
   if (!Array.isArray(state.nutritionLog)) state.nutritionLog = [];
   let day = state.nutritionLog.find(d => d?.date === today);
   // A day that came from an older save or a restored backup may be missing
@@ -561,14 +628,28 @@ function _calcNutritionTarget() {
   return { calories: cal, protein, carbs: Math.max(carbs, 50), fat };
 }
 
+const _MACRO_MAX = { calories: 10000, protein: 1000, carbs: 1000, fat: 1000 };
+
+// Totals are re-derived and rounded rather than accumulated: repeated
+// `+= 3.3` / `-= 8` left fat at 0.30000000000000007g after a delete.
+function _addMacros(day, item, sign) {
+  for (const k of Object.keys(_MACRO_MAX)) {
+    const v = (Number(day[k]) || 0) + sign * (Number(item[k]) || 0);
+    day[k] = Math.max(0, Math.round(v * 10) / 10);
+  }
+}
+
 export function addFoodEntry(entry) {
   const day = getTodayNutrition();
-  const item = { id: Date.now(), time: new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}), ...entry };
+  const item = {
+    id: _uniqueId(day.entries),
+    time: new Date().toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}),
+    name: cleanText(entry.name || 'Food item', 120),
+    meal: cleanText(entry.meal || 'Snack', 30),
+  };
+  for (const [k, max] of Object.entries(_MACRO_MAX)) item[k] = clampAmount(entry[k], max, k === 'calories' ? 0 : 1);
   day.entries.unshift(item);
-  day.calories += entry.calories || 0;
-  day.protein  += entry.protein  || 0;
-  day.carbs    += entry.carbs    || 0;
-  day.fat      += entry.fat      || 0;
+  _addMacros(day, item, 1);
   save();
   return day;
 }
@@ -578,17 +659,14 @@ export function removeFoodEntry(entryId) {
   const idx = day.entries.findIndex(e => e.id === entryId);
   if (idx < 0) return;
   const item = day.entries[idx];
-  day.calories -= item.calories || 0;
-  day.protein  -= item.protein  || 0;
-  day.carbs    -= item.carbs    || 0;
-  day.fat      -= item.fat      || 0;
+  _addMacros(day, item, -1);
   day.entries.splice(idx, 1);
   save();
 }
 
 export function logWater(glasses) {
   const day = getTodayNutrition();
-  day.water = glasses;
+  day.water = Math.max(0, Math.min(Math.round(Number(glasses) || 0), 30));
   save();
 }
 
@@ -677,7 +755,7 @@ export function endFast() {
   const actual = parseFloat(((end - start) / 3600000).toFixed(2));
   const entry  = {
     id: Date.now(),
-    date: start.toISOString().slice(0, 10),
+    date: localDateStr(start),
     protocol: state.activeFast.protocol,
     plannedHours: state.activeFast.plannedHours,
     startTime: state.activeFast.startTime,
@@ -690,6 +768,13 @@ export function endFast() {
   state.activeFast = null;
   save();
   return entry;
+}
+
+// Abandon the running fast without logging it — a mis-tap on Start otherwise
+// leaves a permanent 0h "Partial" row in the history.
+export function cancelFast() {
+  state.activeFast = null;
+  save();
 }
 
 export function getActiveFast() {
@@ -706,8 +791,12 @@ export function addSleepEntry(entry) {
   }
   const dur   = _calcSleepDuration(entry.bedtime, entry.wakeTime);
   const score = _calcSleepScore(dur, entry.quality);
-  const full  = { id: Date.now(), ...entry, durationHours: dur, score };
-  state.sleepLog.unshift(full);
+  const full  = { id: _uniqueId(state.sleepLog), ...entry, durationHours: dur, score };
+  // Keep newest night first. A back-dated entry used to be unshifted to the
+  // front, so the chart ran out of order and the status bar's "last sleep"
+  // was whichever entry was typed last, not the latest night.
+  const at = state.sleepLog.findIndex(e => !(String(e?.date || '') > String(full.date || '')));
+  state.sleepLog.splice(at < 0 ? state.sleepLog.length : at, 0, full);
   if (state.sleepLog.length > 365) state.sleepLog.length = 365;
   save();
   return full;
@@ -760,9 +849,16 @@ export function addActivityEntry(entry) {
     if (entry.label != null) entry.label = cleanText(entry.label, 120);
     if (entry.type  != null) entry.type  = cleanText(entry.type, 60);
   }
-  const calories = entry.calories != null && entry.calories !== '' ? Number(entry.calories) : _calcActivityCalories(entry);
-  const full = { id: Date.now(), ...entry, calories };
-  state.activityLog.unshift(full);
+  entry.durationMin = clampAmount(entry.durationMin, 1440, 0);
+  if (entry.distance != null) entry.distance = clampAmount(entry.distance, 1000, 2) || null;
+  if (entry.hr != null) entry.hr = clampAmount(entry.hr, 250, 0) || null;
+  const calories = entry.calories != null && entry.calories !== ''
+    ? clampAmount(entry.calories, 20000, 0)
+    : _calcActivityCalories(entry);
+  const full = { id: _uniqueId(state.activityLog), ...entry, calories };
+  // Newest day first, so back-dated entries group under their own date.
+  const at = state.activityLog.findIndex(e => !(String(e?.date || '') > String(full.date || '')));
+  state.activityLog.splice(at < 0 ? state.activityLog.length : at, 0, full);
   if (state.activityLog.length > 500) state.activityLog.length = 500;
   updateStreak();
   save();
