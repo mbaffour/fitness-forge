@@ -82,7 +82,10 @@ function _buildInsights(sleepLog) {
 }
 
 function _renderHeatmap(sleepLog) {
-  const cells = [];
+  // Pad so each cell sits under its weekday letter; the grid used to start
+  // on whatever weekday was 34 days ago, so S M T W … labelled nothing.
+  const lead = new Date(Date.now() - 34 * 86400000).getDay();
+  const cells = Array.from({ length: lead }, () => `<div class="sleep-cell" style="visibility:hidden"></div>`);
   for (let i = 34; i >= 0; i--) {
     const d = new Date(Date.now() - i * 86400000);
     const key = localDateStr(d);
@@ -240,8 +243,8 @@ ${sleepLog.length > 0 ? `
   ${sleepLog.slice(0, 14).map(e => `
   <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border)">
     <div>
-      <div style="font-size:13px;font-weight:500">${e.date} <span style="font-size:11px;color:var(--text-3);margin-left:4px">${e.bedtime} → ${e.wakeTime}</span></div>
-      <div class="muted fs11" style="margin-top:3px">${_fmtDuration(e.durationHours)} · ${FEELINGS[e.feeling-1] || ''} ${FEELING_LABELS[(e.feeling||3)-1]}${e.notes ? ' · ' + e.notes.slice(0,40) : ''}</div>
+      <div style="font-size:13px;font-weight:500">${e.date} <span style="font-size:11px;color:var(--text-3);margin-left:4px">${e.bedtime || "—"} → ${e.wakeTime || "—"}</span></div>
+      <div class="muted fs11" style="margin-top:3px">${_fmtDuration(e.durationHours)} · ${FEELINGS[e.feeling-1] || ''} ${FEELING_LABELS[(e.feeling||3)-1] || ""}${e.notes ? ' · ' + e.notes.slice(0,40) : ''}</div>
     </div>
     <div style="display:flex;align-items:center;gap:8px">
       <span class="tag ${_scoreTag(e.score)}">${e.score}</span>

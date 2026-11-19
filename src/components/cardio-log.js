@@ -2,8 +2,9 @@
 //   FITNESS FORGE — Cardio Log
 // ═══════════════════════════════════════════
 
-import { state, addCardioEntry } from '../store.js';
+import { state, addCardioEntry, removeCardioEntry } from '../store.js';
 import { initCardioChart } from './charts.js';
+import { toast } from './ui.js';
 
 const CARDIO_TYPES = [
   { id: 'run',      label: 'Run',        icon: '🏃' },
@@ -85,6 +86,7 @@ ${cardioLog.length > 0 ? `
           ${e.notes ? `<div class="dim fs11" style="margin-top:2px">${e.notes}</div>` : ''}
         </div>
         <div class="muted fs11">${new Date(e.date).toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>
+        <button class="btn-remove" onclick="deleteCardioEntry(${Number(e.id) || 0})" title="Remove">✕</button>
       </div>
       `;
     }).join('')}
@@ -124,6 +126,15 @@ window.logCardioSession = () => {
     document.getElementById('cardio-dur')?.focus();
     return;
   }
+  // A typed negative is a typo; it was stored as-is (-2 mi, -1 bpm).
+  const bad = [['cardio-dist', dist < 0], ['cardio-hr', hr != null && hr < 0]].find(([, b]) => b);
+  if (bad) {
+    const el = document.getElementById(bad[0]);
+    el?.classList.add('input-error');
+    setTimeout(() => el?.classList.remove('input-error'), 400);
+    toast('Values cannot be negative.', { type: 'danger' });
+    return;
+  }
 
   addCardioEntry({
     date:           new Date().toISOString(),
@@ -138,8 +149,16 @@ window.logCardioSession = () => {
   refreshCardioSection();
 };
 
+window.deleteCardioEntry = (id) => {
+  if (!confirm('Delete this cardio session?')) return;
+  removeCardioEntry(id);
+  refreshCardioSection();
+};
+
 function refreshCardioSection() {
-  const logPage = document.getElementById('page-log');
+  // The Log page is mounted as #page-cardio. This looked for #page-log, which
+  // does not exist, so a logged session never appeared until you navigated away.
+  const logPage = document.getElementById('page-cardio');
   if (!logPage) return;
   // Re-render the active tab (cardio)
   const cardioSection = document.getElementById('cardio-section');

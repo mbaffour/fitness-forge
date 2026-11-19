@@ -565,6 +565,12 @@ export function addCardioEntry(entry) {
   if (entry && typeof entry === 'object') {
     if (entry.notes != null) entry.notes = cleanText(entry.notes, 2000);
     if (entry.type  != null) entry.type  = cleanText(entry.type, 60);
+    if (entry.distanceMiles != null) entry.distanceMiles = clampAmount(entry.distanceMiles, 1000, 2) || null;
+    if (entry.durationMinutes != null) {
+      entry.durationMinutes = clampAmount(entry.durationMinutes, 1440, 1);
+      entry.durationSeconds = Math.round(entry.durationMinutes * 60);
+    }
+    if (entry.avgHR != null) entry.avgHR = clampAmount(entry.avgHR, 250, 0) || null;
   }
   state.cardioLog.unshift({ id: _uniqueId(state.cardioLog), ...entry });
   if (state.cardioLog.length > 200) state.cardioLog.length = 200;

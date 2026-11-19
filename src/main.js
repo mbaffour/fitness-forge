@@ -12,6 +12,7 @@ import { showExerciseModal, closeExModal, loadVideo } from './components/modal.j
 import { renderFasting, scheduleFastingTimer } from './components/fasting.js';
 import { renderSleep, scheduleSleepCharts } from './components/sleep.js';
 import { renderActivity, scheduleActivityCharts } from './components/activity.js';
+import { scheduleCardioCharts } from './components/cardio-log.js';
 import { renderAnalytics, scheduleAnalyticsCharts } from './components/analytics.js';
 import { renderHIIT, scheduleHIITCharts } from './components/hiit.js';
 import { renderOverloadMode } from './components/overload-mode.js';
@@ -250,6 +251,7 @@ const CHART_PAGES = {
   sleep:      scheduleSleepCharts,
   fasting:    scheduleFastingTimer,
   activity:   scheduleActivityCharts,
+  cardio:     scheduleCardioCharts,
   analytics:  scheduleAnalyticsCharts,
   hiit:       scheduleHIITCharts,
 };
@@ -354,7 +356,7 @@ function _buildStatsStrip() {
     const elapsed = (Date.now() - new Date(fast.startTime).getTime()) / 3600000;
     const rem = Math.max((Number(fast.plannedHours) || 0) - elapsed, 0);
     fastLabel = rem > 0
-      ? `${fast.protocol} · ${rem < 1 ? Math.max(1, Math.round(rem * 60)) + 'm' : Math.floor(rem) + 'h'} left`
+      ? `${fast.protocol} · ${rem < 1 ? Math.max(1, Math.round(rem * 60)) + 'm' : Math.ceil(rem) + 'h'} left`
       : `${fast.protocol} · goal reached ✓`;
   }
   return `

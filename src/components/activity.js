@@ -69,7 +69,10 @@ function _renderHeatmap(activityLog) {
     dayMap[e.date] = (dayMap[e.date] || 0) + (e.durationMin || 0);
   });
 
-  const cells = [];
+  // Pad so each cell sits under its weekday letter; the grid used to start
+  // on whatever weekday was 34 days ago, so S M T W … labelled nothing.
+  const lead = new Date(Date.now() - 34 * 86400000).getDay();
+  const cells = Array.from({ length: lead }, () => `<div class="sleep-cell" style="visibility:hidden"></div>`);
   for (let i = 34; i >= 0; i--) {
     const d = new Date(Date.now() - i * 86400000);
     const key = localDateStr(d);
