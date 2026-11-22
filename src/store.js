@@ -62,6 +62,8 @@ const defaultState = {
   // ── v3.37 additions ──
   metricDefs:  {},      // { m_id: { name, unit, dir:'up'|'down'|'none', decimals } } — user-defined metrics
   metricLog:   [],      // [{ id, metric, value, date }] — values logged against metricDefs
+  // ── v3.38 additions ──
+  gamify:      { seen: null },  // what the celebration layer has already shown (XP itself is derived, never stored)
 };
 
 // A deep copy. `{ ...defaultState }` shared every array and nested object with
@@ -87,7 +89,7 @@ export const state = (() => {
                        'gymProfiles', 'bodyMapTray', 'bodyMapSel', 'metricLog']) {
         parsed[k] = arr(parsed[k]);
       }
-      for (const k of ['prs', 'customExercises', 'metricDefs']) parsed[k] = obj(parsed[k]);
+      for (const k of ['prs', 'customExercises', 'metricDefs', 'gamify']) parsed[k] = obj(parsed[k]);
 
       return {
         ...defaultState,
@@ -105,6 +107,7 @@ export const state = (() => {
         bodyMapSel: parsed.bodyMapSel,
         challenge: parsed.challenge ?? null,
         metricDefs: parsed.metricDefs,
+        gamify: parsed.gamify,
         metricLog: parsed.metricLog,
       };
     }
