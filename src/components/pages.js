@@ -1,4 +1,7 @@
 import { state, save, setPhase, setWeek, logWorkout, clearLog, resetAll, updateProfile, formatWeight, toDisplayWeight, toStoredWeight, weightUnitLabel, displayName, currentStreak, localDateStr, pruneIdMap, cleanCustomExercise, cleanMetricDefs, cleanMetricLog } from '../store.js';
+import { rankWidgetHTML } from './achievements.js';
+import { summary as gamifySummary, weeklyGoal } from '../engine/gamify.js';
+const fireStreak = () => gamifySummary().daily.current;
 import { GOAL_OPTIONS, LEVEL_OPTIONS, PHASE_NAMES, PHASE_DESCS, EXERCISES, MUSCLE_GROUPS } from '../data/exercises.js';
 import { calcBMR, calcTDEE, calcMacros, ACTIVITY_MULTIPLIERS } from '../engine/bmr.js';
 import { renderCardioLog, scheduleCardioCharts } from './cardio-log.js';
@@ -79,12 +82,15 @@ ${(() => {
   <div class="hero-meta">
     <div><span class="k">Focus</span><span class="v">${focus}</span></div>
     <div><span class="k">Program</span><span class="v">${pct}% done</span></div>
-    <div><span class="k">Streak</span><span class="v">${currentStreak()} <span class="streak-flame">🔥</span></span></div>
+    <div><span class="k">Daily fire</span><span class="v">${fireStreak()} <span class="streak-flame">🔥</span></span></div>
     <div><span class="k">Sessions</span><span class="v">${totalSessions}</span></div>
   </div>
   ${cta}
 </div>`;
 })()}
+
+<!-- FORGE RANK: level, streaks, today's quests -->
+${rankWidgetHTML()}
 
 <!-- 7-DAY STREAK STRIP -->
 ${(() => {
@@ -126,8 +132,8 @@ ${(() => {
     <div class="display" style="font-size:28px;margin-top:6px">${totalSessions}</div>
   </div>
   <div class="stat s-green" style="cursor:pointer" onclick="navigate('achievements')">
-    <div class="label">Streak</div>
-    <div class="display" style="font-size:28px;margin-top:6px">${currentStreak()}d</div>
+    <div class="label">Daily fire</div>
+    <div class="display" style="font-size:28px;margin-top:6px">${fireStreak()}d</div>
   </div>
   <div class="stat s-steel" style="cursor:pointer" onclick="navigate('achievements')">
     <div class="label">PRs</div>
@@ -851,6 +857,22 @@ ${(() => {
   </div>
   <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
     <div>
+      <div style="font-size:13px;font-weight:500">Forge Rank</div>
+      <div class="muted fs11" style="margin-top:2px">XP, levels, daily quests, badges and celebrations</div>
+    </div>
+    <button class="seg-btn ${state.settings?.gamify !== false ? 'active' : ''}" onclick="setGamify(${state.settings?.gamify === false})">${state.settings?.gamify !== false ? 'On' : 'Off'}</button>
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
+    <div>
+      <div style="font-size:13px;font-weight:500">Weekly Training Goal</div>
+      <div class="muted fs11" style="margin-top:2px">Training days a week that keep your weekly streak alive</div>
+    </div>
+    <select class="form-input" aria-label="Weekly training goal" style="width:120px" onchange="setWeeklyGoal(this.value)">
+      ${[1,2,3,4,5,6,7].map(n => `<option value="${n}" ${weeklyGoal() === n ? 'selected' : ''}>${n} day${n > 1 ? 's' : ''}</option>`).join('')}
+    </select>
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--border)">
+    <div>
       <div style="font-size:13px;font-weight:500">Sound</div>
       <div class="muted fs11" style="margin-top:2px">Beeps on timers, set completion & PRs</div>
     </div>
@@ -1130,7 +1152,7 @@ const BACKUP_KEYS = [
   'workoutLog', 'sessions', 'cardioLog', 'nutritionLog', 'bodyLog', 'sleepLog',
   'activityLog', 'achievements', 'prs', 'customExercises', 'streak', 'settings',
   'gymProfiles', 'activeGymId', 'goalProgram', 'challenge', 'bodyMapTray',
-  'bodyMapSel', 'metricDefs', 'metricLog',
+  'bodyMapSel', 'metricDefs', 'metricLog', 'gamify',
   // These four were missing — the list said 'fasting', a key the app never
   // writes — so restoring a backup silently dropped the whole fasting history,
   // any fast in progress, HIIT progress and the Overload rotation.

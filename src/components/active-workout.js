@@ -1,4 +1,5 @@
 import { exThumbHTML } from './modal.js';
+import { summary as gamifySummary, enabled as gamifyEnabled } from '../engine/gamify.js';
 import { getProgram } from '../data/programs.js';
 import { completedProgramKey } from './program-tools.js';
 import { programSuggestion, programProfile } from './program-coach.js';
@@ -781,6 +782,8 @@ window.finishActiveWorkout = () => {
   const key = completedProgramKey(sessionState, gp, gp && getProgram(gp.id));
   const previousDone = Array.isArray(gp?.done) ? gp.done : [];
   if (key) gp.done = [...new Set([...previousDone, key])];
+  // XP before the save, so the summary can say what this session earned.
+  const xpBefore = gamifyEnabled() ? gamifySummary().xp : null;
   // Persist the workout and program progress together; restore progress on failure.
   logSession({ ...sessionState });
   const persisted = saveOk();
@@ -788,7 +791,7 @@ window.finishActiveWorkout = () => {
   updateStreak();
   checkFirstSession();
 
-  showSessionSummary(sessionState, persisted);
+  showSessionSummary(sessionState, persisted, xpBefore);
   closeOverlay();
 };
 
@@ -1091,7 +1094,7 @@ window.openPlateCalc = (weightDisp = null) => {
   document.getElementById('pc-weight')?.focus();
 };
 
-function showSessionSummary(session, persisted = true) {
+function showSessionSummary(session, persisted = true, xpBefore = null) {
   const vol   = session.totalVolume || 0;
   const sets  = session.exercises.reduce((s, ex) => s + ex.sets.filter(x => x.completed && !x.warmup).length, 0);
   const dur   = session.durationMinutes;
@@ -1126,6 +1129,15 @@ function showSessionSummary(session, persisted = true) {
   <div><div class="label">Duration</div><div class="mono fire">${dur}m</div></div>
 </div>
 ${prs.length ? `<div class="fs12" style="color:var(--forge-green);margin-bottom:8px">🏆 ${prs.length} PR${prs.length > 1 ? 's' : ''} this session!</div>` : ''}
+${persisted && xpBefore != null ? (() => {
+  const G = gamifySummary();
+  const gain = Math.max(0, G.xp - xpBefore);
+  return `<div class="gm-sum">
+    <div class="gm-sum-row"><span class="mono fire">+${gain.toLocaleString()} XP</span><span class="muted fs11">Level ${G.level} · ${G.rank.name}</span></div>
+    <div class="gm-bar"><i style="width:${(G.pct * 100).toFixed(1)}%"></i></div>
+    <div class="muted fs11">🔥 ${G.daily.current}-day fire · 🗓️ ${Math.min(G.weekly.thisWeek, G.weekly.goal)}/${G.weekly.goal} this week</div>
+  </div>`;
+})() : ''}
 <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
   ${worked.length ? `<button class="btn btn-secondary btn-sm" onclick="this.closest('.session-summary-toast').remove();bodyMapStretchFor(${JSON.stringify(worked).replace(/"/g, "'")})"
      title="A short hold routine for the muscles you just trained">🧘 Stretch what you trained</button>` : ''}

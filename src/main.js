@@ -7,7 +7,8 @@ import { renderFreestyle } from './components/freestyle.js';
 import { renderCalisthenics } from './components/calisthenics.js';
 import { renderNutrition, scheduleNutritionCharts } from './components/nutrition.js';
 import { renderBodyStats, scheduleBodyCharts } from './components/body-stats.js';
-import { renderAchievements } from './components/achievements.js';
+import { renderAchievements, initGamifyCelebrations } from './components/achievements.js';
+import { summary as gamifySummary, enabled as gamifyEnabled } from './engine/gamify.js';
 import { showExerciseModal, closeExModal, loadVideo } from './components/modal.js';
 import { renderFasting, scheduleFastingTimer } from './components/fasting.js';
 import { renderSleep, scheduleSleepCharts } from './components/sleep.js';
@@ -182,7 +183,7 @@ const PAGE_META = {
   activity:     { label: 'Activity',     icon: '⚑' },
   body:         { label: 'Body & Metrics', icon: '◉' },
   cardio:       { label: 'Cardio',       icon: '≡' },
-  achievements: { label: 'Achievements', icon: '★' },
+  achievements: { label: 'Rank & Awards', icon: '★' },
   analytics:    { label: 'Analytics',    icon: '◎' },
   progress:     { label: 'Progress',     icon: '↑' },
   settings:     { label: 'Settings',     icon: '⚙' },
@@ -292,7 +293,7 @@ let _suppressHashEvent = false;
 // one number in the app that rewards simply turning up.
 let _seenStreak = null;
 function maybeFlareStreak() {
-  const cur = state.streak?.current ?? 0;
+  const cur = gamifySummary().daily.current;
   if (_seenStreak != null && cur > _seenStreak) {
     document.querySelectorAll('.streak-flame').forEach((el) => {
       el.classList.add('streak-flare');
@@ -336,7 +337,7 @@ const PAGE_LABELS = {
   nutrition:    'Nutrition',    fasting:      'Fasting',
   sleep:        'Sleep',        activity:     'Activity',
   body:         'Body & Metrics', cardio:       'Cardio Log',
-  achievements: 'Achievements', analytics:    'Analytics',
+  achievements: 'Rank & Awards', analytics:    'Analytics',
   progress:     'Progress',     settings:     'Settings',
 };
 
@@ -375,7 +376,8 @@ function _buildStatsStrip() {
       : `${fast.protocol} · goal reached ✓`;
   }
   return `
-  <span class="strip-item">🔥 <strong>${currentStreak()}d</strong> streak</span>
+  <span class="strip-item" title="Daily fire — days in a row with any workout, stretch, walk or log">🔥 <strong>${gamifySummary().daily.current}d</strong> fire</span>
+  ${gamifyEnabled() ? `<span class="strip-item" title="Forge Rank">⚡ <strong>Lv ${gamifySummary().level}</strong> ${gamifySummary().rank.name}</span>` : ''}
   <span class="strip-item">⊕ <strong>${calories}</strong> kcal today</span>
   <span class="strip-item">⏱ ${fastLabel}</span>
   <span class="strip-item">🌙 Sleep: <strong>${lastSleep ? Math.round(lastSleep.score) + '/100' : '—'}</strong></span>`;
@@ -815,6 +817,7 @@ let _stripTimer = null;
 function _startStripTimer() { if (!_stripTimer) _stripTimer = setInterval(_updateStatsStrip, 30000); }
 
 function boot() {
+  initGamifyCelebrations();
   if (!state.onboarded || !state.program) {
     renderOnboarding(() => {
       currentPage = 'dashboard';
