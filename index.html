@@ -53,7 +53,16 @@
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js').catch(() => {});
+        navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then((reg) => {
+          // An installed app resumed from the background does not navigate,
+          // so it would never look for an update. Check when it comes back —
+          // but not mid-workout: an update reloads the page (sw.js activate).
+          document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible' && !document.body.classList.contains('session-active')) {
+              reg.update().catch(() => {});
+            }
+          });
+        }).catch(() => {});
       });
     }
   </script>

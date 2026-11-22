@@ -1,7 +1,7 @@
 // FITNESS FORGE — Service Worker
 // Cache-first strategy for full offline support
 
-const CACHE = 'forge-v64';
+const CACHE = 'forge-v65';
 
 const PRECACHE = [
   './',
@@ -68,18 +68,43 @@ const PRECACHE = [
 self.addEventListener('install', evt => {
   evt.waitUntil(
     caches.open(CACHE).then(cache => {
-      // Attempt to cache each file, ignore failures (e.g. CDN)
-      return Promise.allSettled(PRECACHE.map(url => cache.add(url)));
+      // Attempt to cache each file, ignore failures (e.g. CDN).
+      //
+      // `cache: 'reload'` is essential. GitHub Pages serves every file with
+      // `Cache-Control: max-age=600`, and a plain cache.add() goes through the
+      // browser's HTTP cache — so anyone who had opened the app in the ten
+      // minutes before a deploy got the OLD files written into the NEW cache.
+      // Cache-first then served that stale copy forever: v3.38 shipped, the
+      // cache was named forge-v64, and the app still had no Forge Rank.
+      return Promise.allSettled(PRECACHE.map(url => cache.add(new Request(url, { cache: 'reload' }))));
     }).then(() => self.skipWaiting())
   );
 });
 
 self.addEventListener('activate', evt => {
-  evt.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
-  );
+  const ready = (async () => {
+    const keys = await caches.keys();
+    // An older forge-vN cache means this is an UPGRADE, not a first install.
+    const upgraded = keys.some(k => k.startsWith('forge-') && k !== CACHE);
+    await Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)));
+    await self.clients.claim();
+    return upgraded;
+  })();
+  evt.waitUntil(ready);
+  // Any page open right now is running the previous version's code — it was
+  // served before this worker existed, and nothing in that old code knows how
+  // to pick up an update. Reload it from here, the one place guaranteed to be
+  // new. Without this an update was only seen on the SECOND open. An
+  // in-progress workout survives: sessions are drafted and resume on load.
+  //
+  // Deliberately OUTSIDE waitUntil: the reload's own request is answered by
+  // this worker, which handles no fetches until activation has finished — so
+  // awaiting navigate() inside waitUntil deadlocks and freezes the page.
+  ready.then(async (upgraded) => {
+    if (!upgraded) return;
+    const wins = await self.clients.matchAll({ type: 'window' });
+    wins.forEach(w => w.navigate(w.url).catch(() => {}));
+  });
 });
 
 self.addEventListener('fetch', evt => {
