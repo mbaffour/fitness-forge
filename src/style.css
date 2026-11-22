@@ -3358,8 +3358,8 @@ body.session-active .sidebar { display: none !important; }
 .gm-mini-q.is-done > span:nth-child(2) { text-decoration: line-through; text-decoration-color: var(--text-3); }
 /* Session summary */
 .gm-sum { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 8px; padding: 10px 12px; background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-md); }
-.gm-sum-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-.gm-sum-row .mono { font-size: 1.1rem; }
+.gm-sum-row { display: flex; justify-content: space-between; align-items: baseline; gap: 4px 8px; flex-wrap: wrap; }
+.gm-sum-row .mono { font-size: 1.1rem; white-space: nowrap; }
 /* Celebration cards */
 .gm-celebrate { position: fixed; z-index: 1200; left: 50%; top: 16px; transform: translate(-50%, -24px); opacity: 0;
   width: min(440px, calc(100vw - 32px)); display: flex; align-items: center; gap: 12px; padding: 12px 12px 12px 14px;
