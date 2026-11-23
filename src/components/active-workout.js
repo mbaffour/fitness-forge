@@ -1,5 +1,5 @@
 import { exThumbHTML } from './modal.js';
-import { summary as gamifySummary, enabled as gamifyEnabled } from '../engine/gamify.js';
+import { summary as gamifySummary, enabled as gamifyEnabled, levelFor } from '../engine/gamify.js';
 import { getProgram } from '../data/programs.js';
 import { completedProgramKey } from './program-tools.js';
 import { programSuggestion, programProfile } from './program-coach.js';
@@ -1132,9 +1132,13 @@ ${prs.length ? `<div class="fs12" style="color:var(--forge-green);margin-bottom:
 ${persisted && xpBefore != null ? (() => {
   const G = gamifySummary();
   const gain = Math.max(0, G.xp - xpBefore);
-  return `<div class="gm-sum">
-    <div class="gm-sum-row"><span class="mono fire">+${gain.toLocaleString()} XP</span><span class="muted fs11">Level ${G.level} · ${G.rank.name}</span></div>
-    <div class="gm-bar"><i style="width:${(G.pct * 100).toFixed(1)}%"></i></div>
+  // The bar starts where you were before this session and fills to where you
+  // are now (from empty if you levelled up) — watching it move is the point.
+  const before = levelFor(xpBefore);
+  const fromPct = before.level === G.level ? before.pct : 0;
+  return `<div class="gm-sum" data-gain="${gain}" data-to="${(G.pct * 100).toFixed(1)}">
+    <div class="gm-sum-row"><span class="mono fire gm-sum-xp" data-count-from="0">+0 XP</span><span class="muted fs11">Level ${G.level} · ${G.rank.name}</span></div>
+    <div class="gm-bar"><i style="width:${(fromPct * 100).toFixed(1)}%;transition:width 1.2s cubic-bezier(.2,.8,.2,1) .35s"></i></div>
     <div class="muted fs11">🔥 ${G.daily.current}-day fire · 🗓️ ${Math.min(G.weekly.thisWeek, G.weekly.goal)}/${G.weekly.goal} this week</div>
   </div>`;
 })() : ''}
@@ -1147,4 +1151,14 @@ ${persisted && xpBefore != null ? (() => {
 `;
   document.body.appendChild(toast);
   setTimeout(() => toast.classList.add('show'), 50);
+  const sum = toast.querySelector('.gm-sum');
+  if (sum) {
+    setTimeout(() => {
+      const gain = Number(sum.dataset.gain) || 0;
+      countUp(sum.querySelector('.gm-sum-xp'), gain, { ms: 1100, format: (n) => `+${Math.round(n).toLocaleString()} XP` });
+      const bar = sum.querySelector('.gm-bar i');
+      if (bar) bar.style.width = `${sum.dataset.to}%`;
+      if (gain > 0) cue('xp');
+    }, 300);
+  }
 }

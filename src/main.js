@@ -377,7 +377,7 @@ function _buildStatsStrip() {
   }
   return `
   <span class="strip-item" title="Daily fire — days in a row with any workout, stretch, walk or log">🔥 <strong>${gamifySummary().daily.current}d</strong> fire</span>
-  ${gamifyEnabled() ? `<span class="strip-item" title="Forge Rank">⚡ <strong>Lv ${gamifySummary().level}</strong> ${gamifySummary().rank.name}</span>` : ''}
+  ${gamifyEnabled() ? `<span class="strip-item gm-strip-lv" id="gm-strip-lv" title="Forge Rank — ${gamifySummary().xp.toLocaleString()} XP" onclick="navigate('achievements')">⚡ <strong>Lv ${gamifySummary().level}</strong> ${gamifySummary().rank.name}</span>` : ''}
   <span class="strip-item">⊕ <strong>${calories}</strong> kcal today</span>
   <span class="strip-item">⏱ ${fastLabel}</span>
   <span class="strip-item">🌙 Sleep: <strong>${lastSleep ? Math.round(lastSleep.score) + '/100' : '—'}</strong></span>`;
