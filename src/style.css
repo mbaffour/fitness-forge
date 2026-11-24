@@ -3496,3 +3496,50 @@ body.session-active .sidebar { display: none !important; }
   .gm-lu-level, .gm-lu-rank { opacity: 1 !important; transform: none !important; animation: none !important; }
   .gm-lu-hammer { display: none; }
 }
+
+/* ══ INTERVAL TIMER (v3.40) ══ */
+.it-setup { display: flex; flex-direction: column; gap: 14px; margin-bottom: 24px; }
+.it-about { margin: 0; line-height: 1.6; }
+.it-presets { display: flex; flex-wrap: wrap; gap: 8px; }
+.it-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.it-field { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-md); }
+.it-stepper { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.it-step { min-width: 40px; min-height: 40px; font-size: 1.1rem; border-color: var(--border-hi); }
+.it-step:disabled { opacity: .3; cursor: default; }
+.it-val { font-size: 1.2rem; }
+.it-summary { display: flex; align-items: baseline; gap: 8px; padding-top: 12px; border-top: 1px solid var(--border); }
+.it-summary .mono { font-size: 1.4rem; color: var(--fire); }
+.it-start { min-height: 52px; font-size: .95rem; }
+.it-runcard { --it-c: var(--ember); display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 22px 16px; margin-bottom: 24px; transition: border-color .3s; }
+.it-runcard[data-kind="work"] { --it-c: var(--fire); }
+.it-runcard[data-kind="rest"], .it-runcard[data-kind="setrest"] { --it-c: var(--steel); }
+.it-runcard { border-color: var(--it-c); }
+.it-ring-wrap { position: relative; width: min(300px, 78vw); aspect-ratio: 1; }
+.it-ring { width: 100%; height: 100%; transform: rotate(-90deg); }
+.it-track { fill: none; stroke: var(--border-hi); stroke-width: 14; opacity: .6; }
+.it-arc { fill: none; stroke: var(--it-c); stroke-width: 14; stroke-linecap: round; transition: stroke .3s; }
+.it-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-align: center; }
+.it-phase { color: var(--it-c); font-size: .8rem; letter-spacing: .16em; }
+.it-time { font-size: clamp(3rem, 15vw, 4.6rem); line-height: 1; font-variant-numeric: tabular-nums; }
+.it-runcard.is-paused .it-time { opacity: .45; }
+.it-next { text-align: center; }
+.it-total { width: 100%; max-width: 420px; }
+.it-remaining { margin-top: -6px; }
+.it-round { min-height: 56px; min-width: 220px; font-size: 1rem; display: inline-flex; gap: 12px; align-items: center; justify-content: center; }
+.it-controls { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.it-controls .btn { min-width: 110px; }
+.it-hint { text-align: center; }
+.it-laps { width: 100%; max-width: 420px; display: flex; flex-direction: column; }
+.it-lap { display: grid; grid-template-columns: 1fr auto auto; gap: 16px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: .85rem; }
+.it-flash { animation: itFlash 420ms ease-out; }
+@keyframes itFlash { from { background: color-mix(in srgb, var(--it-c) 22%, var(--surface)); } to { background: var(--surface); } }
+.it-done { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; margin-bottom: 24px; }
+.it-done.is-finished { border-left: 3px solid var(--green); padding-left: 14px; }
+.it-done-title { font-size: 1.6rem; }
+.it-mini { position: fixed; z-index: 900; right: 16px; bottom: 24px; padding: 10px 14px; border-radius: var(--r-md);
+  background: var(--bg-4); border: 1px solid var(--fire); color: var(--text); font: inherit; font-size: .85rem;
+  font-variant-numeric: tabular-nums; cursor: pointer; }
+.it-mini[data-kind="rest"], .it-mini[data-kind="setrest"] { border-color: var(--steel); }
+@media (max-width: 768px) { .it-mini { bottom: 76px; right: 12px; } .it-fields { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 400px) { .it-fields { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .it-flash { animation: none; } .it-arc, .it-runcard { transition: none; } }
