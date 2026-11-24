@@ -16,6 +16,7 @@ import { renderActivity, scheduleActivityCharts } from './components/activity.js
 import { scheduleCardioCharts } from './components/cardio-log.js';
 import { renderAnalytics, scheduleAnalyticsCharts } from './components/analytics.js';
 import { renderHIIT, scheduleHIITCharts } from './components/hiit.js';
+import { renderTimer, scheduleTimerPage } from './components/interval-timer.js';
 import { renderOverloadMode } from './components/overload-mode.js';
 import { renderBodyMap } from './components/body-map.js';
 import { renderStations } from './components/stations.js';
@@ -175,6 +176,7 @@ const PAGE_META = {
   freestyle:    { label: 'Freestyle',    icon: '🔀' },
   calisthenics: { label: 'Calisthenics', icon: '🤸' },
   hiit:         { label: 'HIIT',         icon: '🔥' },
+  timer:        { label: 'Timer',        icon: '⏲' },
   library:      { label: 'Library',      icon: '📚' },
   schedule:     { label: 'Schedule',     icon: '⊞' },
   nutrition:    { label: 'Nutrition',    icon: '⊕' },
@@ -193,7 +195,7 @@ const PAGE_META = {
 // sub-tabs at the top of the content, and the hubs drive the mobile tab bar.
 const HUBS = [
   { id: 'today',    label: 'Today',    icon: '◈', pages: ['dashboard'] },
-  { id: 'train',    label: 'Train',    icon: '⚡', pages: ['workout','programs','overload','bodymap','stations','equipment','freestyle','calisthenics','hiit','library','schedule'] },
+  { id: 'train',    label: 'Train',    icon: '⚡', pages: ['workout','programs','overload','bodymap','stations','equipment','freestyle','calisthenics','hiit','timer','library','schedule'] },
   { id: 'log',      label: 'Log',      icon: '✎', pages: ['nutrition','fasting','sleep','activity','body','cardio'] },
   { id: 'progress', label: 'Progress', icon: '↑', pages: ['progress','analytics','achievements'] },
   { id: 'profile',  label: 'Profile',  icon: '⚙', pages: ['settings'] },
@@ -218,6 +220,7 @@ const PAGES = {
   freestyle:    { render: renderFreestyle    },
   calisthenics: { render: renderCalisthenics },
   hiit:         { render: renderHIIT         },
+  timer:        { render: renderTimer        },
   library:      { render: renderLibrary      },
   schedule:     { render: renderSchedule     },
   nutrition:    { render: renderNutrition    },
@@ -270,6 +273,7 @@ const CHART_PAGES = {
   cardio:     scheduleCardioCharts,
   analytics:  scheduleAnalyticsCharts,
   hiit:       scheduleHIITCharts,
+  timer:      scheduleTimerPage,
 };
 
 window.openExDetail = (exId) => {
@@ -331,7 +335,7 @@ const PAGE_LABELS = {
   programs:     'Programs',
   equipment:    'Equipment',    freestyle:    'Freestyle',
   calisthenics: 'Calisthenics',
-  hiit:         'HIIT',
+  hiit:         'HIIT',         timer:        'Timer',
   library:      'Exercise Library',
   schedule:     'Schedule',
   nutrition:    'Nutrition',    fasting:      'Fasting',
@@ -377,7 +381,7 @@ function _buildStatsStrip() {
   }
   return `
   <span class="strip-item" title="Daily fire — days in a row with any workout, stretch, walk or log">🔥 <strong>${gamifySummary().daily.current}d</strong> fire</span>
-  ${gamifyEnabled() ? `<span class="strip-item" title="Forge Rank">⚡ <strong>Lv ${gamifySummary().level}</strong> ${gamifySummary().rank.name}</span>` : ''}
+  ${gamifyEnabled() ? `<span class="strip-item gm-strip-lv" id="gm-strip-lv" title="Forge Rank — ${gamifySummary().xp.toLocaleString()} XP" onclick="navigate('achievements')">⚡ <strong>Lv ${gamifySummary().level}</strong> ${gamifySummary().rank.name}</span>` : ''}
   <span class="strip-item">⊕ <strong>${calories}</strong> kcal today</span>
   <span class="strip-item">⏱ ${fastLabel}</span>
   <span class="strip-item">🌙 Sleep: <strong>${lastSleep ? Math.round(lastSleep.score) + '/100' : '—'}</strong></span>`;

@@ -88,7 +88,7 @@ function parseRepRange(repsStr) {
 // <= 35, expressed as total external load (both hands / the whole bar).
 // These are ballpark strength-standard figures, not a medical prescription.
 const PATTERN_1RM = {
-  squat: 1.25, front_squat: 1.00, leg_press: 2.30, lunge: 0.55,
+  squat: 1.25, front_squat: 1.00, goblet: 0.55, leg_press: 2.30, lunge: 0.55,
   hinge: 1.50, hinge_light: 0.95, hip_thrust: 1.40,
   horiz_push: 1.00, incline_push: 0.80, vert_push: 0.62,
   horiz_pull: 0.90, vert_pull: 0.80, shrug: 1.30, carry: 1.00,
@@ -103,12 +103,17 @@ const PATTERN_1RM = {
 // against a nonsense profile producing a dangerous first set — never a target.
 const PATTERN_CAP = {
   leg_press: 3.0, hinge: 2.0, squat: 1.75, hip_thrust: 2.0, calf: 2.0, shrug: 1.8,
+  // A goblet squat is limited by holding one weight at the chest, not by the
+  // legs — it never approaches a barbell squat load.
+  goblet: 0.7,
 };
 const DEFAULT_CAP = 1.5;
 
 // Movement pattern for the curated staples, where the name alone is ambiguous.
 const PATTERN_BY_ID = {
-  squat_bb: 'squat', squat_front: 'front_squat', squat_db: 'squat', hack_squat: 'squat',
+  // squat_db is the Goblet Squat. It was mapped to the barbell back-squat
+  // standard, so a 185 lb intermediate was handed a 115 lb goblet squat.
+  squat_bb: 'squat', squat_front: 'front_squat', squat_db: 'goblet', kb_goblet: 'goblet', hack_squat: 'squat',
   legpress: 'leg_press', bss: 'lunge', lunge_db: 'lunge', lunge_bb: 'lunge', stepup: 'lunge',
   deadlift: 'hinge', trap_dl: 'hinge', sumo_dl: 'hinge', pendlay_row: 'horiz_pull',
   rdl_bb: 'hinge_light', rdl_db: 'hinge_light', good_morning: 'hinge_light',
@@ -138,7 +143,8 @@ const PATTERN_BY_ID = {
 const PATTERN_BY_NAME = [
   [/leg press/i,                                  'leg_press'],
   [/hack squat/i,                                 'squat'],
-  [/front squat|goblet/i,                          'front_squat'],
+  [/goblet/i,                                     'goblet'],
+  [/front squat/i,                                'front_squat'],
   [/squat|belt squat|sissy/i,                      'squat'],
   [/lunge|split squat|step[- ]?up|bulgarian/i,     'lunge'],
   [/romanian|rdl|good ?morning|back extension|hyperextension/i, 'hinge_light'],
@@ -205,7 +211,7 @@ function movementPattern(exId, ex) {
 // isolation, the catch-alls). An honest "unclassified" beats a ratio built on
 // a guess.
 const PATTERN_FORCE = {
-  squat: 'push', front_squat: 'push', leg_press: 'push', lunge: 'push',
+  squat: 'push', front_squat: 'push', goblet: 'push', leg_press: 'push', lunge: 'push',
   horiz_push: 'push', incline_push: 'push', vert_push: 'push', tri_ext: 'push',
   chest_fly: 'push', calf: 'push', leg_ext: 'push', hip_thrust: 'push',
   hinge: 'pull', hinge_light: 'pull', horiz_pull: 'pull',
@@ -235,7 +241,7 @@ export function pushPullOf(exId) {
 // natively-cable lift by a "cable factor" was double-counting and made
 // pulldowns and raises read far too light.
 const NATIVE_IMPLEMENT = {
-  squat: 'barbell', front_squat: 'barbell', leg_press: 'machine', lunge: 'dumbbell',
+  squat: 'barbell', front_squat: 'barbell', goblet: 'dumbbell', leg_press: 'machine', lunge: 'dumbbell',
   hinge: 'barbell', hinge_light: 'barbell', hip_thrust: 'barbell',
   horiz_push: 'barbell', incline_push: 'barbell', vert_push: 'barbell',
   horiz_pull: 'barbell', vert_pull: 'cable', shrug: 'barbell', carry: 'dumbbell',

@@ -421,6 +421,32 @@ export const PROGRAMS = [
     progression: 'Abs are built in the gym and revealed in the kitchen — log your food. Train the core with resistance and low reps, not endless crunches.',
     milestones: ['Week 3 — 45s hollow hold', 'Week 6 — ab wheel from standing', 'Week 8 — reassess'],
   },
+  {
+    id: 'bigger_legs', name: 'Bigger Legs', cat: 'physique', icon: '🦵',
+    weeks: 8, days: 3, requires: ['dumbbells'],
+    blurb: 'Quad-first hypertrophy you can run with dumbbells — deep knee bends, single-leg volume and enough hamstring work to stay balanced.',
+    goal: 'Fuller quads and stronger legs',
+    sessions: [
+      { label: 'Quad Strength', exercises: [P('squat_db',4,'8-10'), P('wg_front_foot_elevated_split_squat',3,'8-10/side'), P('rdl_db',3,'10'), P('calfr_bw',3,'12-15')] },
+      { label: 'Quad Volume', exercises: [P('wg_heel_elevated_goblet_squat',4,'10-12'), P('bss',3,'10-12/side'), P('stepup',3,'12/side'), P('wg_wall_sit',3,'45s')] },
+      { label: 'Legs + Posterior', exercises: [P('lunge_db',3,'12/side'), P('wg_dumbbell_lateral_lunge',3,'10/side'), P('nordic_curl',3,'4-6'), P('wg_cossack_squat',2,'8/side')] },
+    ],
+    progression: 'Quads grow from deep knee bends under load. Elevate the heels, sit all the way down and control the lowering for three seconds. Add a rep each session; once you top the range on every set, go up a dumbbell.',
+    milestones: ['Week 2 — full-depth heel-elevated squat', 'Week 5 — split squats with the week-1 goblet weight', 'Week 8 — measure mid-thigh, cold, and compare'],
+  },
+  {
+    id: 'boulder_shoulders', name: 'Boulder Shoulders', cat: 'physique', icon: '🪨',
+    weeks: 6, days: 3, requires: ['dumbbells'],
+    blurb: 'Round, capped delts — heavy pressing for the front, high-volume raises for the sides, and the rear delts most programs forget.',
+    goal: 'Wider, rounder shoulders',
+    sessions: [
+      { label: 'Press', exercises: [P('ohp_db',4,'6-10'), P('arnold_press',3,'10-12'), P('lat_raise',4,'12-15'), P('rear_delt_fly',3,'15')] },
+      { label: 'Side Delts', exercises: [P('lat_raise',5,'15-20'), P('wgr_1227',3,'12'), P('pike_pu',3,'8-12'), P('front_raise',2,'12')] },
+      { label: 'Rear + Health', exercises: [P('ohp_db',3,'10-12'), P('fx_Seated_Bent_Over_Rear_Delt_Raise',4,'15'), P('wg_prone_y_raise',3,'12'), P('lat_raise',3,'12')] },
+    ],
+    progression: 'Side and rear delts respond to volume, not load: keep raises strict, stop the swing, and take the last set to a hard finish. Add weight only to the presses, and a rep to everything else.',
+    milestones: ['Week 2 — strict raises with no body English', 'Week 4 — +1 dumbbell on the seated press', 'Week 6 — measure around the shoulders and compare'],
+  },
 
   // ── EVENT PREP (more) ─────────────────────────────────────────────────────
   {

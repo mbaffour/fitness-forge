@@ -5,7 +5,7 @@
 import { state, save, formatWeight, weightUnitLabel } from '../store.js';
 import { summary, enabled as gamifyEnabled, weeklyGoal, BADGE_DEFS, TIERS, XP, STREAK_MILESTONES, tonnageEquivalent, RANKS } from '../engine/gamify.js';
 import { sectionHead, toast } from './ui.js';
-import { cue, sparkBurst, reducedMotion } from './feedback.js';
+import { cue, reducedMotion, fxBurst, fxFly, countUp, tokenColor } from './feedback.js';
 import { estimateOneRepMax } from '../engine/overload.js';
 import { EXERCISES } from '../data/exercises.js';
 import { exThumbHTML } from './modal.js';
@@ -185,7 +185,7 @@ function _rankHeroHTML(G) {
   return `
 <div class="card card-fire gm-hero">
   <div class="gm-hero-top">
-    <div class="gm-crest" aria-hidden="true">${G.rank.icon}</div>
+    <div class="gm-crest-wrap" aria-hidden="true">${crestSVG(G.rank.index, G.level, { size: 88 })}</div>
     <div class="gm-hero-id">
       <div class="label">Level</div>
       <div class="gm-level display">${G.level}</div>
@@ -195,7 +195,7 @@ function _rankHeroHTML(G) {
       <div class="muted fs12">${esc(G.rank.blurb)}</div>
     </div>
   </div>
-  ${_bar(G.pct, 'gm-bar-lg')}
+  ${_bar(G.pct, 'gm-bar-lg gm-bar-anim')}
   <div class="gm-hero-meta">
     <span class="mono">${n0(G.into)} / ${n0(G.span)} XP</span>
     <span class="muted">${G.level >= 99 ? 'Max level' : `${n0(G.next - G.xp)} XP to level ${G.level + 1}`}</span>
@@ -223,8 +223,8 @@ function _dailyCardHTML(G) {
 <div class="card gm-streak ${d.current > 0 ? 'is-lit' : ''}">
   <div class="gm-streak-head"><div class="label">Daily fire</div>${_freezePips(d.bank)}</div>
   <div class="gm-streak-main">
-    <div class="streak-flame" aria-hidden="true">${d.current > 0 ? '🔥' : '💤'}</div>
-    <div><div class="display gm-big">${d.current}</div><div class="muted fs12">day${d.current === 1 ? '' : 's'} lit${d.longest > d.current ? ` · best ${d.longest}` : ''}</div></div>
+    ${d.current > 0 ? `<span class="gm-flame gm-flame-lg ${d.todayDone ? '' : 'is-low'}" aria-hidden="true"><i></i><i></i><i></i></span>` : '<div class="streak-flame" aria-hidden="true">💤</div>'}
+    <div><div class="display gm-big" data-count="${d.current}">${d.current}</div><div class="muted fs12">day${d.current === 1 ? '' : 's'} lit${d.longest > d.current ? ` · best ${d.longest}` : ''}</div></div>
   </div>
   <div class="gm-streak-foot fs12">
     ${d.todayDone ? '<span style="color:var(--green)">✓ Lit today</span>'
@@ -329,7 +329,7 @@ function _badgesHTML(G) {
     const tierName = b.tier ? TIERS[b.tier - 1] : 'Locked';
     return `
 <div class="gm-badge tier-${b.tier}" title="${esc(b.desc)}">
-  <div class="gm-badge-top"><span class="gm-badge-ic" aria-hidden="true">${b.icon}</span>
+  <div class="gm-badge-top"><span class="gm-badge-ic" aria-hidden="true">${medalSVG(b, { size: 46 })}</span>
     <span class="gm-pips" aria-label="${tierName}">${[1, 2, 3, 4].map((t) => `<i class="${t <= b.tier ? 'on' : ''}"></i>`).join('')}</span></div>
   <div class="gm-badge-name">${esc(b.name)}</div>
   <div class="gm-badge-tier label">${tierName}</div>
@@ -369,7 +369,7 @@ export function rankWidgetHTML() {
   return `
 <div class="card gm-widget">
   <button class="gm-widget-rank" onclick="navigate('achievements')" aria-label="Open Rank & Awards">
-    <span class="gm-crest gm-crest-sm" aria-hidden="true">${G.rank.icon}</span>
+    <span class="gm-crest-wrap gm-crest-sm" aria-hidden="true">${crestSVG(G.rank.index, G.level, { size: 46 })}</span>
     <span class="gm-widget-id"><span class="label">Level ${G.level} · ${esc(G.rank.name)}</span>
       ${_bar(G.pct)}
       <span class="muted fs11">${G.level >= 99 ? 'Max level' : `${n0(G.next - G.xp)} XP to level ${G.level + 1}`} · +${n0(G.todayXP)} today</span></span>
@@ -421,37 +421,216 @@ function _snapshot(G) {
 const _queue = [];
 let _showing = false;
 function _celebrate(card) { _queue.push(card); if (!_showing) _next(); }
+
+// Whatever removes a celebration — its button, the timer, or something else
+// clearing the DOM — the queue must move on exactly once, or every later
+// celebration is silently swallowed.
+function _closer(el, delay = 240) {
+  let done = false;
+  return () => {
+    if (done) return; done = true;
+    if (!el.isConnected) { _next(); return; }
+    el.classList.remove('show'); el.classList.add('hide');
+    setTimeout(() => { el.remove(); _next(); }, delay);
+  };
+}
+
 function _next() {
   const c = _queue.shift();
   if (!c) { _showing = false; return; }
   _showing = true;
+  if (c.kind === 'level' || c.kind === 'welcome') return _levelUp(c);
+  if (c.kind === 'badge' && c.badge?.tier >= 2) return _badgeUp(c);
+  _toastCard(c);
+}
+
+// Non-blocking card at the top: quests, streak milestones, freezes, weekly
+// goals, bronze badges. XP coins fly from it into the level chip.
+function _toastCard(c) {
   const el = document.createElement('div');
-  el.className = `gm-celebrate ${c.big ? 'is-big' : ''}`;
+  el.className = `gm-celebrate ${c.big ? 'is-big' : ''} is-${c.fx || 'plain'}`;
   el.setAttribute('role', 'status');
   el.innerHTML = `
-    <span class="gm-cel-ic" aria-hidden="true">${c.icon}</span>
+    <span class="gm-cel-ic" aria-hidden="true">${c.art || c.icon}</span>
     <div class="gm-cel-body"><div class="gm-cel-title">${esc(c.title)}</div>${c.sub ? `<div class="gm-cel-sub">${esc(c.sub)}</div>` : ''}</div>
     <button class="bs-x" aria-label="Dismiss">✕</button>`;
   document.body.appendChild(el);
-  // Whatever removes the card — its button, the timer, or something else
-  // clearing the DOM — the queue must move on exactly once, or every later
-  // celebration is silently swallowed.
-  let done = false;
-  const close = () => {
-    if (done) return; done = true;
-    if (!el.isConnected) { _next(); return; }
-    el.classList.remove('show');
-    setTimeout(() => { el.remove(); _next(); }, 220);
-  };
+  const close = _closer(el);
   el.querySelector('button').onclick = close;
   el.onclick = (e) => { if (c.go && e.target.tagName !== 'BUTTON') { close(); window.navigate?.(c.go); } };
   requestAnimationFrame(() => {
     el.classList.add('show');
-    if (c.big && !reducedMotion()) sparkBurst(el.querySelector('.gm-cel-ic'), 14);
+    const ic = el.querySelector('.gm-cel-ic');
+    setTimeout(() => {
+      if (c.fx === 'ice') fxBurst(ic, { kind: 'ice', count: 22 });
+      else if (c.fx === 'fire') fxBurst(ic, { kind: 'embers', count: 30 });
+      else fxBurst(ic, { kind: 'sparks', count: c.big ? 26 : 14, power: 0.8 });
+      if (c.xp) _flyXP(ic, c.xp);
+    }, 180);
   });
-  cue(c.big ? 'milestone' : 'achievement');
-  setTimeout(close, c.big ? 6500 : 4200);
+  cue(c.sound || 'achievement');
+  setTimeout(close, c.big ? 6000 : 4200);
 }
+
+// Coins from `from` into the level chip in the status strip, which pulses as
+// they land.
+function _flyXP(from, amount) {
+  const chip = document.getElementById('gm-strip-lv');
+  if (!chip || !chip.getClientRects().length) { cue('xp'); return; }
+  fxFly(from, chip, { count: Math.min(12, 4 + Math.round(amount / 15)), onArrive: () => {
+    chip.classList.remove('gm-chip-hit'); void chip.offsetWidth; chip.classList.add('gm-chip-hit');
+    cue('xp');
+  } });
+}
+
+// LEVEL UP — a full-screen forging sequence: the crest drops onto the anvil,
+// two hammer blows throw sparks (timed to the two strikes in the sound), the
+// level stamps in, the bar fills. Tap anywhere or the button to continue.
+function _levelUp(c) {
+  const G = summary();
+  const rankUp = c.kind === 'level' && c.newRank;
+  const el = document.createElement('div');
+  el.className = `gm-lu ${rankUp ? 'is-rank' : ''}`;
+  el.setAttribute('role', 'dialog');
+  el.setAttribute('aria-modal', 'true');
+  el.setAttribute('aria-label', c.title);
+  el.innerHTML = `
+    <div class="gm-lu-rays" aria-hidden="true"></div>
+    <div class="gm-lu-card">
+      <div class="gm-lu-stage">
+        <div class="gm-lu-crest">${crestSVG(G.rank.index, G.level, { size: 150 })}</div>
+        <div class="gm-lu-hammer" aria-hidden="true">${HAMMER_SVG}</div>
+      </div>
+      <div class="gm-lu-kicker label">${esc(c.kicker || (rankUp ? 'New rank' : 'Level up'))}</div>
+      <div class="gm-lu-level display">${esc(c.title)}</div>
+      <div class="gm-lu-rank">${esc(c.rankLine || `${G.rank.name}`)}</div>
+      <div class="gm-bar gm-lu-bar"><i style="width:0%"></i></div>
+      <div class="gm-lu-sub muted fs12">${esc(c.sub || '')}</div>
+      <button class="btn btn-fire gm-lu-go">${esc(c.cta || 'Keep forging')}</button>
+    </div>`;
+  document.body.appendChild(el);
+  const close = _closer(el, 320);
+  el.querySelector('.gm-lu-go').onclick = (e) => { e.stopPropagation(); close(); };
+  el.onclick = close;
+  el.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+  requestAnimationFrame(() => {
+    el.classList.add('show');
+    el.querySelector('.gm-lu-go').focus({ preventScroll: true });
+  });
+  const crest = el.querySelector('.gm-lu-crest');
+  cue(rankUp ? 'rankUp' : 'levelUp');
+  // Strikes at 0 and 0.34s in the sound, so the visual hits land with them.
+  const strike = (i) => {
+    el.classList.remove('hit'); void el.offsetWidth; el.classList.add('hit');
+    fxBurst(crest, { kind: 'sparks', count: 34 + i * 10, power: 1.25 });
+  };
+  setTimeout(() => strike(0), 30);
+  setTimeout(() => strike(1), 370);
+  if (rankUp) setTimeout(() => strike(2), 710);
+  setTimeout(() => {
+    el.classList.add('stamped');
+    const bar = el.querySelector('.gm-lu-bar i');
+    if (bar) bar.style.width = `${(G.pct * 100).toFixed(1)}%`;
+    fxBurst({ x: innerWidth / 2, y: innerHeight * 0.3 }, { kind: rankUp ? 'confetti' : 'embers', count: rankUp ? 90 : 40, power: 1.2 });
+  }, rankUp ? 900 : 640);
+  setTimeout(close, rankUp ? 9000 : 7000);
+}
+
+// BADGE — the medal flips in with a sheen, sparks in the tier's metal.
+function _badgeUp(c) {
+  const b = c.badge;
+  const el = document.createElement('div');
+  el.className = `gm-lu gm-bu tier-${b.tier}`;
+  el.setAttribute('role', 'dialog');
+  el.setAttribute('aria-modal', 'true');
+  el.setAttribute('aria-label', c.title);
+  el.innerHTML = `
+    <div class="gm-lu-card">
+      <div class="gm-bu-medal">${medalSVG(b, { size: 140 })}</div>
+      <div class="gm-lu-kicker label">${TIERS[b.tier - 1]} badge</div>
+      <div class="gm-lu-level display gm-bu-name">${esc(b.name)}</div>
+      <div class="gm-lu-rank">${esc(_badgeValue(b, b.value))}</div>
+      <div class="gm-lu-sub muted fs12">${esc(b.desc)}${b.next != null ? ` · next tier at ${esc(_badgeValue(b, b.next))}` : ' · maxed out'}</div>
+      <button class="btn btn-fire gm-lu-go">Nice</button>
+    </div>`;
+  document.body.appendChild(el);
+  const close = _closer(el, 300);
+  el.querySelector('.gm-lu-go').onclick = (e) => { e.stopPropagation(); close(); };
+  el.onclick = close;
+  el.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+  requestAnimationFrame(() => { el.classList.add('show'); el.querySelector('.gm-lu-go').focus({ preventScroll: true }); });
+  cue(`badge${b.tier}`);
+  const metal = METALS[TIER_METAL[b.tier]];
+  setTimeout(() => fxBurst(el.querySelector('.gm-bu-medal'), { kind: 'sparks', count: 20 + b.tier * 12,
+    colors: [tokenColor(metal[0]), tokenColor(metal[1]), tokenColor('--fire')] }), 420);
+  if (b.tier >= 4) setTimeout(() => fxBurst({ x: innerWidth / 2, y: innerHeight * 0.3 }, { kind: 'confetti', count: 80 }), 700);
+  setTimeout(close, 6500);
+}
+
+// ── ART ──────────────────────────────────────────────────────────────────────
+// Forged crests and medals drawn as SVG. Metals are theme tokens (style.css,
+// --metal-*), referenced through stop-color so every theme can retune them.
+const METALS = {
+  iron:     ['--metal-iron-hi', '--metal-iron', '--metal-iron-lo'],
+  bronze:   ['--metal-bronze-hi', '--metal-bronze', '--metal-bronze-lo'],
+  copper:   ['--metal-copper-hi', '--metal-copper', '--metal-copper-lo'],
+  steel:    ['--metal-steel-hi', '--metal-steel', '--metal-steel-lo'],
+  gold:     ['--metal-gold-hi', '--metal-gold', '--metal-gold-lo'],
+  fire:     ['--metal-fire-hi', '--metal-fire', '--metal-fire-lo'],
+  platinum: ['--metal-plat-hi', '--metal-plat', '--metal-plat-lo'],
+  obsidian: ['--metal-obs-hi', '--metal-obs', '--metal-obs-lo'],
+};
+const RANK_METAL = ['iron', 'bronze', 'copper', 'steel', 'gold', 'fire', 'platinum', 'obsidian'];
+const TIER_METAL = [null, 'bronze', 'steel', 'gold', 'platinum'];
+let _uid = 0;
+function _grad(id, metal, vertical = true) {
+  const [hi, mid, lo] = METALS[metal];
+  return `<linearGradient id="${id}" x1="0" y1="0" x2="${vertical ? 0 : 1}" y2="1">
+    <stop offset="0" style="stop-color:var(${hi})"/><stop offset=".45" style="stop-color:var(${mid})"/>
+    <stop offset=".55" style="stop-color:var(${lo})"/><stop offset="1" style="stop-color:var(${mid})"/></linearGradient>`;
+}
+
+const SHIELD = 'M60 6 L108 22 V66 C108 98 88 120 60 134 C32 120 12 98 12 66 V22 Z';
+export function crestSVG(rankIndex, level, { size = 96 } = {}) {
+  const id = `gmc${++_uid}`;
+  const metal = RANK_METAL[Math.max(0, Math.min(7, rankIndex))];
+  const flames = rankIndex >= 5;
+  return `<svg class="gm-crest-svg ${flames ? 'has-flames' : ''}" viewBox="0 0 120 140" width="${size}" height="${Math.round(size * 140 / 120)}" aria-hidden="true">
+  <defs>${_grad(id + 'm', metal)}
+    <linearGradient id="${id}f" x1="0" y1="1" x2="0" y2="0"><stop offset="0" style="stop-color:var(--fire)"/><stop offset="1" style="stop-color:var(--ember);stop-opacity:0"/></linearGradient>
+    <clipPath id="${id}c"><path d="${SHIELD}"/></clipPath></defs>
+  ${flames ? `<g class="gm-crest-flames"><path d="M22 70 C10 40 30 30 26 6 C44 26 40 40 48 30 C52 16 60 12 60 0 C66 14 70 18 74 30 C82 40 76 26 94 6 C90 30 110 40 98 70 Z" fill="url(#${id}f)"/></g>` : ''}
+  <path d="${SHIELD}" fill="url(#${id}m)" stroke="var(${METALS[metal][2]})" stroke-width="3"/>
+  <path d="M60 18 L96 30 V66 C96 91 81 108 60 120 C39 108 24 91 24 66 V30 Z" fill="var(--bg)" opacity=".82"/>
+  <g clip-path="url(#${id}c)"><rect class="gm-crest-sheen" x="-60" y="0" width="30" height="140" fill="#fff" opacity=".18" transform="skewX(-20)"/></g>
+  <path d="M40 44 H80 V48 C74 48 72 52 72 56 H48 C48 52 46 48 40 48 Z M52 56 H68 V62 H74 V66 H46 V62 H52 Z" fill="url(#${id}m)"/>
+  <text x="60" y="100" text-anchor="middle" font-family="'Fira Code', monospace" font-weight="700" font-size="${level >= 100 ? 26 : 32}" fill="url(#${id}m)">${level}</text>
+  ${(() => { const n = Math.max(0, Math.min(7, rankIndex)) + 1;     // one rivet per rank reached
+    return Array.from({ length: n }, (_, i) => `<circle cx="${60 + (i - (n - 1) / 2) * 9}" cy="14" r="2.4" fill="var(${METALS[metal][0]})"/>`).join(''); })()}
+</svg>`;
+}
+
+export function medalSVG(b, { size = 64 } = {}) {
+  const id = `gmm${++_uid}`;
+  const locked = !b.tier;
+  const metal = TIER_METAL[b.tier] || 'iron';
+  return `<svg class="gm-medal-svg ${locked ? 'is-locked' : ''}" viewBox="0 0 100 120" width="${size}" height="${Math.round(size * 1.2)}" aria-hidden="true">
+  <defs>${_grad(id, metal, false)}<clipPath id="${id}c"><circle cx="50" cy="70" r="38"/></clipPath></defs>
+  <path d="M30 2 H48 L58 34 L40 40 Z" fill="${locked ? 'var(--bg-3)' : 'var(--fire)'}" opacity="${locked ? 1 : 0.85}"/>
+  <path d="M70 2 H52 L42 34 L60 40 Z" fill="${locked ? 'var(--bg-4)' : 'var(--ember)'}" opacity="${locked ? 1 : 0.85}"/>
+  ${locked
+    ? `<circle cx="50" cy="70" r="38" fill="var(--bg-2)" stroke="var(--border-hi)" stroke-width="2" stroke-dasharray="4 4"/>`
+    : `<circle cx="50" cy="70" r="38" fill="url(#${id})" stroke="var(${METALS[metal][2]})" stroke-width="2"/>
+       <circle cx="50" cy="70" r="30" fill="none" stroke="var(${METALS[metal][0]})" stroke-width="1.5" opacity=".7"/>
+       <g clip-path="url(#${id}c)"><rect class="gm-medal-sheen" x="-40" y="20" width="22" height="110" fill="#fff" opacity=".28" transform="skewX(-18)"/></g>`}
+  <text x="50" y="81" text-anchor="middle" font-size="30" ${locked ? 'opacity=".35" style="filter:grayscale(1)"' : ''}>${b.icon}</text>
+</svg>`;
+}
+
+const HAMMER_SVG = `<svg viewBox="0 0 80 80" width="74" height="74"><g transform="rotate(-35 40 40)">
+  <rect x="36" y="26" width="8" height="50" rx="3" fill="var(--metal-bronze-lo)"/>
+  <rect x="18" y="10" width="44" height="20" rx="3" fill="var(--metal-steel)" stroke="var(--metal-steel-lo)" stroke-width="2"/>
+  <rect x="18" y="10" width="44" height="6" rx="2" fill="var(--metal-steel-hi)" opacity=".7"/></g></svg>`;
 
 function _check() {
   if (!gamifyEnabled()) return;
@@ -463,8 +642,8 @@ function _check() {
 
   if (!seen || typeof seen !== 'object') {
     if (G.xp > 0) {
-      _celebrate({ big: true, icon: G.rank.icon, title: `Forge Rank: Level ${G.level} ${G.rank.name}`,
-        sub: `Your logged history is worth ${n0(G.xp)} XP. Daily quests, streaks and badges are live.`, go: 'achievements' });
+      _celebrate({ kind: 'welcome', kicker: 'Forge Rank unlocked', title: `Level ${G.level}`, rankLine: G.rank.name,
+        sub: `Your logged history is worth ${n0(G.xp)} XP. Daily quests, streaks and badges are live.`, cta: 'Let’s go' });
     }
     return commit();
   }
@@ -473,31 +652,35 @@ function _check() {
   const cards = [];
   if (G.level > (Number(seen.level) || 1)) {
     const newRank = G.rank.index > (Number(seen.rank) || 0);
-    cards.push({ kind: 'level', big: true, icon: G.rank.icon, title: `Level ${G.level}!`,
-      sub: newRank ? `New rank: ${G.rank.name}. ${G.rank.blurb}` : `${G.rank.name} · ${n0(G.next - G.xp)} XP to the next level`, go: 'achievements' });
+    cards.push({ kind: 'level', newRank, big: true, icon: G.rank.icon, title: `Level ${G.level}`,
+      rankLine: newRank ? `${G.rank.name} — ${G.rank.blurb}` : G.rank.name,
+      sub: `${n0(G.next - G.xp)} XP to level ${G.level + 1}`, go: 'achievements' });
   }
   for (const b of G.badges) {
     const was = Number(seen.badges?.[b.id]) || 0;
-    if (b.tier > was) cards.push({ kind: 'badge', big: b.tier >= 3, icon: b.icon, title: `${TIERS[b.tier - 1]} · ${b.name}`, sub: `${_badgeValue(b, b.value)} — ${b.desc}`, go: 'achievements' });
+    if (b.tier > was) cards.push({ kind: 'badge', badge: b, big: b.tier >= 3, icon: b.icon, art: medalSVG(b, { size: 34 }), sound: 'badge1',
+      title: `${TIERS[b.tier - 1]} · ${b.name}`, sub: `${_badgeValue(b, b.value)} — ${b.desc}`, go: 'achievements' });
   }
   const seenDaily = Number(seen.daily) || 0;
   // The biggest milestone crossed since last time — one card, not five.
   const crossed = STREAK_MILESTONES.filter(([n]) => seenDaily < n && G.daily.current >= n).pop();
   if (crossed) {
     const [n, xp] = crossed;
-    cards.push({ big: n >= 7, icon: '🔥', title: `${n}-day fire!`, sub: `+${xp} XP${G.daily.bank > 0 ? ` · ${G.daily.bank} streak freeze${G.daily.bank > 1 ? 's' : ''} banked` : ''}`, go: 'achievements' });
+    cards.push({ big: n >= 7, icon: '🔥', art: '<span class="gm-flame" aria-hidden="true"><i></i><i></i><i></i></span>', fx: 'fire', sound: 'streak', xp,
+      title: `${n}-day fire!`, sub: `+${xp} XP${G.daily.bank > 0 ? ` · ${G.daily.bank} streak freeze${G.daily.bank > 1 ? 's' : ''} banked` : ''}`, go: 'achievements' });
   }
   if (G.daily.frozen.length > (Number(seen.frozen) || 0)) {
-    cards.push({ icon: '🧊', title: 'A streak freeze saved your fire', sub: `Still ${G.daily.current} day${G.daily.current === 1 ? '' : 's'} and counting. Light it today to keep going.` });
+    cards.push({ icon: '🧊', fx: 'ice', sound: 'freeze', title: 'A streak freeze saved your fire', sub: `Still ${G.daily.current} day${G.daily.current === 1 ? '' : 's'} and counting. Light it today to keep going.` });
   }
   if (snap.weeks.length && !(seen.weeks || []).includes(snap.weeks[0])) {
-    cards.push({ icon: '🗓️', title: 'Weekly goal hit · +100 XP', sub: `${G.weekly.current} week${G.weekly.current === 1 ? '' : 's'} in a row` });
+    cards.push({ icon: '🗓️', sound: 'weekly', xp: 100, title: 'Weekly goal hit · +100 XP', sub: `${G.weekly.current} week${G.weekly.current === 1 ? '' : 's'} in a row` });
   }
   const oldQ = new Set(Array.isArray(seen.quests) ? seen.quests : []);
   const newQ = G.quests.filter((q) => q.done && !oldQ.has(q.key));
   if (newQ.length) {
     const all = G.quests.every((q) => q.done);
-    cards.push({ icon: all ? '🎯' : '📜', title: all ? 'Clean sweep — all 3 quests done' : `Quest complete: ${newQ[0].label}`,
+    cards.push({ icon: all ? '🎯' : '📜', sound: 'quest', xp: newQ.reduce((a, q) => a + q.xp, 0) + Math.max(0, gained),
+      title: all ? 'Clean sweep — all 3 quests done' : `Quest complete: ${newQ[0].label}`,
       sub: `+${newQ.reduce((a, q) => a + q.xp, 0)} XP${gained > 0 ? ` · +${n0(gained)} XP total` : ''}` });
   }
   // A burst (an old backup restored, a long offline gap) would otherwise be a
@@ -505,8 +688,9 @@ function _check() {
   if (cards.length > 3) {
     const lv = cards.find((c) => c.kind === 'level');
     const badges = cards.filter((c) => c.kind === 'badge').length;
-    _celebrate({ big: true, icon: G.rank.icon, title: lv ? lv.title : `+${n0(gained)} XP`,
-      sub: `${badges ? `${badges} badge upgrade${badges > 1 ? 's' : ''} · ` : ''}${G.daily.current}-day fire · Level ${G.level} ${G.rank.name}`, go: 'achievements' });
+    _celebrate({ kind: 'level', newRank: !!lv?.newRank, kicker: lv ? (lv.newRank ? 'New rank' : 'Level up') : 'While you were away',
+      title: lv ? lv.title : `+${n0(gained)} XP`, rankLine: G.rank.name,
+      sub: `${badges ? `${badges} badge upgrade${badges > 1 ? 's' : ''} · ` : ''}${G.daily.current}-day fire · ${n0(G.next - G.xp)} XP to level ${G.level + 1}` });
   } else if (cards.length) cards.forEach(_celebrate);
   else if (gained >= 5) _xpPip(gained);
   const changed = JSON.stringify(snap) !== JSON.stringify(seen);
@@ -516,6 +700,7 @@ function _check() {
 // A small "+N XP" that floats off the status strip — feedback for every save
 // without a card for every save.
 function _xpPip(n) {
+  _flyXP({ x: innerWidth / 2, y: innerHeight * 0.75 }, n);
   const host = document.getElementById('stats-strip') || document.body;
   const el = document.createElement('span');
   el.className = 'gm-xp-pip';

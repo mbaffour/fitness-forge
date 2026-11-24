@@ -3388,3 +3388,158 @@ body.session-active .sidebar { display: none !important; }
   .gm-celebrate { transition: opacity 150ms linear; transform: translate(-50%, 0); }
   .gm-xp-pip { animation: none; opacity: 0; }
 }
+
+/* ══ FORGE RANK — art, sound-synced motion (v3.39) ══ */
+/* Metal tokens for crests and medals. Illustration colours, kept as tokens so
+   a theme can retune them like anything else. */
+:root {
+  --metal-iron-hi: #b9bec5;  --metal-iron: #6b7078;   --metal-iron-lo: #34373c;
+  --metal-bronze-hi: #f0c08a; --metal-bronze: #b07a3f; --metal-bronze-lo: #5e3a17;
+  --metal-copper-hi: #ffb48f; --metal-copper: #c4643b; --metal-copper-lo: #6b2c14;
+  --metal-steel-hi: #eef4f7;  --metal-steel: #8ea4b1;  --metal-steel-lo: #43525c;
+  --metal-gold-hi: #fff1b0;   --metal-gold: #d9a521;   --metal-gold-lo: #7a5708;
+  --metal-fire-hi: #ffd08a;   --metal-fire: #ff6b1a;   --metal-fire-lo: #8a2a06;
+  --metal-plat-hi: #ffffff;   --metal-plat: #c9d6df;   --metal-plat-lo: #6f808c;
+  --metal-obs-hi: #7a6f68;    --metal-obs: #26211e;    --metal-obs-lo: #0a0807;
+}
+.fx-canvas { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 100000; }
+
+/* Crest + medal */
+.gm-crest-wrap { flex: 0 0 auto; display: grid; place-items: center; line-height: 0; }
+.gm-crest-svg { overflow: visible; }
+.gm-crest-sheen, .gm-medal-sheen { animation: gmSheen 5.5s ease-in-out infinite; }
+.gm-medal-svg .gm-medal-sheen { animation-delay: 1.2s; }
+@keyframes gmSheen { 0%, 70% { transform: translateX(0) skewX(-20deg); } 100% { transform: translateX(200px) skewX(-20deg); } }
+.gm-crest-flames { transform-origin: 60px 70px; animation: gmFlicker 1.3s ease-in-out infinite alternate; }
+@keyframes gmFlicker { from { transform: scaleY(.92) scaleX(1.02); opacity: .85; } to { transform: scaleY(1.06) scaleX(.97); opacity: 1; } }
+.gm-badge-ic { line-height: 0; }
+.gm-badge.tier-0 .gm-badge-ic { filter: none; }
+
+/* A living flame: three tongues of layered fire, flickering out of phase. */
+.gm-flame { position: relative; display: inline-block; width: 34px; height: 44px; flex: 0 0 auto; }
+.gm-flame-lg { width: 46px; height: 60px; }
+/* Each tongue is a teardrop — a square with three rounded corners, turned so
+   the sharp one points up — flickering out of phase with the others. */
+.gm-flame i { position: absolute; left: 50%; bottom: 6%; aspect-ratio: 1; border-radius: 50% 0 50% 50%;
+  transform-origin: 50% 60%; animation: gmTongue 1.1s ease-in-out infinite alternate; }
+.gm-flame i:nth-child(1) { width: 74%; margin-left: -37%; background: var(--fire); }
+.gm-flame i:nth-child(2) { width: 52%; margin-left: -26%; background: var(--ember); animation-duration: .8s; animation-delay: -.3s; }
+.gm-flame i:nth-child(3) { width: 28%; margin-left: -14%; bottom: 8%; background: var(--text); opacity: .9; animation-duration: .6s; animation-delay: -.15s; }
+.gm-flame.is-low i { animation-duration: 2.2s; }
+.gm-flame.is-low i:nth-child(1) { opacity: .75; }
+@keyframes gmTongue { from { transform: rotate(-45deg) scale(.92, .96); } to { transform: rotate(-41deg) scale(1.04, 1.08); } }
+
+/* XP bar fills from empty when the page opens, with a heat shimmer running along it. */
+.gm-bar-anim i { position: relative; overflow: hidden; animation: gmFill 1.1s cubic-bezier(.2,.8,.2,1) both; }
+.gm-bar-anim i::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,.35), transparent);
+  transform: translateX(-100%); animation: gmShimmer 2.8s 1.2s ease-in-out infinite; }
+@keyframes gmFill { from { width: 0; } }
+@keyframes gmShimmer { to { transform: translateX(100%); } }
+
+/* The level chip in the status strip takes a hit when XP coins land. */
+.gm-strip-lv { cursor: pointer; }
+.gm-chip-hit { animation: gmChip 520ms cubic-bezier(.3,1.6,.5,1); }
+@keyframes gmChip { 0% { transform: scale(1); } 35% { transform: scale(1.22); color: var(--fire); } 100% { transform: scale(1); } }
+
+/* Toast art */
+.gm-celebrate .gm-cel-ic { display: grid; place-items: center; min-width: 40px; }
+.gm-celebrate .gm-medal-svg { width: 34px; height: 41px; }
+.gm-celebrate.show .gm-cel-ic { animation: gmStamp 520ms cubic-bezier(.3,1.6,.5,1) both; }
+@keyframes gmStamp { 0% { transform: scale(2.2) rotate(-12deg); opacity: 0; } 60% { transform: scale(.9) rotate(2deg); opacity: 1; } 100% { transform: scale(1); } }
+.gm-celebrate.is-ice { border-left-color: var(--steel); }
+.gm-celebrate.is-ice .gm-cel-title { color: var(--steel); }
+
+/* Level-up / badge stage */
+.gm-lu { position: fixed; inset: 0; z-index: 99990; display: grid; place-items: center; padding: 16px;
+  background: color-mix(in srgb, var(--bg) 86%, transparent); opacity: 0; transition: opacity 260ms ease; }
+.gm-lu.show { opacity: 1; }
+.gm-lu.hide { opacity: 0; }
+.gm-lu-rays { position: absolute; inset: -50%; pointer-events: none; opacity: 0;
+  background: repeating-conic-gradient(from 0deg at 50% 50%, color-mix(in srgb, var(--fire) 16%, transparent) 0deg 8deg, transparent 8deg 22deg);
+  -webkit-mask: radial-gradient(circle at 50% 50%, #000 0 18%, transparent 52%); mask: radial-gradient(circle at 50% 50%, #000 0 18%, transparent 52%);
+  animation: gmRays 24s linear infinite; transition: opacity 600ms ease; }
+.gm-lu.stamped .gm-lu-rays { opacity: 1; }
+@keyframes gmRays { to { transform: rotate(360deg); } }
+.gm-lu-card { position: relative; width: min(380px, 100%); display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center;
+  padding: 26px 22px 22px; background: var(--bg-4); border: 1px solid var(--fire); border-radius: var(--r-xl); }
+.gm-lu-stage { position: relative; height: 190px; width: 100%; display: grid; place-items: center; }
+.gm-lu-crest { transform: translateY(-40px) scale(.6); opacity: 0; transition: transform 380ms cubic-bezier(.3,1.5,.5,1), opacity 200ms; }
+.gm-lu.show .gm-lu-crest { transform: none; opacity: 1; }
+.gm-lu.hit .gm-lu-crest { animation: gmJolt 260ms ease-out; }
+@keyframes gmJolt { 0% { transform: translateY(6px) scale(.96); filter: brightness(1.8); } 100% { transform: none; filter: none; } }
+.gm-lu-hammer { position: absolute; right: 6%; top: -6px; transform-origin: 85% 85%; opacity: 0; }
+.gm-lu.show .gm-lu-hammer { opacity: 1; animation: gmSwing 340ms ease-in 2; }
+.gm-lu.is-rank.show .gm-lu-hammer { animation-iteration-count: 3; }
+@keyframes gmSwing { 0% { transform: rotate(-55deg); } 75% { transform: rotate(18deg); } 100% { transform: rotate(-55deg); } }
+.gm-lu-kicker { color: var(--fire); }
+.gm-lu-level { font-size: 2.4rem; line-height: 1; letter-spacing: .06em; opacity: 0; transform: scale(1.6); }
+.gm-lu-rank { font-size: .95rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-2); opacity: 0; }
+.gm-lu.stamped .gm-lu-level { animation: gmStampText 420ms cubic-bezier(.3,1.6,.5,1) forwards; }
+.gm-lu.stamped .gm-lu-rank { animation: gmFadeUp 500ms 180ms ease forwards; }
+@keyframes gmStampText { to { opacity: 1; transform: none; } }
+@keyframes gmFadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.gm-lu-bar { width: 100%; height: 10px; margin-top: 6px; }
+.gm-lu-bar i { transition: width 1.1s cubic-bezier(.2,.8,.2,1) .15s; }
+.gm-lu-go { margin-top: 10px; min-width: 180px; }
+.gm-bu .gm-lu-card { border-color: var(--border-hi); }
+.gm-bu.tier-3 .gm-lu-card, .gm-bu.tier-4 .gm-lu-card { border-color: var(--fire); }
+.gm-bu-medal { perspective: 600px; height: 176px; display: grid; place-items: center; }
+.gm-bu-medal svg { transform: rotateY(-180deg) scale(.4); opacity: 0; transition: transform 700ms cubic-bezier(.2,1.3,.4,1), opacity 250ms; }
+.gm-bu.show .gm-bu-medal svg { transform: none; opacity: 1; }
+.gm-bu .gm-lu-level, .gm-bu .gm-lu-rank { opacity: 1; transform: none; }
+.gm-bu-name { font-size: 1.6rem; }
+@media (max-width: 480px) { .gm-lu-level { font-size: 2rem; } .gm-lu-stage { height: 170px; } }
+@media (prefers-reduced-motion: reduce) {
+  .gm-crest-sheen, .gm-medal-sheen, .gm-crest-flames, .gm-flame i, .gm-lu-rays, .gm-bar-anim i, .gm-bar-anim i::after,
+  .gm-chip-hit, .gm-celebrate.show .gm-cel-ic, .gm-lu.show .gm-lu-hammer, .gm-lu.hit .gm-lu-crest { animation: none !important; }
+  .gm-lu-crest, .gm-bu-medal svg { transform: none !important; opacity: 1 !important; transition: none !important; }
+  .gm-lu-level, .gm-lu-rank { opacity: 1 !important; transform: none !important; animation: none !important; }
+  .gm-lu-hammer { display: none; }
+}
+
+/* ══ INTERVAL TIMER (v3.40) ══ */
+.it-setup { display: flex; flex-direction: column; gap: 14px; margin-bottom: 24px; }
+.it-about { margin: 0; line-height: 1.6; }
+.it-presets { display: flex; flex-wrap: wrap; gap: 8px; }
+.it-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.it-field { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-md); }
+.it-stepper { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.it-step { min-width: 40px; min-height: 40px; font-size: 1.1rem; border-color: var(--border-hi); }
+.it-step:disabled { opacity: .3; cursor: default; }
+.it-val { font-size: 1.2rem; }
+.it-summary { display: flex; align-items: baseline; gap: 8px; padding-top: 12px; border-top: 1px solid var(--border); }
+.it-summary .mono { font-size: 1.4rem; color: var(--fire); }
+.it-start { min-height: 52px; font-size: .95rem; }
+.it-runcard { --it-c: var(--ember); display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 22px 16px; margin-bottom: 24px; transition: border-color .3s; }
+.it-runcard[data-kind="work"] { --it-c: var(--fire); }
+.it-runcard[data-kind="rest"], .it-runcard[data-kind="setrest"] { --it-c: var(--steel); }
+.it-runcard { border-color: var(--it-c); }
+.it-ring-wrap { position: relative; width: min(300px, 78vw); aspect-ratio: 1; }
+.it-ring { width: 100%; height: 100%; transform: rotate(-90deg); }
+.it-track { fill: none; stroke: var(--border-hi); stroke-width: 14; opacity: .6; }
+.it-arc { fill: none; stroke: var(--it-c); stroke-width: 14; stroke-linecap: round; transition: stroke .3s; }
+.it-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; text-align: center; }
+.it-phase { color: var(--it-c); font-size: .8rem; letter-spacing: .16em; }
+.it-time { font-size: clamp(3rem, 15vw, 4.6rem); line-height: 1; font-variant-numeric: tabular-nums; }
+.it-runcard.is-paused .it-time { opacity: .45; }
+.it-next { text-align: center; }
+.it-total { width: 100%; max-width: 420px; }
+.it-remaining { margin-top: -6px; }
+.it-round { min-height: 56px; min-width: 220px; font-size: 1rem; display: inline-flex; gap: 12px; align-items: center; justify-content: center; }
+.it-controls { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.it-controls .btn { min-width: 110px; }
+.it-hint { text-align: center; }
+.it-laps { width: 100%; max-width: 420px; display: flex; flex-direction: column; }
+.it-lap { display: grid; grid-template-columns: 1fr auto auto; gap: 16px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: .85rem; }
+.it-flash { animation: itFlash 420ms ease-out; }
+@keyframes itFlash { from { background: color-mix(in srgb, var(--it-c) 22%, var(--surface)); } to { background: var(--surface); } }
+.it-done { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; margin-bottom: 24px; }
+.it-done.is-finished { border-left: 3px solid var(--green); padding-left: 14px; }
+.it-done-title { font-size: 1.6rem; }
+.it-mini { position: fixed; z-index: 900; right: 16px; bottom: 24px; padding: 10px 14px; border-radius: var(--r-md);
+  background: var(--bg-4); border: 1px solid var(--fire); color: var(--text); font: inherit; font-size: .85rem;
+  font-variant-numeric: tabular-nums; cursor: pointer; }
+.it-mini[data-kind="rest"], .it-mini[data-kind="setrest"] { border-color: var(--steel); }
+@media (max-width: 768px) { .it-mini { bottom: 76px; right: 12px; } .it-fields { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 400px) { .it-fields { grid-template-columns: 1fr; } }
+@media (prefers-reduced-motion: reduce) { .it-flash { animation: none; } .it-arc, .it-runcard { transition: none; } }
