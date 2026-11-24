@@ -160,6 +160,61 @@ export function tonnageEquivalent(lbs) {
   return best;
 }
 
+// ── TITLES ───────────────────────────────────────────────────────────────────
+// Cosmetic, earned, and chosen: every rank reached, and silver / gold /
+// platinum in any badge track, unlocks a title the person can show under their
+// name. Derived like everything else — restore a backup and they come back.
+const BADGE_TITLES = {
+  sessions: ['Regular', 'Gym Rat', 'Iron Devotee'],
+  tonnage:  ['Heavy Lifter', 'Ton Mover', 'Mountain Mover'],
+  prs:      ['Record Setter', 'Record Breaker', 'Limit Breaker'],
+  daily:    ['Torchbearer', 'Firekeeper', 'Eternal Flame'],
+  weekly:   ['Clockwork', 'Metronome', 'Unbroken'],
+  stretch:  ['Supple', 'Elastic', 'Rubber Steel'],
+  engine:   ['Engine', 'Diesel', 'Perpetual Motion'],
+  coverage: ['Well-Rounded', 'Full Spectrum', 'Complete Athlete'],
+  quests:   ['Questing', 'Questsmith', 'Quest Master'],
+  measured: ['Measured', 'Data-Driven', 'Self-Scientist'],
+  fueled:   ['Well Fed', 'Fuel Master', 'Kitchen Smith'],
+  rested:   ['Well Rested', 'Sleep Smith', 'Dream Forged'],
+  early:    ['Early Bird', 'Dawn Patrol', 'Sunrise Smith'],
+  owl:      ['Night Owl', 'Night Shift', 'Midnight Smith'],
+};
+export const TITLE_ID_RE = /^(rank:[0-7]|badge:[a-z]+:[234])$/;
+export function titleFor(id) {
+  if (typeof id !== 'string' || !TITLE_ID_RE.test(id)) return null;
+  const [kind, a, t] = id.split(':');
+  if (kind === 'rank') return RANKS[Number(a)]?.name || null;
+  return BADGE_TITLES[a]?.[Number(t) - 2] || null;
+}
+function titlesList(rankIndex, badges) {
+  const out = RANKS.map((r, i) => ({ id: `rank:${i}`, name: r.name, unlocked: i <= rankIndex, req: `Reach level ${r.min}`, icon: r.icon }));
+  for (const b of badges) {
+    (BADGE_TITLES[b.id] || []).forEach((name, k) => {
+      const tier = k + 2;
+      out.push({ id: `badge:${b.id}:${tier}`, name, unlocked: b.tier >= tier, req: `${TIERS[tier - 1]} ${b.name} · ${n0(b.th[tier - 1])} ${b.unit}`, icon: b.icon });
+    });
+  }
+  return out;
+}
+const n0 = (v) => Math.round(v).toLocaleString();
+
+// ── FLAME ────────────────────────────────────────────────────────────────────
+// The daily fire changes as it grows — something to look forward to between
+// milestones, and something to protect once you have it.
+export const FLAME_TIERS = [
+  { min: 0,   id: 'kindled', name: 'Kindled' },
+  { min: 7,   id: 'roaring', name: 'Roaring' },
+  { min: 30,  id: 'blue',    name: 'Blue flame' },
+  { min: 100, id: 'eternal', name: 'Eternal' },
+];
+export function flameTier(days) {
+  let t = FLAME_TIERS[0];
+  for (const x of FLAME_TIERS) if (days >= x.min) t = x;
+  const i = FLAME_TIERS.indexOf(t);
+  return { ...t, index: i, next: FLAME_TIERS[i + 1] || null };
+}
+
 // ── DAY FACTS ────────────────────────────────────────────────────────────────
 function blankDay() {
   return { strength: 0, mobility: 0, cardio: 0, hiit: 0, activity: 0, sets: 0, prs: 0, moveMin: 0, cardioMin: 0, volume: 0,
@@ -409,6 +464,9 @@ export function summary() {
     daily: { ...daily, frozen: [...daily.frozen] }, weekly, quests, questsDone,
     weeksXP, thisWeekXP: weeksXP[weeksXP.length - 1].xp, lastWeekSoFar,
     badges, values, xpByDay,
+    titles: titlesList(rankFor(lv.level).index, badges),
+    flame: flameTier(daily.current),
+    rankXPToNext: rankFor(lv.level).next ? Math.max(0, xpForLevel(rankFor(lv.level).next.min) - xp) : 0,
   };
   _cacheKey = key;
   return _cache;

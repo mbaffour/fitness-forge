@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════
 
 import { state, save, formatWeight, weightUnitLabel } from '../store.js';
-import { summary, enabled as gamifyEnabled, weeklyGoal, BADGE_DEFS, TIERS, XP, STREAK_MILESTONES, tonnageEquivalent, RANKS } from '../engine/gamify.js';
+import { summary, enabled as gamifyEnabled, weeklyGoal, BADGE_DEFS, TIERS, XP, STREAK_MILESTONES, tonnageEquivalent, RANKS, flameTier, FLAME_TIERS, titleFor, TITLE_ID_RE } from '../engine/gamify.js';
 import { sectionHead, toast } from './ui.js';
 import { cue, reducedMotion, fxBurst, fxFly, countUp, tokenColor } from './feedback.js';
 import { estimateOneRepMax } from '../engine/overload.js';
@@ -56,6 +56,8 @@ export function renderAchievements() {
 
 ${on ? `
 ${_rankHeroHTML(G)}
+${sectionHead('Rank road', `${G.rank.index + 1} of ${RANKS.length} ranks`)}
+${_rankRoadHTML(G)}
 <div class="g2 gm-streaks">
   ${_dailyCardHTML(G)}
   ${_weeklyCardHTML(G)}
@@ -66,6 +68,8 @@ ${sectionHead('XP by week', 'You vs. last week')}
 ${_weeksHTML(G)}
 ${sectionHead('Badge cabinet', 'Bronze · Silver · Gold · Platinum')}
 ${_badgesHTML(G)}
+${sectionHead('Titles', 'Wear what you earned')}
+${_titlesHTML(G)}
 ${_rulesHTML()}
 ` : `
 <div class="card gm-off">
@@ -179,6 +183,54 @@ function _bar(pct, cls = '') {
   return `<div class="gm-bar ${cls}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pct * 100)}"><i style="width:${Math.max(0, Math.min(100, pct * 100)).toFixed(1)}%"></i></div>`;
 }
 
+// The daily fire evolves as it grows: orange, then gold at 7 days, blue-hot at
+// 30, and a white "eternal" flame with a halo at 100.
+export function flameHTML(days, { size = '', low = false } = {}) {
+  const t = flameTier(days);
+  return `<span class="gm-flame ${size ? `gm-flame-${size}` : ''} flame-${t.id} ${low ? 'is-low' : ''}" aria-hidden="true"><i></i><i></i><i></i>${t.id === 'eternal' ? '<b></b>' : ''}</span>`;
+}
+
+// The equipped title, if it is valid and still earned. Ids are validated on
+// the way out as well as in: a restored backup can carry anything.
+export function equippedTitle(G = summary()) {
+  const id = state.gamify?.title;
+  if (!gamifyEnabled() || !TITLE_ID_RE.test(String(id || ''))) return null;
+  const t = G.titles.find((x) => x.id === id);
+  return t && t.unlocked ? t : null;
+}
+
+function _titleReq(G, t) {
+  if (!t.id.startsWith('badge:')) return t.req;
+  const [, bid, tier] = t.id.split(':');
+  const b = G.badges.find((x) => x.id === bid);
+  return b ? `${TIERS[tier - 1]} ${b.name} · ${_badgeValue(b, b.th[tier - 1])}` : t.req;
+}
+
+// Circular progress ring (SVG). pct 0–1.
+function _ring(pct, { r = 16, stroke = 3.5, cls = '' } = {}) {
+  const c = 2 * Math.PI * r, box = (r + stroke) * 2;
+  const p = Math.max(0, Math.min(1, pct));
+  return `<svg class="gm-ring ${cls}" viewBox="0 0 ${box} ${box}" width="${box}" height="${box}" aria-hidden="true">
+    <circle cx="${box / 2}" cy="${box / 2}" r="${r}" class="gm-ring-track" stroke-width="${stroke}"/>
+    <circle cx="${box / 2}" cy="${box / 2}" r="${r}" class="gm-ring-fill" stroke-width="${stroke}"
+      stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${(c * (1 - p)).toFixed(2)}" style="--c:${c.toFixed(2)}" transform="rotate(-90 ${box / 2} ${box / 2})"/>
+  </svg>`;
+}
+
+// What is closest to unlocking — something concrete to aim at today.
+function _nextUnlock(G) {
+  const opts = [];
+  for (const b of G.badges) if (b.next != null && b.value > 0) opts.push({ pct: b.pct, art: medalSVG({ ...b, tier: Math.min(4, b.tier + 1) }, { size: 30 }),
+    label: `${TIERS[b.tier]} ${b.name}`, need: `${_badgeValue(b, b.next - b.value)} to go`, title: b.tier + 1 >= 2 ? G.titles.find((t) => t.id === `badge:${b.id}:${b.tier + 1}`)?.name : null });
+  if (G.rank.next) opts.push({ pct: 0, art: crestSVG(G.rank.index + 1, G.rank.next.min, { size: 26 }),
+    label: G.rank.next.name, need: `Level ${G.rank.next.min}`, title: G.rank.next.name, rank: true });
+  const f = G.flame.next;
+  if (f && G.daily.current > 0) opts.push({ pct: G.daily.current / f.min, art: flameHTML(f.min, { size: 'sm' }),
+    label: `${f.name} fire`, need: `${f.min - G.daily.current} more day${f.min - G.daily.current === 1 ? '' : 's'}`, title: null });
+  const best = opts.filter((o) => !o.rank).sort((a, b) => b.pct - a.pct)[0] || opts[0];
+  return best || null;
+}
+
 function _rankHeroHTML(G) {
   const next = G.rank.next;
   const vs = G.thisWeekXP - G.lastWeekSoFar;
@@ -223,8 +275,8 @@ function _dailyCardHTML(G) {
 <div class="card gm-streak ${d.current > 0 ? 'is-lit' : ''}">
   <div class="gm-streak-head"><div class="label">Daily fire</div>${_freezePips(d.bank)}</div>
   <div class="gm-streak-main">
-    ${d.current > 0 ? `<span class="gm-flame gm-flame-lg ${d.todayDone ? '' : 'is-low'}" aria-hidden="true"><i></i><i></i><i></i></span>` : '<div class="streak-flame" aria-hidden="true">💤</div>'}
-    <div><div class="display gm-big" data-count="${d.current}">${d.current}</div><div class="muted fs12">day${d.current === 1 ? '' : 's'} lit${d.longest > d.current ? ` · best ${d.longest}` : ''}</div></div>
+    ${d.current > 0 ? flameHTML(d.current, { size: 'lg', low: !d.todayDone }) : '<div class="streak-flame" aria-hidden="true">💤</div>'}
+    <div><div class="display gm-big" data-count="${d.current}">${d.current}</div><div class="muted fs12">day${d.current === 1 ? '' : 's'} lit${d.longest > d.current ? ` · best ${d.longest}` : ''}${d.current > 0 ? ` · <span class="gm-flame-name flame-${G.flame.id}">${G.flame.name}</span>` : ''}</div></div>
   </div>
   <div class="gm-streak-foot fs12">
     ${d.todayDone ? '<span style="color:var(--green)">✓ Lit today</span>'
@@ -233,6 +285,7 @@ function _dailyCardHTML(G) {
     ${nextM ? `<span class="muted">Next: ${nextM[0]} days · +${nextM[1]} XP</span>` : ''}
     ${frozeRecently ? `<span class="muted">🧊 A freeze covered ${new Date(lastFrozen + 'T12:00').toLocaleDateString('en-US', { weekday: 'long' })}</span>` : ''}
   </div>
+  <div class="gm-flame-ladder" aria-label="Flame stages">${FLAME_TIERS.map((t) => `<span class="${d.current >= t.min ? 'on' : ''}" title="${t.name} — ${t.min || 1}+ days">${flameHTML(t.min, { size: 'xs' })}<span class="fs10">${t.min || 1}</span></span>`).join('<i></i>')}</div>
   <div class="muted fs11 gm-note">Every 7 lit days banks a freeze (max 2). A missed day spends one automatically — rest is part of training.</div>
 </div>`;
 }
@@ -362,26 +415,104 @@ function _rulesHTML() {
 }
 
 // ── DASHBOARD WIDGET ─────────────────────────────────────────────────────────
+// Dashboard player card: crest inside the XP ring, title, both streaks with the
+// living flame, today's quests as progress rings, and the nearest unlock.
 export function rankWidgetHTML() {
   if (!gamifyEnabled()) return '';
   const G = summary();
-  const w = G.weekly;
+  const w = G.weekly, d = G.daily;
+  const title = equippedTitle(G);
+  const nu = _nextUnlock(G);
+  const maxed = G.level >= 99;
   return `
-<div class="card gm-widget">
-  <button class="gm-widget-rank" onclick="navigate('achievements')" aria-label="Open Rank & Awards">
-    <span class="gm-crest-wrap gm-crest-sm" aria-hidden="true">${crestSVG(G.rank.index, G.level, { size: 46 })}</span>
-    <span class="gm-widget-id"><span class="label">Level ${G.level} · ${esc(G.rank.name)}</span>
-      ${_bar(G.pct)}
-      <span class="muted fs11">${G.level >= 99 ? 'Max level' : `${n0(G.next - G.xp)} XP to level ${G.level + 1}`} · +${n0(G.todayXP)} today</span></span>
+<div class="card gm-player flame-${G.flame.id}">
+  <div class="gm-embers" aria-hidden="true">${Array.from({ length: 9 }, (_, i) => `<i style="--x:${(i * 37 + 11) % 100}%;--d:${(i * 0.73) % 4}s;--t:${3.4 + (i % 4) * 0.7}s"></i>`).join('')}</div>
+  <button class="gm-player-id" onclick="navigate('achievements')" aria-label="Level ${G.level} ${esc(G.rank.name)} — open Rank & Awards">
+    <span class="gm-player-crest">
+      ${_ring(maxed ? 1 : G.pct, { r: 44, stroke: 5, cls: 'gm-ring-xp' })}
+      <span class="gm-player-crest-in">${crestSVG(G.rank.index, G.level, { size: 62 })}</span>
+    </span>
+    <span class="gm-player-who">
+      <span class="label">Level ${G.level}</span>
+      <span class="gm-player-rank">${esc(G.rank.name)}</span>
+      ${title ? `<span class="gm-title-chip">${esc(title.name)}</span>` : ''}
+      <span class="muted fs11 mono">${maxed ? 'Max level' : `${n0(G.into)} / ${n0(G.span)} XP`}</span>
+      <span class="fs11 gm-player-today">+${n0(G.todayXP)} XP today</span>
+    </span>
   </button>
-  <div class="gm-widget-streaks">
-    <span title="Daily fire"><b class="mono">${G.daily.current > 0 ? '🔥' : '💤'} ${G.daily.current}</b><span class="muted fs11">day fire ${_freezePips(G.daily.bank)}</span></span>
-    <span title="Training weeks in a row"><b class="mono">🗓️ ${w.current}</b><span class="muted fs11">wk · ${Math.min(w.thisWeek, w.goal)}/${w.goal} this week</span></span>
+  <div class="gm-player-streaks">
+    <div class="gm-pstreak">
+      ${d.current > 0 ? flameHTML(d.current, { low: !d.todayDone }) : '<span class="gm-pstreak-ic" aria-hidden="true">💤</span>'}
+      <span><b class="mono">${d.current}</b><span class="muted fs11">day fire${d.current > 0 ? ` · ${G.flame.name}` : ''}</span>${_freezePips(d.bank)}</span>
+    </div>
+    <div class="gm-pstreak">
+      <span class="gm-pstreak-ic" aria-hidden="true">🗓️</span>
+      <span><b class="mono">${w.current}</b><span class="muted fs11">week${w.current === 1 ? '' : 's'} on goal</span>
+        <span class="gm-week-dots gm-week-dots-sm" aria-label="${w.thisWeek} of ${w.goal} training days this week">${Array.from({ length: Math.max(w.goal, w.thisWeek) }, (_, i) => `<i class="${i < w.thisWeek ? 'on' : ''}"></i>`).join('')}</span></span>
+    </div>
   </div>
-  <div class="gm-widget-quests">
-    <div class="label">Today’s quests</div>
-    ${G.quests.map((q) => `<div class="gm-mini-q ${q.done ? 'is-done' : ''}"><span aria-hidden="true">${q.done ? '✓' : q.icon}</span><span>${esc(q.label)}</span><span class="mono muted">${q.xp}</span></div>`).join('')}
+  <div class="gm-player-quests">
+    <div class="label">Today’s quests <span class="muted">${G.quests.filter((q) => q.done).length}/3</span></div>
+    <div class="gm-qrings">
+      ${G.quests.map((q) => {
+        const [have, need] = q.progress || [q.done ? 1 : 0, 1];
+        return `<div class="gm-qring ${q.done ? 'is-done' : ''}" title="${esc(q.hint)}">
+          <span class="gm-qring-art">${_ring(q.done ? 1 : have / need, { r: 17, stroke: 3.5 })}<span class="gm-qring-ic" aria-hidden="true">${q.done ? '✓' : q.icon}</span></span>
+          <span class="gm-qring-label">${esc(q.label)}</span>
+          <span class="mono fs10 ${q.done ? 'gm-ok' : 'muted'}">${q.done ? 'done' : q.progress ? `${n0(have)}/${n0(need)} · ${q.xp} XP` : `${q.xp} XP`}</span>
+        </div>`;
+      }).join('')}
+    </div>
   </div>
+  ${nu ? `
+  <button class="gm-player-next" onclick="navigate('achievements')">
+    <span class="gm-next-art" aria-hidden="true">${nu.art}</span>
+    <span class="gm-next-body"><span class="label">Next unlock</span>
+      <span class="fs12">${esc(nu.label)} <span class="muted">· ${esc(nu.need)}</span></span>
+      ${nu.title ? `<span class="muted fs11">Unlocks the title “${esc(nu.title)}”</span>` : ''}</span>
+    ${nu.pct ? `<span class="gm-next-bar">${_bar(nu.pct, 'gm-bar-sm')}</span>` : ''}
+  </button>` : ''}
+</div>`;
+}
+
+// ── RANK ROAD + TITLES ───────────────────────────────────────────────────────
+function _rankRoadHTML(G) {
+  const cur = G.rank.index;
+  return `
+<div class="card gm-road" role="list">
+  ${RANKS.map((r, i) => {
+    const state_ = i < cur ? 'done' : i === cur ? 'here' : 'ahead';
+    return `<div class="gm-road-stop is-${state_}" role="listitem" aria-label="${esc(r.name)}, level ${r.min}${i === cur ? ' — you are here' : ''}">
+      <span class="gm-road-crest">${crestSVG(i, i <= cur ? (i === cur ? G.level : r.min) : r.min, { size: i === cur ? 58 : 40 })}</span>
+      <span class="gm-road-name">${esc(r.name)}</span>
+      <span class="mono fs10 muted">L${r.min}</span>
+      ${i === cur && G.rank.next ? `<span class="fs10 gm-road-to">${n0(G.rankXPToNext)} XP to ${esc(G.rank.next.name)}</span>` : ''}
+    </div>`;
+  }).join('<span class="gm-road-link" aria-hidden="true"></span>')}
+</div>`;
+}
+
+function _titlesHTML(G) {
+  const eq = equippedTitle(G);
+  const un = G.titles.filter((t) => t.unlocked);
+  const locked = G.titles.filter((t) => !t.unlocked);
+  // Show every unlocked title and the next few within reach, not all 50.
+  const near = locked.filter((t) => t.id.startsWith('rank:')).slice(0, 1)
+    .concat(locked.filter((t) => t.id.startsWith('badge:')).map((t) => {
+      const [, bid, tier] = t.id.split(':'); const b = G.badges.find((x) => x.id === bid);
+      return { t, k: b && b.tier === Number(tier) - 1 ? b.pct : -1 };
+    }).filter((x) => x.k >= 0).sort((a, b) => b.k - a.k).slice(0, 5).map((x) => x.t));
+  return `
+<div class="card gm-titles">
+  <p class="muted fs12" style="margin:0 0 12px">Every rank, and silver or better in any badge, unlocks a title. Equip one and it shows under your name on the dashboard.</p>
+  <div class="gm-title-grid">
+    <button class="gm-title-opt ${!eq ? 'is-on' : ''}" onclick="equipTitle('')" aria-pressed="${!eq}"><span class="gm-title-name">No title</span><span class="muted fs10">Just your name</span></button>
+    ${un.map((t) => `<button class="gm-title-opt ${eq?.id === t.id ? 'is-on' : ''}" onclick="equipTitle('${t.id}')" aria-pressed="${eq?.id === t.id}">
+      <span class="gm-title-name">${t.icon} ${esc(t.name)}</span><span class="muted fs10">${esc(_titleReq(G, t))}</span></button>`).join('')}
+    ${near.map((t) => `<div class="gm-title-opt is-locked" aria-disabled="true">
+      <span class="gm-title-name">🔒 ${esc(t.name)}</span><span class="muted fs10">${esc(_titleReq(G, t))}</span></div>`).join('')}
+  </div>
+  <div class="muted fs11" style="margin-top:10px">${un.length} of ${G.titles.length} titles unlocked</div>
 </div>`;
 }
 
@@ -390,6 +521,17 @@ window.setWeeklyGoal = (n) => {
   const g = Math.max(1, Math.min(7, Math.round(Number(n) || 0)));
   state.settings.weeklyGoal = g;
   save();
+  window.refreshCurrentPage?.();
+};
+window.equipTitle = (id) => {
+  id = String(id || '');
+  if (id && !TITLE_ID_RE.test(id)) return;
+  const G = summary();
+  if (id && !G.titles.find((t) => t.id === id && t.unlocked)) return;
+  state.gamify = { ...(state.gamify || {}), title: id || null };
+  save();
+  cue('select');
+  if (id) toast(`Title equipped: ${titleFor(id)}`, { type: 'success' });
   window.refreshCurrentPage?.();
 };
 window.setGamify = (on) => {
@@ -414,7 +556,8 @@ function _snapshot(G) {
     quests: G.quests.filter((q) => q.done).map((q) => q.key),
     daily: G.daily.current, frozen: G.daily.frozen.length,
     weeks: G.weekly.thisWeek >= G.weekly.goal ? [G.weekly.weekStart] : [],
-    day: G.today,
+    day: G.today, flame: G.flame.index,
+    titles: G.titles.filter((t) => t.unlocked).length,
   };
 }
 
@@ -506,6 +649,7 @@ function _levelUp(c) {
       <div class="gm-lu-rank">${esc(c.rankLine || `${G.rank.name}`)}</div>
       <div class="gm-bar gm-lu-bar"><i style="width:0%"></i></div>
       <div class="gm-lu-sub muted fs12">${esc(c.sub || '')}</div>
+      ${rankUp ? `<div class="gm-title-chip gm-lu-title">Title unlocked · ${esc(G.rank.name)}</div>` : ''}
       <button class="btn btn-fire gm-lu-go">${esc(c.cta || 'Keep forging')}</button>
     </div>`;
   document.body.appendChild(el);
@@ -551,6 +695,7 @@ function _badgeUp(c) {
       <div class="gm-lu-level display gm-bu-name">${esc(b.name)}</div>
       <div class="gm-lu-rank">${esc(_badgeValue(b, b.value))}</div>
       <div class="gm-lu-sub muted fs12">${esc(b.desc)}${b.next != null ? ` · next tier at ${esc(_badgeValue(b, b.next))}` : ' · maxed out'}</div>
+      ${b.tier >= 2 && titleFor(`badge:${b.id}:${b.tier}`) ? `<div class="gm-title-chip gm-lu-title">Title unlocked · ${esc(titleFor(`badge:${b.id}:${b.tier}`))}</div>` : ''}
       <button class="btn btn-fire gm-lu-go">Nice</button>
     </div>`;
   document.body.appendChild(el);
@@ -666,8 +811,19 @@ function _check() {
   const crossed = STREAK_MILESTONES.filter(([n]) => seenDaily < n && G.daily.current >= n).pop();
   if (crossed) {
     const [n, xp] = crossed;
-    cards.push({ big: n >= 7, icon: '🔥', art: '<span class="gm-flame" aria-hidden="true"><i></i><i></i><i></i></span>', fx: 'fire', sound: 'streak', xp,
+    cards.push({ big: n >= 7, icon: '🔥', art: flameHTML(G.daily.current), fx: 'fire', sound: 'streak', xp,
       title: `${n}-day fire!`, sub: `+${xp} XP${G.daily.bank > 0 ? ` · ${G.daily.bank} streak freeze${G.daily.bank > 1 ? 's' : ''} banked` : ''}`, go: 'achievements' });
+  }
+  // The fire changed colour — a moment worth marking on its own.
+  if (seen.flame != null && G.flame.index > Number(seen.flame) && G.flame.index > 0) {
+    const colour = G.flame.id === 'roaring' ? 'gold' : G.flame.id === 'blue' ? 'blue-hot' : 'eternal';
+    const ms = cards.find((c) => c.sound === 'streak');
+    // Stages sit on milestones (7 / 30 / 100), so usually this rides on that card.
+    if (ms) Object.assign(ms, { big: true, art: flameHTML(G.daily.current, { size: 'lg' }),
+      title: `${ms.title.replace(/!$/, '')} — your fire burns ${colour}!`, sub: `${ms.sub} · ${G.flame.name} stage unlocked` });
+    else cards.push({ big: true, icon: '🔥', art: flameHTML(G.daily.current, { size: 'lg' }), fx: 'fire', sound: 'streak',
+      title: `Your fire burns ${G.flame.id === 'roaring' ? 'gold' : G.flame.id === 'blue' ? 'blue-hot' : 'eternal'}`,
+      sub: `${G.flame.name} — ${G.daily.current} days lit.${G.flame.next ? ` Next stage at ${G.flame.next.min} days.` : ' The highest stage there is.'}`, go: 'achievements' });
   }
   if (G.daily.frozen.length > (Number(seen.frozen) || 0)) {
     cards.push({ icon: '🧊', fx: 'ice', sound: 'freeze', title: 'A streak freeze saved your fire', sub: `Still ${G.daily.current} day${G.daily.current === 1 ? '' : 's'} and counting. Light it today to keep going.` });
@@ -682,6 +838,12 @@ function _check() {
     cards.push({ icon: all ? '🎯' : '📜', sound: 'quest', xp: newQ.reduce((a, q) => a + q.xp, 0) + Math.max(0, gained),
       title: all ? 'Clean sweep — all 3 quests done' : `Quest complete: ${newQ[0].label}`,
       sub: `+${newQ.reduce((a, q) => a + q.xp, 0)} XP${gained > 0 ? ` · +${n0(gained)} XP total` : ''}` });
+  }
+  const newTitles = seen.titles != null ? G.titles.filter((t) => t.unlocked).length - Number(seen.titles) : 0;
+  if (newTitles > 0) {
+    const host = cards.find((c) => c.kind === 'level' || c.kind === 'badge');
+    const line = `New title${newTitles > 1 ? 's' : ''} unlocked — equip ${newTitles > 1 ? 'them' : 'it'} on Rank & Awards`;
+    if (host) host.sub = `${host.sub ? host.sub + ' · ' : ''}${line}`;
   }
   // A burst (an old backup restored, a long offline gap) would otherwise be a
   // dozen cards in a row. More than three collapse into one summary.
