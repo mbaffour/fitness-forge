@@ -3421,7 +3421,7 @@ body.session-active .sidebar { display: none !important; }
 /* Each tongue is a teardrop — a square with three rounded corners, turned so
    the sharp one points up — flickering out of phase with the others. */
 .gm-flame i { position: absolute; left: 50%; bottom: 6%; aspect-ratio: 1; border-radius: 50% 0 50% 50%;
-  transform-origin: 50% 60%; animation: gmTongue 1.1s ease-in-out infinite alternate; }
+  transform: rotate(-43deg); transform-origin: 50% 60%; animation: gmTongue 1.1s ease-in-out infinite alternate; }
 .gm-flame i:nth-child(1) { width: 74%; margin-left: -37%; background: var(--fire); }
 .gm-flame i:nth-child(2) { width: 52%; margin-left: -26%; background: var(--ember); animation-duration: .8s; animation-delay: -.3s; }
 .gm-flame i:nth-child(3) { width: 28%; margin-left: -14%; bottom: 8%; background: var(--text); opacity: .9; animation-duration: .6s; animation-delay: -.15s; }
@@ -3543,3 +3543,139 @@ body.session-active .sidebar { display: none !important; }
 @media (max-width: 768px) { .it-mini { bottom: 76px; right: 12px; } .it-fields { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 400px) { .it-fields { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .it-flash { animation: none; } .it-arc, .it-runcard { transition: none; } }
+
+/* ══ PLAYER CARD · EVOLVING FLAME · RANK ROAD · TITLES (v3.41) ══ */
+/* Flame stage colours — illustration tokens, like the metals. */
+:root {
+  --flame-gold: #ffc93c;   --flame-gold-hi: #fff2b0;
+  --flame-blue: #2f86ff;   --flame-blue-hi: #8fd6ff;
+  --flame-eternal: #dfe9f5; --flame-eternal-hi: #ffffff;
+}
+.gm-flame-sm { width: 24px; height: 31px; }
+.gm-flame-xs { width: 16px; height: 21px; }
+.gm-flame.flame-roaring i:nth-child(1) { background: var(--ember); }
+.gm-flame.flame-roaring i:nth-child(2) { background: var(--flame-gold); }
+.gm-flame.flame-roaring i:nth-child(3) { background: var(--flame-gold-hi); }
+.gm-flame.flame-blue i:nth-child(1) { background: var(--flame-blue); }
+.gm-flame.flame-blue i:nth-child(2) { background: var(--flame-blue-hi); }
+.gm-flame.flame-blue i:nth-child(3) { background: var(--flame-eternal-hi); }
+.gm-flame.flame-eternal i:nth-child(1) { background: var(--flame-eternal); }
+.gm-flame.flame-eternal i:nth-child(2) { background: var(--flame-blue-hi); }
+.gm-flame.flame-eternal i:nth-child(3) { background: var(--flame-eternal-hi); }
+.gm-flame { isolation: isolate; }
+.gm-flame b { z-index: -1; position: absolute; inset: -30% -40% -10%; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(200,230,255,.45), transparent); animation: gmHalo 2.4s ease-in-out infinite alternate; }
+@keyframes gmHalo { from { opacity: .45; transform: scale(.9); } to { opacity: 1; transform: scale(1.06); } }
+html[data-theme="day"] .gm-flame.flame-eternal i:nth-child(1), html[data-theme="vivid"] .gm-flame.flame-eternal i:nth-child(1) { background: var(--metal-plat-lo); }
+html[data-theme="day"] .gm-flame.flame-eternal i:nth-child(3), html[data-theme="vivid"] .gm-flame.flame-eternal i:nth-child(3),
+html[data-theme="day"] .gm-flame.flame-blue i:nth-child(3), html[data-theme="vivid"] .gm-flame.flame-blue i:nth-child(3) { background: var(--metal-steel); }
+.gm-flame-name { font-weight: 600; }
+.gm-flame-name.flame-kindled { color: var(--fire); }
+.gm-flame-name.flame-roaring { color: var(--flame-gold); }
+.gm-flame-name.flame-blue { color: var(--flame-blue-hi); }
+.gm-flame-name.flame-eternal { color: var(--text); }
+.gm-flame-ladder { display: flex; align-items: flex-end; gap: 6px; margin: 10px 0 4px; }
+.gm-flame-ladder > span { display: flex; flex-direction: column; align-items: center; gap: 2px; opacity: .3; filter: grayscale(1); }
+.gm-flame-ladder > span.on { opacity: 1; filter: none; }
+.gm-flame-ladder > i { flex: 1; height: 1px; background: var(--border); margin-bottom: 8px; }
+.gm-flame-ladder .gm-flame i { animation: none; }
+
+/* Progress rings */
+.gm-ring { display: block; overflow: visible; }
+.gm-ring-track { fill: none; stroke: var(--border); }
+.gm-ring-fill { fill: none; stroke: var(--fire); stroke-linecap: round; animation: gmRing 1.1s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes gmRing { from { stroke-dashoffset: var(--c); } }
+
+/* Player card */
+.gm-player { position: relative; overflow: hidden; display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(0, 1.25fr);
+  gap: 16px 22px; align-items: center; margin-bottom: 24px; border-left: 3px solid var(--fire); }
+.gm-player > :not(.gm-embers) { position: relative; z-index: 1; }
+.gm-embers { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.gm-embers i { position: absolute; left: var(--x); bottom: -6px; width: 3px; height: 3px; border-radius: 50%; background: var(--fire);
+  opacity: 0; animation: gmEmber var(--t) linear var(--d) infinite; }
+.gm-player.flame-roaring .gm-embers i { background: var(--flame-gold); }
+.gm-player.flame-blue .gm-embers i { background: var(--flame-blue-hi); }
+.gm-player.flame-eternal .gm-embers i { background: var(--flame-eternal); }
+@keyframes gmEmber { 0% { opacity: 0; transform: translate(0, 0); } 15% { opacity: .55; }
+  60% { transform: translate(10px, -110px); } 100% { opacity: 0; transform: translate(-6px, -190px); } }
+.gm-player-id { display: flex; align-items: center; gap: 14px; background: none; border: 0; padding: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; min-width: 0; }
+.gm-player-crest { position: relative; flex: 0 0 auto; width: 98px; height: 98px; display: grid; place-items: center; }
+.gm-player-crest > .gm-ring { position: absolute; inset: 0; width: 100%; height: 100%; }
+.gm-ring-xp .gm-ring-fill { stroke: var(--fire); }
+.gm-player-crest-in { line-height: 0; margin-top: 2px; }
+.gm-player-who { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.gm-player-rank { font-size: 1.1rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; line-height: 1.2; }
+.gm-player-today { color: var(--fire); }
+.gm-player-streaks { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.gm-pstreak { display: flex; align-items: center; gap: 10px; }
+.gm-pstreak > span:last-child { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.gm-pstreak b { font-weight: 500; font-size: 1.25rem; line-height: 1; }
+.gm-pstreak-ic { width: 34px; text-align: center; font-size: 24px; flex: 0 0 auto; }
+.gm-week-dots-sm { gap: 3px; flex-wrap: nowrap; }
+.gm-week-dots-sm i { width: 12px; height: 5px; }
+.gm-player-quests { min-width: 0; }
+.gm-player-quests > .label { margin-bottom: 8px; }
+.gm-qrings { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.gm-qring { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; min-width: 0; }
+.gm-qring-art { position: relative; width: 41px; height: 41px; display: grid; place-items: center; }
+.gm-qring-art > .gm-ring { position: absolute; inset: 0; }
+.gm-qring-ic { font-size: 16px; line-height: 1; }
+.gm-qring.is-done .gm-ring-fill { stroke: var(--green); }
+.gm-qring.is-done .gm-qring-ic { color: var(--green); font-weight: 700; }
+.gm-qring-label { font-size: 0.72rem; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.gm-qring.is-done .gm-qring-label { color: var(--text-2); }
+.gm-ok { color: var(--green); }
+.gm-player-next { grid-column: 1 / -1; display: grid; grid-template-columns: auto minmax(0, 1fr) minmax(80px, 160px); gap: 12px; align-items: center;
+  padding: 10px 12px; background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-md); color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.gm-player-next:hover { border-color: var(--border-hi); }
+.gm-next-art { line-height: 0; display: grid; place-items: center; min-width: 30px; }
+.gm-next-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.gm-next-bar .gm-bar-sm { margin-top: 0; }
+@media (max-width: 900px) and (min-width: 769px) {
+  .gm-player { grid-template-columns: auto minmax(0, 1fr); }
+  .gm-player-quests { grid-column: 1 / -1; }
+}
+@media (max-width: 768px) {
+  .gm-player { grid-template-columns: 1fr; gap: 14px; }
+  .gm-player-streaks { flex-direction: row; justify-content: space-between; }
+  .gm-player-next { grid-template-columns: auto minmax(0, 1fr); }
+  .gm-next-bar { grid-column: 1 / -1; }
+}
+
+/* Titles */
+.gm-title-chip { display: inline-flex; align-self: flex-start; align-items: center; gap: 4px; padding: 2px 8px; border-radius: var(--r-sm);
+  border: 1px solid var(--fire); color: var(--fire); background: rgba(255,107,26,0.1);
+  font-size: 0.65rem; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap; }
+.gm-title-under { margin: 2px 0 6px; }
+.gm-lu-title { align-self: center; margin: 6px auto 2px; }
+.gm-titles { margin-bottom: 24px; }
+.gm-title-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+.gm-title-opt { display: flex; flex-direction: column; gap: 3px; padding: 10px 12px; text-align: left; background: var(--bg-2);
+  border: 1px solid var(--border); border-radius: var(--r-md); color: var(--text); font: inherit; cursor: pointer; min-width: 0; }
+.gm-title-opt:hover { border-color: var(--border-hi); }
+.gm-title-opt.is-on { border-color: var(--fire); background: rgba(255,107,26,0.12); }
+.gm-title-opt.is-on .gm-title-name { color: var(--fire); }
+.gm-title-opt.is-locked { cursor: default; opacity: .55; }
+.gm-title-name { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* Rank road */
+.gm-road { display: flex; align-items: center; gap: 0; overflow-x: auto; padding: 16px 12px; margin-bottom: 24px; scrollbar-width: thin; }
+.gm-road-stop { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 4px; width: 70px; text-align: center; }
+.gm-road-crest { position: relative; line-height: 0; display: grid; place-items: center; min-height: 68px; }
+.gm-road-name { font-size: 0.58rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; line-height: 1.2; }
+.gm-road-stop.is-ahead .gm-road-crest { filter: grayscale(1); opacity: .35; }
+.gm-road-stop.is-ahead .gm-road-name { color: var(--text-3); }
+.gm-road-stop.is-here { width: 96px; }
+.gm-road-stop.is-here .gm-road-name { color: var(--fire); }
+.gm-road-stop.is-here .gm-road-crest::before { content: ''; position: absolute; inset: -6px; border-radius: 50%; border: 2px solid var(--fire);
+  animation: gmPulse 1.8s ease-out infinite; }
+@keyframes gmPulse { from { opacity: .8; transform: scale(.85); } to { opacity: 0; transform: scale(1.25); } }
+.gm-road-to { color: var(--fire); line-height: 1.3; }
+.gm-road-link { flex: 1 0 8px; height: 2px; background: var(--border); margin-bottom: 36px; }
+.gm-road-stop.is-done + .gm-road-link { background: var(--fire); }
+
+@media (prefers-reduced-motion: reduce) {
+  .gm-embers, .gm-flame b { display: none; }
+  .gm-ring-fill { animation: none; }
+  .gm-road-stop.is-here .gm-road-crest::before { animation: none; opacity: .6; }
+}

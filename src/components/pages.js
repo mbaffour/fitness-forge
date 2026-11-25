@@ -1,5 +1,5 @@
 import { state, save, setPhase, setWeek, logWorkout, clearLog, resetAll, updateProfile, formatWeight, toDisplayWeight, toStoredWeight, weightUnitLabel, displayName, currentStreak, localDateStr, pruneIdMap, cleanCustomExercise, cleanMetricDefs, cleanMetricLog } from '../store.js';
-import { rankWidgetHTML } from './achievements.js';
+import { rankWidgetHTML, equippedTitle } from './achievements.js';
 import { summary as gamifySummary, weeklyGoal } from '../engine/gamify.js';
 const fireStreak = () => gamifySummary().daily.current;
 import { GOAL_OPTIONS, LEVEL_OPTIONS, PHASE_NAMES, PHASE_DESCS, EXERCISES, MUSCLE_GROUPS } from '../data/exercises.js';
@@ -49,6 +49,7 @@ export function renderDashboard() {
 <div class="page-header">
   <div class="label" style="margin-bottom:6px">Dashboard</div>
   <h1 class="display page-title">${displayName().toUpperCase()}</h1>
+  ${(() => { const t = equippedTitle(); return t ? `<div class="gm-title-chip gm-title-under">${t.icon} ${t.name.replace(/[<>"&]/g, '')}</div>` : ''; })()}
   <div class="page-sub">${goalLabel(profile.goal)} · ${levelLabel(profile.level)} · Week ${currentWeek} of ${program.totalWeeks}</div>
 </div>
 
