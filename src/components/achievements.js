@@ -399,6 +399,7 @@ function _rulesHTML() {
     cardio: 'Cardio session', hiit: 'HIIT session', activity: 'Logged activity', moveMin: 'Active minute',
     checkin: 'Weigh-in / check-in', sleep: 'Sleep logged', food: 'Food logged (per day)', protein: 'Protein target hit',
     metric: 'Custom metric logged', fast: 'Fast completed',
+    assess: 'Project 500 event check', aft: 'Simulated AFT (all five events)',
   };
   return `
 <details class="card gm-rules">

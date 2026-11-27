@@ -29,6 +29,7 @@
 import { state, localDateStr } from '../store.js';
 import { EXERCISES, targetsOf, isStretch } from '../data/exercises.js';
 import { estimateOneRepMax } from './overload.js';
+import { objectivesMet } from './project500.js';
 
 const DAY = 864e5;
 
@@ -81,6 +82,8 @@ export const XP = {
   protein:   [10, 1],    // protein target hit
   metric:    [5, 3],
   fast:      [20, 1],    // a completed fast
+  assess:    [40, 2],    // a Project 500 event check (one or more AFT events tested)
+  aft:       [150, 1],   // a full simulated Army Fitness Test
 };
 const WEEK_GOAL_XP = 100;
 // Daily-streak milestones and their one-off bonus.
@@ -152,6 +155,7 @@ const BADGES = [
   { id: 'rested',   icon: '🌙', name: 'Well Rested',    unit: 'nights',         th: [7, 30, 100, 365],        desc: 'Nights of sleep logged' },
   { id: 'early',    icon: '🌅', name: 'Early Bird',     unit: 'dawn workouts',  th: [1, 10, 30, 100],         desc: 'Workouts started before 7am' },
   { id: 'owl',      icon: '🦉', name: 'Night Shift',    unit: 'late workouts',  th: [1, 10, 30, 100],         desc: 'Workouts started after 9pm' },
+  { id: 'p500',     icon: '🎖️', name: 'Project 500',    unit: 'objectives',     th: [5, 10, 15, 20],          desc: 'Project 500 phase objectives met — five per phase, by real results' },
 ];
 export const BADGE_DEFS = BADGES;
 export function tonnageEquivalent(lbs) {
@@ -179,6 +183,7 @@ const BADGE_TITLES = {
   rested:   ['Well Rested', 'Sleep Smith', 'Dream Forged'],
   early:    ['Early Bird', 'Dawn Patrol', 'Sunrise Smith'],
   owl:      ['Night Owl', 'Night Shift', 'Midnight Smith'],
+  p500:     ['Squared Away', 'Hard Charger', 'Five Hundred'],
 };
 export const TITLE_ID_RE = /^(rank:[0-7]|badge:[a-z]+:[234])$/;
 export function titleFor(id) {
@@ -219,7 +224,7 @@ export function flameTier(days) {
 function blankDay() {
   return { strength: 0, mobility: 0, cardio: 0, hiit: 0, activity: 0, sets: 0, prs: 0, moveMin: 0, cardioMin: 0, volume: 0,
            checkin: false, sleep: false, food: 0, foodDay: false, protein: false, water: 0, metrics: 0, fast: false,
-           early: 0, late: 0, regions: new Set() };
+           early: 0, late: 0, regions: new Set(), assess: 0, aft: 0 };
 }
 
 function collectDays() {
@@ -291,6 +296,11 @@ function collectDays() {
     const k = dayOf(h?.date); if (!k) continue;
     const d = at(k); const m = Math.min(240, Math.max(0, num(h.mins))); d.hiit++; d.moveMin += m; d.cardioMin += m;
   }
+  // Project 500 tests. A full simulated AFT and an event check are training.
+  for (const t of state.p500?.tests || []) {
+    const k = dayOf(t?.date); if (!k) continue;
+    if (t.kind === 'aft') at(k).aft++; else at(k).assess++;
+  }
   for (const b of state.bodyLog || []) { const k = dayOf(b?.date); if (k) at(k).checkin = true; }
   for (const s of state.sleepLog || []) { const k = dayOf(s?.date); if (k && num(s.durationHours) > 0) at(k).sleep = true; }
   for (const n of state.nutritionLog || []) {
@@ -313,7 +323,7 @@ function collectDays() {
   return days;
 }
 
-const isActive = (d) => d && (d.strength + d.mobility + d.cardio + d.hiit + d.activity > 0);
+const isActive = (d) => d && (d.strength + d.mobility + d.cardio + d.hiit + d.activity + d.assess + d.aft > 0);
 // What keeps the DAILY fire lit: any workout or recovery, or looking after
 // yourself on a rest day — a weigh-in, a sleep or food log, a metric, a fast.
 // Lifting every day is not the goal; showing up every day is. A daily streak
@@ -321,14 +331,15 @@ const isActive = (d) => d && (d.strength + d.mobility + d.cardio + d.hiit + d.ac
 const isLit = (d) => d && (isActive(d) || d.checkin || d.sleep || d.foodDay || d.metrics > 0 || d.fast);
 // A training day for the weekly goal: a workout, or a real block of activity.
 // A stretch alone keeps the daily fire lit but is not a training day.
-const isTraining = (d) => d && (d.strength + d.cardio + d.hiit > 0 || (d.activity > 0 && d.moveMin >= 20));
+const isTraining = (d) => d && (d.strength + d.cardio + d.hiit + d.assess + d.aft > 0 || (d.activity > 0 && d.moveMin >= 20));
 
 function dayXP(d) {
   const c = (key, n) => Math.min(n, XP[key][1]) * XP[key][0];
   return Math.round(c('workout', d.strength) + c('set', d.sets) + c('pr', d.prs) + c('mobility', d.mobility)
     + c('cardio', d.cardio) + c('hiit', d.hiit) + c('activity', d.activity) + c('moveMin', d.moveMin)
     + c('checkin', d.checkin ? 1 : 0) + c('sleep', d.sleep ? 1 : 0) + c('food', d.foodDay ? 1 : 0)
-    + c('protein', d.protein ? 1 : 0) + c('metric', d.metrics) + c('fast', d.fast ? 1 : 0));
+    + c('protein', d.protein ? 1 : 0) + c('metric', d.metrics) + c('fast', d.fast ? 1 : 0)
+    + c('assess', d.assess) + c('aft', d.aft));
 }
 
 // ── STREAKS ──────────────────────────────────────────────────────────────────
@@ -450,7 +461,8 @@ export function summary() {
   }
   const coverage = Math.max(0, ...[...regionsByWeek.values()].map((s) => s.size));
   const values = { sessions, tonnage: Math.round(tonnage), prs, daily: daily.longest, weekly: weekly.longest, stretch,
-                   engine: Math.round(engine), coverage, quests: questsDone, measured, fueled, rested, early, owl: late };
+                   engine: Math.round(engine), coverage, quests: questsDone, measured, fueled, rested, early, owl: late,
+                   p500: state.p500 ? objectivesMet(state.p500) : 0 };
   const badges = BADGES.map((b) => {
     const v = values[b.id] || 0;
     const tier = b.th.filter((t) => v >= t).length;           // 0 = none yet … 4 = platinum

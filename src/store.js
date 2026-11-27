@@ -5,6 +5,7 @@
 // ═══════════════════════════════════════════
 
 import { upsertExercise, removeExercise, EQUIP_ITEMS } from './data/exercises.js';
+import { sanitizeP500 } from './engine/project500.js';
 
 const KEY = 'fitness_forge_v1';
 
@@ -64,6 +65,8 @@ const defaultState = {
   metricLog:   [],      // [{ id, metric, value, date }] — values logged against metricDefs
   // ── v3.38 additions ──
   gamify:      { seen: null },  // what the celebration layer has already shown (XP itself is derived, never stored)
+  // ── v3.42 additions ──
+  p500:        null,  // Project 500 — program, tests, log, readiness (engine/project500.js; sanitised on load)
 };
 
 // A deep copy. `{ ...defaultState }` shared every array and nested object with
@@ -109,6 +112,7 @@ export const state = (() => {
         metricDefs: parsed.metricDefs,
         gamify: parsed.gamify,
         metricLog: parsed.metricLog,
+        p500: sanitizeP500(parsed.p500),
       };
     }
     return freshState();
