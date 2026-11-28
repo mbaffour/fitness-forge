@@ -172,6 +172,9 @@ export function startActiveWorkout(workoutId, workoutLabel, exercises, workoutTy
         timed:      isTimed(ex.id, exData),
         unilateral: isUnilateral(ex.id, exData),
         groupId:    null,   // superset group (shared id links adjacent exercises)
+        // What a structured program prescribed (Project 500). Kept beside the
+        // sets so the logged session holds both the plan and what was done.
+        prescribed: _cleanPrescribed(ex.prescribed),
         sets: [],
       };
     }),
@@ -183,6 +186,14 @@ export function startActiveWorkout(workoutId, workoutLabel, exercises, workoutTy
   _saveDraft();
   cue('start');
   acquireWakeLock();   // keep the screen on for the whole session
+}
+
+function _cleanPrescribed(x) {
+  if (!x || typeof x !== 'object') return null;
+  const w = Number(x.weight);
+  return { sets: Number.isFinite(Number(x.sets)) ? Number(x.sets) : null, reps: String(x.reps ?? '').replace(/[<>"]/g, '').slice(0, 30),
+           weight: Number.isFinite(w) && w > 0 && w < 1500 ? w : null, rir: String(x.rir ?? '').replace(/[<>"]/g, '').slice(0, 10),
+           note: String(x.note ?? '').replace(/[<>"]/g, '').slice(0, 200), sub: !!x.sub };
 }
 
 // ── IN-PROGRESS DRAFT ──
@@ -375,14 +386,15 @@ function renderExerciseBlock(ex, exIdx) {
         ${pr ? `<span class="tag t-green" style="font-size:9px" title="1RM ~${formatWeight(pr.e1rm)}">PR: ${formatWeight(pr.weight, false)}×${pr.reps}</span>` : ''}
       </div>
       ${muscleTagsHTML}
-      ${suggestion && !suggestion.isColdStart ? `
+      ${ex.prescribed ? `<div class="overload-suggest p5-presc">🎯 Prescribed: ${ex.prescribed.sets ? `${ex.prescribed.sets} × ` : ''}${ex.prescribed.reps || ex.targetReps}${ex.prescribed.weight ? ` @ ${formatWeight(ex.prescribed.weight)}` : ''}${ex.prescribed.rir ? ` · ${ex.prescribed.rir} reps in reserve` : ''}${ex.prescribed.sub ? ' · substitute' : ''}${ex.prescribed.note ? `<span class="muted"> — ${ex.prescribed.note}</span>` : ''}</div>` : ''}
+      ${suggestion && !suggestion.isColdStart && !ex.prescribed?.weight ? `
         <div class="overload-suggest">
           💡 ${isBodyweight
             ? `Target: ${suggestion.reps} reps — ${suggestion.rationale}`
             : `${formatWeight(suggestion.weight)} × ${suggestion.reps} — ${suggestion.rationale}`
           }
         </div>
-      ` : suggestion.isColdStart && suggestion.weight ? `
+      ` : suggestion.isColdStart && suggestion.weight && !ex.prescribed?.weight ? `
         <div class="overload-suggest">💡 Start ~${isBodyweight ? 'Bodyweight' : formatWeight(suggestion.weight)}</div>
       ` : ''}
       ${cuesHTML}
@@ -414,8 +426,8 @@ function renderExerciseBlock(ex, exIdx) {
   ${nextSetNum < ex.targetSets + 3 ? `
   <div class="set-input-row" id="next-set-${exIdx}">
     <span class="set-num">${nextSetNum + 1}</span>
-    ${isBodyweight ? '' : `<input type="number" class="set-input" id="wi-${exIdx}" placeholder="${toDisplayWeight(suggestion.weight) || ''}" min="0" step="${weightInputStep()}" value="${toDisplayWeight(suggestion.weight) || ''}" onkeydown="if(event.key==='Enter')logSet(${exIdx})"><button class="plate-calc-btn" title="Plate calculator" aria-label="Plate calculator" onclick="openPlateCalc(document.getElementById('wi-${exIdx}')?.value)">🏋</button>`}
-    <input type="number" class="set-input" id="ri-${exIdx}" placeholder="${ex.timed ? '30' : (suggestion.reps || ex.targetReps.split('–')[0] || 8)}" min="1" step="1" value="${ex.timed ? '' : (suggestion.reps || '')}" onkeydown="if(event.key==='Enter')logSet(${exIdx})">
+    ${isBodyweight ? '' : `<input type="number" class="set-input" id="wi-${exIdx}" placeholder="${toDisplayWeight(suggestion.weight) || ''}" min="0" step="${weightInputStep()}" value="${toDisplayWeight(ex.prescribed?.weight || suggestion.weight) || ''}" onkeydown="if(event.key==='Enter')logSet(${exIdx})"><button class="plate-calc-btn" title="Plate calculator" aria-label="Plate calculator" onclick="openPlateCalc(document.getElementById('wi-${exIdx}')?.value)">🏋</button>`}
+    <input type="number" class="set-input" id="ri-${exIdx}" placeholder="${ex.timed ? '30' : (suggestion.reps || ex.targetReps.split('–')[0] || 8)}" min="1" step="1" value="${ex.timed ? '' : ((/^\d+$/.test(ex.prescribed?.reps || '') ? Number(ex.prescribed.reps) : 0) || suggestion.reps || '')}" onkeydown="if(event.key==='Enter')logSet(${exIdx})">
     ${ex.timed ? `<button class="ex-act-btn" id="tmr-${exIdx}" title="Hold timer" onclick="toggleSetTimer(${exIdx})">⏱</button>` : ''}
     <div class="rir-selector" id="rir-${exIdx}">
       ${[0,1,2,3,4,5].map(r => `<button class="rir-btn" data-rir="${r}" onclick="setRIR(${exIdx}, ${r})">${r}</button>`).join('')}
@@ -787,6 +799,8 @@ window.finishActiveWorkout = () => {
   // Persist the workout and program progress together; restore progress on failure.
   logSession({ ...sessionState });
   const persisted = saveOk();
+  // Programs that track their own history (Project 500) pick the session up here.
+  if (persisted) window.dispatchEvent(new CustomEvent('forge:session-saved', { detail: { session: { ...sessionState } } }));
   if (!persisted && key) gp.done = previousDone;
   updateStreak();
   checkFirstSession();

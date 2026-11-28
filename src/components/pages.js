@@ -1,5 +1,6 @@
 import { state, save, setPhase, setWeek, logWorkout, clearLog, resetAll, updateProfile, formatWeight, toDisplayWeight, toStoredWeight, weightUnitLabel, displayName, currentStreak, localDateStr, pruneIdMap, cleanCustomExercise, cleanMetricDefs, cleanMetricLog } from '../store.js';
 import { rankWidgetHTML, equippedTitle } from './achievements.js';
+import { p500DashCardHTML } from './project500.js';
 import { summary as gamifySummary, weeklyGoal } from '../engine/gamify.js';
 const fireStreak = () => gamifySummary().daily.current;
 import { GOAL_OPTIONS, LEVEL_OPTIONS, PHASE_NAMES, PHASE_DESCS, EXERCISES, MUSCLE_GROUPS } from '../data/exercises.js';
@@ -89,6 +90,9 @@ ${(() => {
   ${cta}
 </div>`;
 })()}
+
+<!-- PROJECT 500: today's session, when the program is running -->
+${p500DashCardHTML()}
 
 <!-- FORGE RANK: level, streaks, today's quests -->
 ${rankWidgetHTML()}
@@ -1153,7 +1157,7 @@ const BACKUP_KEYS = [
   'workoutLog', 'sessions', 'cardioLog', 'nutritionLog', 'bodyLog', 'sleepLog',
   'activityLog', 'achievements', 'prs', 'customExercises', 'streak', 'settings',
   'gymProfiles', 'activeGymId', 'goalProgram', 'challenge', 'bodyMapTray',
-  'bodyMapSel', 'metricDefs', 'metricLog', 'gamify',
+  'bodyMapSel', 'metricDefs', 'metricLog', 'gamify', 'p500',
   // These four were missing — the list said 'fasting', a key the app never
   // writes — so restoring a backup silently dropped the whole fasting history,
   // any fast in progress, HIIT progress and the Overload rotation.

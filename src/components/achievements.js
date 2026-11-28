@@ -9,6 +9,8 @@ import { cue, reducedMotion, fxBurst, fxFly, countUp, tokenColor } from './feedb
 import { estimateOneRepMax } from '../engine/overload.js';
 import { EXERCISES } from '../data/exercises.js';
 import { exThumbHTML } from './modal.js';
+import { serviceRecord, bestResults, TIER_NAMES } from '../engine/project500.js';
+import { eventDef } from '../data/aft-standards.js';
 
 // All possible achievements (unlocked ones show as lit, locked as dim)
 const ALL_ACHIEVEMENTS = [
@@ -399,6 +401,8 @@ function _rulesHTML() {
     cardio: 'Cardio session', hiit: 'HIIT session', activity: 'Logged activity', moveMin: 'Active minute',
     checkin: 'Weigh-in / check-in', sleep: 'Sleep logged', food: 'Food logged (per day)', protein: 'Protein target hit',
     metric: 'Custom metric logged', fast: 'Fast completed',
+    assess: 'Project 500 event check', aft: 'Simulated AFT (all five events)',
+    mission: 'Project 500 weekly mission', objective: 'Project 500 objective met',
   };
   return `
 <details class="card gm-rules">
@@ -558,7 +562,67 @@ function _snapshot(G) {
     weeks: G.weekly.thisWeek >= G.weekly.goal ? [G.weekly.weekStart] : [],
     day: G.today, flame: G.flame.index,
     titles: G.titles.filter((t) => t.unlocked).length,
+    p500: _p500Snap(G.today),
   };
+}
+
+// Project 500 progress the celebration layer watches — all derived.
+function _p500Snap(today) {
+  const p = state.p500;
+  if (!p || p.status === 'setup') return null;
+  const R = serviceRecord(p, today);
+  const best = bestResults(p);
+  return { grade: R.index, obj: R.obj, phases: R.phasesCleared, missions: R.missions,
+           tiers: Object.fromEntries(Object.entries(R.tiers).map(([k, v]) => [k, v.tier])),
+           best: Object.fromEntries(Object.entries(best).map(([k, v]) => [k, v.raw])) };
+}
+const _evName = (id) => eventDef(id)?.short || id;
+const _evVal = (id, raw) => (id === 'mdl' ? formatWeight(raw) : id === 'hrp' ? `${raw} reps` : `${Math.floor(raw / 60)}:${String(Math.round(raw % 60)).padStart(2, '0')}`);
+const _EV_ICON = { mdl: '🏋', hrp: '💪', sdc: '🏃', plk: '🧱', tmr: '⏱' };
+function _p500Cards(now, was, today) {
+  if (!now || !was || typeof was !== 'object') return [];
+  const out = [];
+  const R = serviceRecord(state.p500, today);
+  if (now.grade > (Number(was.grade) || 0)) {
+    out.push({ big: true, kind: 'promo', icon: '🎖', art: insigniaSVG(R, { size: 44 }), sound: 'rankUp', go: 'project500',
+      title: `Promoted — ${R.name}`, sub: `Project 500 service grade · ${R.points} pts${R.next ? ` · ${R.next.min - R.points} to ${R.next.name}` : ' · the top grade'}` });
+  }
+  if (now.phases > (Number(was.phases) || 0)) {
+    out.push({ big: true, icon: '🏅', art: medalSVG({ tier: 4, icon: '🎖' }, { size: 34 }), sound: 'badge4', go: 'project500',
+      title: `Phase ${now.phases} objectives cleared`, sub: 'All five events have met this phase’s milestone.' });
+  } else if (now.obj > (Number(was.obj) || 0)) {
+    const n = now.obj - (Number(was.obj) || 0);
+    out.push({ icon: '★', sound: 'quest', xp: 50 * n, go: 'project500', title: `Objective${n > 1 ? 's' : ''} secured · ${now.obj}/20`, sub: `+${50 * n} XP` });
+  }
+  if (now.missions > (Number(was.missions) || 0)) {
+    out.push({ icon: '🎯', sound: 'weekly', xp: 75, go: 'project500', title: 'Weekly mission complete · +75 XP',
+      sub: R.streak > 1 ? `${R.streak} missions in a row` : 'Every scheduled session but one — that is the standard.' });
+  }
+  for (const [id, t] of Object.entries(now.tiers || {})) {
+    if (t > (Number(was.tiers?.[id]) || 0)) out.push({ icon: _EV_ICON[id], art: medalSVG({ tier: t, icon: _EV_ICON[id] }, { size: 34 }), sound: `badge${t}`, go: 'project500',
+      title: `${_evName(id)} — ${TIER_NAMES[t]} tier`, sub: t >= 4 ? 'Target reached.' : `${Math.round((t / 4) * 100)}% of the way from where you started to your target.` });
+  }
+  for (const [id, raw] of Object.entries(now.best || {})) {
+    const prev = Number(was.best?.[id]);
+    const better = id === 'sdc' || id === 'tmr' ? raw < prev : raw > prev;
+    if (prev > 0 && better && !(now.tiers?.[id] > (Number(was.tiers?.[id]) || 0))) {
+      const d = Math.abs(raw - prev);
+      out.push({ icon: _EV_ICON[id], sound: 'pr', go: 'project500', title: `New best — ${_evName(id)} ${_evVal(id, raw)}`,
+        sub: `${id === 'sdc' || id === 'tmr' ? '−' : '+'}${id === 'mdl' ? formatWeight(d) : id === 'hrp' ? `${d} reps` : _evVal(id, d)} on your previous best` });
+    }
+  }
+  // Several things at once (a test that meets two objectives, tiers up an
+  // event and sets a best) are one moment: one card that says all of it,
+  // rather than a pile that the queue would collapse into a generic summary.
+  if (out.length > 1) {
+    const lead = out.find((c) => c.kind === 'promo') || out.find((c) => c.big) || out[0];
+    const rest = out.filter((c) => c !== lead);
+    const order = ['rankUp', 'badge4', 'badge3', 'weekly', 'badge2', 'pr', 'badge1', 'quest'];
+    const sound = order.find((x) => out.some((c) => c.sound === x)) || lead.sound;
+    const xp = out.reduce((a, c) => a + (c.xp || 0), 0);
+    return [{ ...lead, big: true, sound, xp, sub: [lead.sub, ...rest.map((c) => c.title)].filter(Boolean).join(' · ') }];
+  }
+  return out;
 }
 
 const _queue = [];
@@ -772,6 +836,23 @@ export function medalSVG(b, { size = 64 } = {}) {
 </svg>`;
 }
 
+// Service-grade insignia: chevrons over rockers, a star at the top grade, in a
+// metal that warms as the grade climbs. Drawn here, from the grade's counts.
+export function insigniaSVG(g, { size = 64 } = {}) {
+  const id = `gmi${++_uid}`;
+  const metal = g.index >= 7 ? 'gold' : g.index >= 4 ? 'steel' : 'bronze';
+  const chev = Array.from({ length: g.chev || 0 }, (_, i) => `<path d="M14 ${46 + i * 15} L50 ${24 + i * 15} L86 ${46 + i * 15}" />`).join('');
+  const top = 46 + Math.max(0, (g.chev || 1) - 1) * 15;
+  const rock = Array.from({ length: g.rock || 0 }, (_, i) => `<path d="M14 ${top + 14 + i * 13} Q50 ${top + 34 + i * 13} 86 ${top + 14 + i * 13}" />`).join('');
+  const star = g.star ? `<path d="M50 ${top + 6} l3.5 7 7.7 1.1 -5.6 5.4 1.3 7.7 -6.9 -3.6 -6.9 3.6 1.3 -7.7 -5.6 -5.4 7.7 -1.1z" fill="url(#${id})" stroke="none"/>` : '';
+  const empty = !g.chev && !g.rock;
+  return `<svg class="gm-insignia" viewBox="0 0 100 ${empty ? 100 : Math.max(100, top + 30 + (g.rock || 0) * 13)}" width="${size}" height="${size}" aria-hidden="true">
+    <defs>${_grad(id, metal)}</defs>
+    ${empty ? `<circle cx="50" cy="50" r="34" fill="none" stroke="var(--border-hi)" stroke-width="5" stroke-dasharray="7 6"/><text x="50" y="57" text-anchor="middle" font-family="'Fira Code', monospace" font-size="20" font-weight="700" fill="var(--text-2)">${g.abbr || ''}</text>`
+      : `<g fill="none" stroke="url(#${id})" stroke-width="10" stroke-linejoin="miter" stroke-linecap="butt">${chev}${rock}</g>${star}`}
+  </svg>`;
+}
+
 const HAMMER_SVG = `<svg viewBox="0 0 80 80" width="74" height="74"><g transform="rotate(-35 40 40)">
   <rect x="36" y="26" width="8" height="50" rx="3" fill="var(--metal-bronze-lo)"/>
   <rect x="18" y="10" width="44" height="20" rx="3" fill="var(--metal-steel)" stroke="var(--metal-steel-lo)" stroke-width="2"/>
@@ -839,6 +920,7 @@ function _check() {
       title: all ? 'Clean sweep — all 3 quests done' : `Quest complete: ${newQ[0].label}`,
       sub: `+${newQ.reduce((a, q) => a + q.xp, 0)} XP${gained > 0 ? ` · +${n0(gained)} XP total` : ''}` });
   }
+  cards.push(..._p500Cards(snap.p500, seen.p500, G.today));
   const newTitles = seen.titles != null ? G.titles.filter((t) => t.unlocked).length - Number(seen.titles) : 0;
   if (newTitles > 0) {
     const host = cards.find((c) => c.kind === 'level' || c.kind === 'badge');
