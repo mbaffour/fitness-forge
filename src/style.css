@@ -3909,3 +3909,43 @@ html[data-theme="day"] .gm-flame.flame-blue i:nth-child(3), html[data-theme="viv
 @media (prefers-reduced-motion: reduce) {
   .p5-medal.is-met i { animation: none; }
 }
+
+/* ══ PROJECT 500 — service record, missions, mastery (v3.43) ══ */
+.gm-insignia { display: block; overflow: visible; }
+.p5-svc { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 14px 22px; align-items: center; margin-bottom: 16px; border-left: 3px solid var(--fire); }
+.p5-svc-id { display: flex; align-items: center; gap: 14px; background: none; border: 0; padding: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; min-width: 0; }
+.p5-svc-ins { flex: 0 0 auto; width: 64px; display: grid; place-items: center; }
+.p5-svc-who { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
+.p5-svc-who b { font-size: 1.05rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.p5-svc-who .gm-bar-sm { margin-top: 2px; }
+.p5-svc-mission { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.p5-svc-mission > span:last-child { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.p5-mring { position: relative; flex: 0 0 auto; width: 52px; height: 52px; display: grid; place-items: center; }
+.p5-mring svg { position: absolute; inset: 0; }
+.p5-mring b { font-size: 0.72rem; font-weight: 500; position: relative; }
+.gm-ring-fill.is-met { stroke: var(--green); }
+.p5-svc-points { grid-column: 1 / -1; }
+.p5-ladder { display: flex; align-items: center; overflow-x: auto; padding: 14px 12px; margin-bottom: 16px; scrollbar-width: thin; }
+.p5-rung { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 4px; width: 56px; text-align: center; }
+.p5-rung-ins { min-height: 52px; display: grid; place-items: center; }
+.p5-rung-name { font-size: 0.6rem; font-weight: 600; letter-spacing: 0.08em; }
+.p5-rung:not(.is-done):not(.is-here) .p5-rung-ins { filter: grayscale(1); opacity: .35; }
+.p5-rung:not(.is-done):not(.is-here) .p5-rung-name { color: var(--text-3); }
+.p5-rung.is-here { width: 70px; }
+.p5-rung.is-here .p5-rung-name { color: var(--fire); }
+.p5-rung.is-here .p5-rung-ins { position: relative; }
+.p5-rung.is-here .p5-rung-ins::before { content: ''; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--fire); animation: gmPulse 1.8s ease-out infinite; }
+.p5-rung-link { flex: 1 0 8px; height: 2px; background: var(--border); margin-bottom: 26px; }
+.p5-rung.is-done + .p5-rung-link { background: var(--fire); }
+.p5-ev-ic { line-height: 0; display: grid; place-items: center; min-width: 30px; }
+.p5-ev-tier { display: flex; align-items: center; gap: 4px; }
+.p5-ev-tier .label { margin-right: auto; }
+.p5-ev-tier i { width: 14px; height: 4px; border-radius: var(--r-sm); background: var(--bg-2); border: 1px solid var(--border); }
+.p5-ev-tier i.on { background: var(--fire); border-color: var(--fire); }
+.p5-dash-ic { line-height: 0; display: grid; place-items: center; width: 36px; }
+@media (max-width: 768px) {
+  .p5-svc { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .p5-rung.is-here .p5-rung-ins::before { animation: none; opacity: .6; }
+}

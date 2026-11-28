@@ -7,7 +7,7 @@
 // program state `p` (state.p500) and, where it needs history, a `ctx` of the
 // person's logs, so all of it runs under Node for tests.
 //
-// Principles from the brief, enforced here rather than hoped for:
+// Principles, enforced here rather than hoped for:
 //   • The calendar suggests; the person's results decide. Loads, paces and
 //     holds come from what was actually logged or tested, never the week number.
 //   • Never increase anything while pain, injury or illness is reported.
@@ -15,7 +15,7 @@
 //   • Missed sessions are moved only where they do not stack hard work.
 
 import { P500, DAY_TEMPLATES, WEEK_TEMPLATE, CFT, RUN_LEVELS } from '../data/project500.js';
-import { AFT, validateRows } from '../data/aft-standards.js';
+import { AFT, TABLES, tableKey, validateRows } from '../data/aft-standards.js';
 
 // ── DATES (local calendar days as 'YYYY-MM-DD') ──────────────────────────────
 const pad = (n) => String(n).padStart(2, '0');
@@ -72,12 +72,17 @@ const round5 = (x) => Math.round(x / 5) * 5;
 const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
 
 // ── PROGRAM STATE ────────────────────────────────────────────────────────────
-export function newProgram({ start = P500.defaultStart, time = P500.defaultTime } = {}) {
+// The Monday on or after a date — the default start.
+export function nextMonday(from = ymd(new Date())) { return weekdayIdx(from) === 0 ? from : addDays(mondayOf(from), 7); }
+
+// Nothing personal is assumed: the scoring category starts unset and is filled
+// from the person's own profile or choice; targets are theirs to set.
+export function newProgram({ start = null, time = P500.defaultTime } = {}) {
   return {
-    v: 1, status: 'setup', startDate: isYMD(start) ? start : P500.defaultStart,
-    pauses: [], overrides: {}, standard: { std: 'general', sex: 'male', band: '27-31' },
-    prefs: { time, sat: 'military', equip: { trapbar: true, sled: true, pool: true } },
-    baseline: null, lifts: {}, tests: [], cft: [], log: [], readiness: [], tables: {},
+    v: 1, status: 'setup', startDate: isYMD(start) ? start : nextMonday(),
+    pauses: [], overrides: {}, standard: { std: 'general', sex: null, band: null },
+    prefs: { time, sat: 'military', equip: { trapbar: true, sled: true, pool: true }, cftGoal: null },
+    targets: {}, baseline: null, lifts: {}, tests: [], cft: [], log: [], readiness: [], tables: {},
   };
 }
 
@@ -99,7 +104,7 @@ function cleanEvents(ev) {
 }
 export function sanitizeP500(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
-  const p = newProgram({ start: isYMD(raw.startDate) ? raw.startDate : P500.defaultStart });
+  const p = newProgram({ start: isYMD(raw.startDate) ? raw.startDate : null });
   p.status = ['setup', 'active', 'paused', 'complete'].includes(raw.status) ? raw.status : 'setup';
   p.pauses = (Array.isArray(raw.pauses) ? raw.pauses : []).filter((x) => x && isYMD(x.from) && (x.to == null || (isYMD(x.to) && x.to >= x.from)))
     .map((x) => ({ from: x.from, to: x.to ?? null })).slice(0, 100);
@@ -113,11 +118,13 @@ export function sanitizeP500(raw) {
     if (Object.keys(c).length) p.overrides[d] = c;
   }
   const st = raw.standard || {};
-  p.standard = { std: ['general', 'combat'].includes(st.std) ? st.std : 'general', sex: ['male', 'female'].includes(st.sex) ? st.sex : 'male',
-                 band: AFT.ageBands.includes(st.band) ? st.band : '27-31' };
+  p.standard = { std: ['general', 'combat'].includes(st.std) ? st.std : 'general', sex: ['male', 'female'].includes(st.sex) ? st.sex : null,
+                 band: AFT.ageBands.includes(st.band) ? st.band : null };
   const pr = raw.prefs || {};
   p.prefs = { time: /^([01]\d|2[0-3]):[0-5]\d$/.test(pr.time) ? pr.time : P500.defaultTime, sat: pr.sat === 'soccer' ? 'soccer' : 'military',
-              equip: Object.fromEntries(['trapbar', 'sled', 'pool', 'dumbbells', 'hrp'].filter((k) => typeof pr.equip?.[k] === 'boolean').map((k) => [k, pr.equip[k]])) };
+              equip: Object.fromEntries(['trapbar', 'sled', 'pool', 'dumbbells', 'hrp'].filter((k) => typeof pr.equip?.[k] === 'boolean').map((k) => [k, pr.equip[k]])),
+              cftGoal: NUM(pr.cftGoal, 300, 3600) };
+  p.targets = Object.fromEntries(Object.entries(EVENT_MAX).map(([id, [lo, hi]]) => [id, NUM(raw.targets?.[id], lo, hi)]).filter(([, v]) => v != null));
   const b = raw.baseline;
   if (b && typeof b === 'object' && isYMD(b.date)) {
     p.baseline = { date: b.date, ...Object.fromEntries(Object.entries(cleanEvents(Object.fromEntries(['mdl', 'hrp', 'sdc', 'plk', 'tmr'].map((k) => [k, { raw: b[k] }])))).map(([k, v]) => [k, v.raw])) };
@@ -363,8 +370,8 @@ export function liftPrescription(p, plan) {
 export function runPrescription(p, plan) {
   const latest = latestResults(p);
   const cur = latest.tmr?.raw || null;                          // current 2-mile, seconds
-  const goal = P500.phases[plan.phase - 1].milestones.tmr;
   const mile = cur ? cur / 2 : null;
+  const goal = milestonesFor(p)[plan.phase - 1]?.tmr || (cur ? cur * 0.97 : null);
   const lvl = RUN_LEVELS.find((r) => r.id === p.baseline?.runLevel) || null;
   const wip = weekInPhase(plan.week);
   const step = wip <= 5 ? 0 : wip <= 9 ? 1 : 2;
@@ -373,8 +380,8 @@ export function runPrescription(p, plan) {
     let reps, dist, rest, paceSec, label;
     if (plan.phase === 1) { reps = [4, 5, 6][step]; dist = 400; rest = 120; paceSec = mile ? mile * 0.97 : null; label = 'controlled, not all-out'; }
     else if (plan.phase === 2) { reps = [4, 5, 5][step]; dist = 800; rest = 150; paceSec = mile; label = 'at your current 2-mile pace'; }
-    else if (plan.phase === 3) { reps = [6, 7, 8][step]; dist = 400; rest = 90; paceSec = goal / 2; label = 'at this phase’s goal pace'; }
-    else { reps = [2, 3, 3][step]; dist = 1609; rest = 180; paceSec = goal / 2; label = 'at goal race pace'; }
+    else if (plan.phase === 3) { reps = [6, 7, 8][step]; dist = 400; rest = 90; paceSec = goal ? goal / 2 : null; label = 'at this phase’s goal pace'; }
+    else { reps = [2, 3, 3][step]; dist = 1609; rest = 180; paceSec = goal ? goal / 2 : null; label = 'at goal race pace'; }
     reps = Math.max(2, Math.round(reps * f));
     const split = paceSec ? paceSec * (dist / METERS_PER_MILE) : null;
     const beginner = lvl && (lvl.id === 'none' || lvl.id === 'runwalk') && plan.phase === 1;
@@ -458,13 +465,149 @@ export function progressTo(id, base, cur, target) {
   const f = (cur - base) / (target - base);
   return clamp(f, 0, 1);
 }
-// 20 objectives: each phase's five milestones. Met by the best real result.
+// ── PERSONAL TARGETS ─────────────────────────────────────────────────────────
+export const EVENT_IDS = ['mdl', 'hrp', 'sdc', 'plk', 'tmr'];
+export function activeTable(p) {
+  const st = p?.standard || {};
+  if (!st.band || (st.std !== 'combat' && !st.sex)) return { key: null, table: null };
+  const key = tableKey(st.std, st.sex, st.band);
+  return { key, table: p.tables?.[key] || TABLES[key] || null };
+}
+// The raw result worth 100 points in a table (the top of the scale).
+export function table100(table, id) {
+  const row = (table?.[id] || []).find(([pts]) => pts === 100);
+  return row ? row[1] : null;
+}
+// Final target per event: the person's own, else the table's 100-point value.
+export function targetsFor(p) {
+  const { table } = activeTable(p);
+  return Object.fromEntries(EVENT_IDS.map((id) => [id, p?.targets?.[id] > 0 ? p.targets[id] : table100(table, id)]));
+}
+// Where each event started: the baseline, else the first recorded result.
+export function anchorsFor(p) {
+  const out = {};
+  for (const id of EVENT_IDS) {
+    if (p?.baseline?.[id] > 0 && !p.baseline.sub?.[id]) { out[id] = p.baseline[id]; continue; }
+    // The baseline asks for a safe 3-rep deadlift rather than a test max; it
+    // is still the honest starting point for the deadlift road.
+    if (id === 'mdl' && p?.baseline?.dl3 > 0) { out[id] = p.baseline.dl3; continue; }
+    const first = [...(p?.tests || [])].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.id - b.id))
+      .find((t) => t.events?.[id] && !t.events[id].sub);
+    if (first) out[id] = first.events[id].raw;
+  }
+  return out;
+}
+const roundEv = (id, v) => (id === 'hrp' ? Math.round(v) : Math.round(v / 5) * 5);
+// Phase milestones: each phase closes its share of the gap between where the
+// person started and their own target. With no starting point only the final
+// target is known; with nothing set, nothing is invented.
+export function milestonesFor(p) {
+  const tg = targetsFor(p), an = anchorsFor(p);
+  return P500.phases.map((ph) => Object.fromEntries(EVENT_IDS.map((id) => {
+    const t = tg[id], a = an[id];
+    if (!(t > 0)) return [id, null];
+    if (ph.share >= 1) return [id, t];
+    if (!(a > 0) || meets(id, a, t)) return [id, a > 0 ? t : null];
+    return [id, roundEv(id, a + (t - a) * ph.share)];
+  })));
+}
+
+// 20 objectives: each phase's five milestones, met by the best real result.
 export function objectives(p) {
   const best = bestResults(p);
-  return P500.phases.map((ph) => ({ phase: ph.n, name: ph.name, items: Object.entries(ph.milestones).map(([id, target]) => ({
-    id, target, met: meets(id, best[id]?.raw, target), best: best[id]?.raw ?? null })) }));
+  const ms = milestonesFor(p);
+  return P500.phases.map((ph, i) => ({ phase: ph.n, name: ph.name, items: EVENT_IDS.map((id) => ({
+    id, target: ms[i][id], met: ms[i][id] != null && meets(id, best[id]?.raw, ms[i][id]), best: best[id]?.raw ?? null })) }));
 }
 export const objectivesMet = (p) => objectives(p).reduce((a, ph) => a + ph.items.filter((i) => i.met).length, 0);
+
+// ── GAMIFICATION (derived, like everything in Forge Rank) ────────────────────
+// The date each objective was first met — so XP lands on the day it was earned.
+export function objectiveDates(p) {
+  const ms = milestonesFor(p);
+  const results = [];
+  if (p?.baseline?.date) for (const id of EVENT_IDS) if (p.baseline[id] > 0 && !p.baseline.sub?.[id]) results.push({ id, raw: p.baseline[id], date: p.baseline.date });
+  for (const t of p?.tests || []) for (const [id, r] of Object.entries(t.events || {})) if (r && !r.sub) results.push({ id, raw: r.raw, date: t.date });
+  results.sort((a, b) => (a.date < b.date ? -1 : 1));
+  const out = [];
+  P500.phases.forEach((ph, i) => EVENT_IDS.forEach((id) => {
+    const target = ms[i][id];
+    if (target == null) return;
+    const hit = results.find((r) => r.id === id && meets(id, r.raw, target));
+    if (hit) out.push({ phase: ph.n, id, date: hit.date });
+  }));
+  return out;
+}
+
+// Weekly mission: every scheduled session but one done (at least four).
+// Only finished weeks count, plus the current week once it is met.
+export function missionWeeks(p, today) {
+  const wi = weekInfo(p, today);
+  if (!wi || wi.pre) return [];
+  const last = wi.done ? P500.weeks : wi.week || 0;
+  const out = [];
+  for (let w = 1; w <= last; w++) {
+    const mon = weekStartDate(p, w);
+    if (!mon) break;
+    const days = Array.from({ length: 7 }, (_, i) => dayStatus(p, addDays(mon, i), today));
+    const sched = days.filter((d) => d.plan?.kind === 'plan' && (REQUIRED_BLOCKS[d.plan.tpl] || []).length);
+    const done = sched.filter((d) => d.status === 'done');
+    const need = Math.min(sched.length, Math.max(4, sched.length - 1));
+    const doneDates = done.map((d) => d.plan.date).sort();
+    const met = sched.length > 0 && done.length >= need;
+    const finished = addDays(mon, 6) < today;
+    if (met || finished) out.push({ week: w, mon, scheduled: sched.length, completed: done.length, need, met, metOn: met ? (doneDates[need - 1] || addDays(mon, 6)) : null });
+  }
+  return out;
+}
+export function missionStreak(weeks) {
+  let n = 0;
+  for (let i = weeks.length - 1; i >= 0; i--) { if (weeks[i].met) n++; else break; }
+  return n;
+}
+
+// Event mastery: how far along the road from start to target each event is.
+export const TIER_NAMES = ['Unranked', 'Bronze', 'Silver', 'Gold', 'Platinum'];
+export function eventTiers(p) {
+  const tg = targetsFor(p), an = anchorsFor(p), best = bestResults(p);
+  return Object.fromEntries(EVENT_IDS.map((id) => {
+    const cur = best[id]?.raw, t = tg[id];
+    if (!(cur > 0) || !(t > 0)) return [id, { tier: 0, pct: null }];
+    const pct = progressTo(id, an[id], cur, t) ?? 0;
+    const tier = meets(id, cur, t) ? 4 : pct >= 0.75 ? 3 : pct >= 0.5 ? 2 : pct >= 0.25 ? 1 : 0;
+    return [id, { tier, pct }];
+  }));
+}
+
+// Service grade: a military-style rank earned by objectives, missions and
+// tests — the long arc of the year. Points: objective 4, mission 2,
+// full AFT 3, event check 1.
+export const GRADES = [
+  { min: 0,   name: 'Recruit',              abbr: 'RCT', chev: 0, rock: 0 },
+  { min: 5,   name: 'Private',              abbr: 'PV2', chev: 1, rock: 0 },
+  { min: 12,  name: 'Private First Class',  abbr: 'PFC', chev: 1, rock: 1 },
+  { min: 22,  name: 'Corporal',             abbr: 'CPL', chev: 2, rock: 0 },
+  { min: 35,  name: 'Sergeant',             abbr: 'SGT', chev: 3, rock: 0 },
+  { min: 52,  name: 'Staff Sergeant',       abbr: 'SSG', chev: 3, rock: 1 },
+  { min: 75,  name: 'Sergeant First Class', abbr: 'SFC', chev: 3, rock: 2 },
+  { min: 105, name: 'Master Sergeant',      abbr: 'MSG', chev: 3, rock: 3 },
+  { min: 140, name: 'Sergeant Major',       abbr: 'SGM', chev: 3, rock: 3, star: true },
+];
+export function serviceRecord(p, today) {
+  const missions = missionWeeks(p, today);
+  const metMissions = missions.filter((m) => m.met).length;
+  const obj = objectivesMet(p);
+  const aft = (p?.tests || []).filter((t) => t.kind === 'aft').length;
+  const checks = (p?.tests || []).filter((t) => t.kind !== 'aft').length;
+  const points = obj * 4 + metMissions * 2 + aft * 3 + checks;
+  let i = 0;
+  for (let k = 0; k < GRADES.length; k++) if (points >= GRADES[k].min) i = k;
+  const g = GRADES[i], nx = GRADES[i + 1] || null;
+  const phasesCleared = objectives(p).filter((ph) => ph.items.every((x) => x.met)).length;
+  return { ...g, index: i, points, next: nx, pct: nx ? (points - g.min) / (nx.min - g.min) : 1,
+           missions: metMissions, streak: missionStreak(missions), weeks: missions, obj, aft, checks, phasesCleared,
+           tiers: eventTiers(p) };
+}
 
 export function cftUnlocked(p, today) {
   const best = bestResults(p);

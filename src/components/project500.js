@@ -18,12 +18,13 @@ import { state, save, formatWeight, toStoredWeight, toDisplayWeight, weightUnitL
          distUnitLabel, toStoredDist, toDisplayDist } from '../store.js';
 import * as E from '../engine/project500.js';
 import { P500, DAY_TEMPLATES, CFT, RUN_LEVELS } from '../data/project500.js';
-import { AFT, TABLES, tableKey, bandForAge, scoreTest, scoreEvent, validateRows, eventDef } from '../data/aft-standards.js';
+import { AFT, bandForAge, scoreTest, scoreEvent, validateRows, eventDef } from '../data/aft-standards.js';
 import { EXERCISES } from '../data/exercises.js';
 import { suggestNextSet } from '../engine/overload.js';
 import { programProfile } from './program-coach.js';
 import { pageHeader, sectionHead, segGroup, toast } from './ui.js';
 import { exThumbHTML } from './modal.js';
+import { insigniaSVG, medalSVG } from './achievements.js';
 import { cue, fxBurst, countUp } from './feedback.js';
 import { initMetricChart } from './charts.js';
 
@@ -60,10 +61,9 @@ function parseEvent(id, v) {
 const inputVal = (id, raw) => (raw == null ? '' : id === 'mdl' ? toDisplayWeight(raw) : id === 'hrp' ? raw : E.fmtTime(raw));
 
 // ── SCORING CONTEXT ──────────────────────────────────────────────────────────
-function activeTable(p = P()) {
-  const k = tableKey(p.standard.std, p.standard.sex, p.standard.band);
-  return { key: k, table: p.tables?.[k] || TABLES[k] || null };
-}
+const activeTable = (p = P()) => E.activeTable(p);
+const catLabel = (p) => (p.standard.band && (p.standard.std === 'combat' || p.standard.sex)
+  ? `${p.standard.std} · ${p.standard.std === 'combat' ? 'sex-neutral' : p.standard.sex} · ${p.standard.band}` : null);
 function scoreOf(results, p = P()) { return scoreTest(results, activeTable(p).table, p.standard.std); }
 
 // ── LOG HOOK: sessions saved by the live logger ──────────────────────────────
@@ -165,7 +165,9 @@ function overviewHTML() {
   const phase = P500.phases[(wi.phase || 1) - 1];
   const rv = week ? E.weekReview(p, week, t, ctx()) : null;
   const doneAll = p.log.length;
+  const R = E.serviceRecord(p, t);
   return `
+${serviceHTML(p, R, rv)}
 <div class="card p5-hero">
   ${sc.total != null ? ring(sc.total / 500, sc.total, '/ 500 AFT') : ring(obj / 20, `${obj}/20`, 'objectives')}
   <div class="p5-hero-mid">
@@ -181,7 +183,7 @@ function overviewHTML() {
     <div><span class="label">Sessions</span><b class="mono">${doneAll}</b></div>
   </div>
 </div>
-${sc.total == null ? `<div class="p5-note">AFT points need the official scoring table for your category (${esc(p.standard.std)} · ${esc(p.standard.std === 'combat' ? 'sex-neutral' : p.standard.sex)} · ${esc(p.standard.band)}). <button class="p5-link" onclick="p5Tab('tests')">Load it on Tests →</button> Until then, progress is shown against your targets.</div>` : ''}
+${sc.total == null ? `<div class="p5-note">${catLabel(p) ? `AFT points need the official scoring table for your category (${esc(catLabel(p))}). <button class="p5-link" onclick="p5Tab('tests')">Load it on Tests →</button>` : `Pick your scoring category on <button class="p5-link" onclick="p5Tab('tests')">Tests</button> to score results.`} ${Object.values(E.targetsFor(p)).some(Boolean) ? 'Until then, progress is shown against your targets.' : `<button class="p5-link" onclick="p5Tab('setup')">Set your targets</button> to unlock phase milestones and objectives.`}</div>` : ''}
 ${todayCardHTML(true)}
 ${rv ? weekStripHTML(rv) : ''}
 ${sectionHead('The five events', 'Official AFT order')}
@@ -194,6 +196,8 @@ ${sectionHead('Progress vs plan', 'Actual results against the phase milestones')
 </div>
 ${sectionHead('Objectives', 'Five per phase — earned by real results')}
 ${objectivesHTML(p)}
+${sectionHead('Service record', `${R.name} · ${R.points} pts`)}
+${ladderHTML(R)}
 <div class="g2 p5-two">
   <div>${sectionHead('Upcoming tests')}${upcomingHTML(p, t)}</div>
   <div>${sectionHead('Recovery + adjustments')}${recoveryHTML(p, t, rv)}</div>
@@ -235,9 +239,10 @@ function trendSVG(p, id) {
 function eventCardHTML(p, ev, latest) {
   const cur = latest[ev.id]?.raw ?? null;
   const base = p.baseline?.[ev.id] && !p.baseline.sub?.[ev.id] ? p.baseline[ev.id] : null;
-  const target = P500.targets[ev.id];
+  const target = E.targetsFor(p)[ev.id];
   const wi = E.weekInfo(p, today()) || {};
-  const ms = P500.phases[(wi.phase || 1) - 1].milestones[ev.id];
+  const ms = E.milestonesFor(p)[(wi.phase || 1) - 1][ev.id];
+  const tier = E.eventTiers(p)[ev.id];
   const pts = cur != null ? scoreEvent(ev.id, cur, activeTable(p).table) : null;
   const prog = E.progressTo(ev.id, base, cur, target);
   const lower = ev.id === 'sdc' || ev.id === 'tmr';
@@ -246,7 +251,7 @@ function eventCardHTML(p, ev, latest) {
   const tq = ev.id === 'tmr' && cur ? E.twoMileEquivalents(cur) : null;
   return `
 <div class="card p5-ev ${E.meets(ev.id, cur, target) ? 'is-maxed' : ''}">
-  <div class="p5-ev-head"><span class="p5-ev-ic" aria-hidden="true">${EV_ICON[ev.id]}</span><div><div class="label">${ev.order} · ${esc(ev.short)}</div><div class="p5-ev-cur mono">${fmtEvent(ev.id, cur)}</div></div>
+  <div class="p5-ev-head"><span class="p5-ev-ic" aria-hidden="true" title="${E.TIER_NAMES[tier.tier]} tier">${tier.tier ? medalSVG({ tier: tier.tier, icon: EV_ICON[ev.id] }, { size: 30 }) : EV_ICON[ev.id]}</span><div><div class="label">${ev.order} · ${esc(ev.short)}</div><div class="p5-ev-cur mono">${fmtEvent(ev.id, cur)}</div></div>
     <div class="p5-ev-pts">${pts != null ? `<b class="mono">${pts}</b><span class="label">pts</span>` : ''}</div></div>
   ${tq ? `<div class="muted fs11 mono">${E.fmtTime(tq.pace)}/mi · ${tq.mph} mph on a treadmill</div>` : ''}
   <div class="gm-bar gm-bar-sm"><i style="width:${((prog || 0) * 100).toFixed(1)}%"></i></div>
@@ -254,9 +259,10 @@ function eventCardHTML(p, ev, latest) {
     <span class="muted">Baseline</span><span class="mono">${fmtEvent(ev.id, base)}</span>
     <span class="muted">Phase goal</span><span class="mono ${met ? 'p5-ok' : ''}">${fmtEvent(ev.id, ms)}${met ? ' ✓' : ''}</span>
     <span class="muted">Final target</span><span class="mono">${fmtEvent(ev.id, target)}</span>
-    <span class="muted">Improvement</span><span class="mono ${imp > 0 ? 'p5-ok' : ''}">${imp == null ? '—' : `${imp > 0 ? '+' : imp < 0 ? '−' : ''}${ev.id === 'mdl' ? formatWeight(Math.abs(imp)) : ev.id === 'hrp' ? Math.abs(imp) : E.fmtTime(Math.abs(imp))}`}</span>
+    <span class="muted">Improvement</span><span class="mono ${imp > 0 ? 'p5-ok' : ''}">${!imp ? '—' : `${imp > 0 ? '+' : imp < 0 ? '−' : ''}${ev.id === 'mdl' ? formatWeight(Math.abs(imp)) : ev.id === 'hrp' ? Math.abs(imp) : E.fmtTime(Math.abs(imp))}`}</span>
   </div>
   ${trendSVG(p, ev.id)}
+  <div class="p5-ev-tier fs10"><span class="label">${E.TIER_NAMES[tier.tier]}</span>${[1, 2, 3, 4].map((k) => `<i class="${k <= tier.tier ? 'on' : ''}"></i>`).join('')}</div>
 </div>`;
 }
 
@@ -265,7 +271,7 @@ function objectivesHTML(p) {
   return `<div class="p5-obj">${E.objectives(p).map((ph) => `
   <div class="card p5-obj-ph ${ph.phase === wi.phase ? 'is-now' : ''}">
     <div class="p5-obj-head"><span class="label">Phase ${ph.phase}</span><b>${esc(ph.name)}</b><span class="mono ${ph.items.every((i) => i.met) ? 'p5-ok' : 'muted'}">${ph.items.filter((i) => i.met).length}/5</span></div>
-    <div class="p5-obj-row">${ph.items.map((i) => `<span class="p5-medal ${i.met ? 'is-met' : ''}" title="${esc(eventDef(i.id).short)}: ${esc(fmtEvent(i.id, i.target))}${i.met ? ' — met' : ''}"><i aria-hidden="true">${i.met ? '★' : EV_ICON[i.id]}</i><span class="fs10 mono">${esc(fmtEvent(i.id, i.target)).replace(' reps', '')}</span></span>`).join('')}</div>
+    <div class="p5-obj-row">${ph.items.map((i) => `<span class="p5-medal ${i.met ? 'is-met' : ''}" title="${esc(eventDef(i.id).short)}: ${i.target == null ? 'needs a target and a starting result' : esc(fmtEvent(i.id, i.target))}${i.met ? ' — met' : ''}"><i aria-hidden="true">${i.met ? '★' : EV_ICON[i.id]}</i><span class="fs10 mono">${i.target == null ? '—' : esc(fmtEvent(i.id, i.target)).replace(' reps', '')}</span></span>`).join('')}</div>
   </div>`).join('')}</div>`;
 }
 
@@ -314,11 +320,13 @@ export function scheduleP500Page() {
   const proj = [];
   const base = p.baseline?.[id] > 0 && !p.baseline.sub?.[id] ? p.baseline[id] : null;
   if (base) proj.push({ x: ms(p.baseline.date < p.startDate ? p.baseline.date : p.startDate), y: toY(base) });
-  for (const ph of P500.phases) { const m = E.weekStartDate(p, ph.weeks[1]); if (m) proj.push({ x: ms(E.addDays(m, 6)), y: toY(ph.milestones[id]) }); }
+  const mss = E.milestonesFor(p);
+  P500.phases.forEach((ph, i) => { const m = E.weekStartDate(p, ph.weeks[1]); if (m && mss[i][id] != null) proj.push({ x: ms(E.addDays(m, 6)), y: toY(mss[i][id]) }); });
   const act = [];
   if (base) act.push({ x: ms(p.baseline.date), y: toY(base) });
   for (const t of [...p.tests].sort((a, b) => (a.date < b.date ? -1 : 1))) { const r = t.events?.[id]; if (r && !r.sub) act.push({ x: ms(t.date), y: toY(r.raw) }); }
   const xs = [...proj, ...act].map((q) => q.x);
+  if (!xs.length) return;
   initMetricChart('p5-chart', { xMin: Math.min(...xs), xMax: Math.max(...xs),
     datasets: [{ label: 'Milestone path', points: proj, color: '--text-3', kind: 'goal', unit, decimals: id === 'hrp' ? 0 : 1 },
                { label: 'Your results', points: act, color: '--fire', kind: 'line', unit, decimals: id === 'hrp' ? 0 : 2 }] });
@@ -452,7 +460,7 @@ function activityBlockHTML(pl, rec, d) {
   const soccer = pl.tpl === 'soccer';
   const opts = soccer ? ['Soccer'] : rec.options;
   return `<div class="card p5-block"><div class="label">${soccer ? 'Soccer' : 'Active recovery'}</div>
-  <p class="fs13">${soccer ? 'Recreational soccer or goalkeeper training — it counts as this week’s conditioning, not extra work.' : `<b>${rec.min}–${rec.min + 5} min easy ${opts[0].toLowerCase()}</b> (or ${opts.slice(1).join(' / ').toLowerCase()}), then 5 min each of hip, ankle and shoulder mobility.`}</p>
+  <p class="fs13">${soccer ? 'A soccer game or club training session — it counts as this week’s conditioning, not extra work.' : `<b>${rec.min}–${rec.min + 5} min easy ${opts[0].toLowerCase()}</b> (or ${opts.slice(1).join(' / ').toLowerCase()}), then 5 min each of hip, ankle and shoulder mobility.`}</p>
   <details class="p5-form"><summary class="label">Log it</summary>
     <div class="p5-fields">
       <label>Activity<select id="p5a-type" class="p5-in">${opts.map((o) => `<option>${o}</option>`).join('')}</select></label>
@@ -688,10 +696,10 @@ function testsHTML() {
 <div class="card p5-std">
   <div class="p5-fields">
     <label>Standard<select id="p5s-std" class="p5-in" onchange="p5SetStd()">${Object.entries(AFT.standards).map(([k, s]) => `<option value="${k}" ${p.standard.std === k ? 'selected' : ''}>${s.label}</option>`).join('')}</select></label>
-    <label>Sex<select id="p5s-sex" class="p5-in" onchange="p5SetStd()" ${p.standard.std === 'combat' ? 'disabled' : ''}><option value="male" ${p.standard.sex === 'male' ? 'selected' : ''}>Male</option><option value="female" ${p.standard.sex === 'female' ? 'selected' : ''}>Female</option></select></label>
-    <label>Age band<select id="p5s-band" class="p5-in" onchange="p5SetStd()">${AFT.ageBands.map((b) => `<option ${p.standard.band === b ? 'selected' : ''}>${b}</option>`).join('')}</select></label>
+    <label>Sex<select id="p5s-sex" class="p5-in" onchange="p5SetStd()" ${p.standard.std === 'combat' ? 'disabled' : ''}><option value="">—</option><option value="male" ${p.standard.sex === 'male' ? 'selected' : ''}>Male</option><option value="female" ${p.standard.sex === 'female' ? 'selected' : ''}>Female</option></select></label>
+    <label>Age band<select id="p5s-band" class="p5-in" onchange="p5SetStd()"><option value="">—</option>${AFT.ageBands.map((b) => `<option ${p.standard.band === b ? 'selected' : ''}>${b}</option>`).join('')}</select></label>
   </div>
-  <div class="p5-tbl-status ${table ? 'is-ok' : ''}">${table ? `✓ Scoring table loaded for ${esc(key)} (${Object.keys(table).length}/5 events)` : `No official scoring table for ${esc(key)} yet — results are recorded and compared with your targets, but not given AFT points. Load the table below.`}</div>
+  <div class="p5-tbl-status ${table ? 'is-ok' : ''}">${!key ? 'Choose your category to score results — the Army’s tables differ by age band (and by sex on the general standard).' : table ? `✓ Scoring table loaded for ${esc(key)} (${Object.keys(table).length}/5 events)` : `No official scoring table for ${esc(key)} yet — results are recorded and compared with your targets, but not given AFT points. Load the table below.`}</div>
   <div class="muted fs11">Pass rules (Army Directive 2025-06): general — 60+ points in every event; combat — 60+ in every event and 350+ overall. <a href="${AFT.sources[0].url}" target="_blank" rel="noopener noreferrer">Source</a></div>
 </div>
 ${last ? resultHTML(p, last, tests) : ''}
@@ -713,7 +721,7 @@ ${last ? resultHTML(p, last, tests) : ''}
 ${tests.length ? historyHTML(p, tests) : ''}
 ${cftHTML(p)}
 <details class="card p5-import"><summary class="label">Scoring tables</summary>
-  <p class="muted fs12">AFT points come from the Army’s official scoring scales, not a formula. This build ships without them: the official PDF could not be retrieved when it was made, and unofficial copies disagree. Paste the rows for your category from the <a href="${AFT.sources[1].url}" target="_blank" rel="noopener noreferrer">official AFT Scoring Scales</a> — one line per point value: <code>points, deadlift lb, push-ups, SDC m:ss, plank m:ss, 2-mile m:ss</code>. Leave a cell blank if that point value has no entry. The table is checked (every event must improve with points) and saved to <b>${esc(key)}</b>.</p>
+  <p class="muted fs12">AFT points come from the Army’s official scoring scales, not a formula. This build ships without them: the official PDF could not be retrieved when it was made, and unofficial copies disagree. Paste the rows for your category from the <a href="${AFT.sources[1].url}" target="_blank" rel="noopener noreferrer">official AFT Scoring Scales</a> — one line per point value: <code>points, deadlift lb, push-ups, SDC m:ss, plank m:ss, 2-mile m:ss</code>. Leave a cell blank if that point value has no entry. The table is checked (every event must improve with points) and saved to <b>${esc(key || 'your category (choose it above)')}</b>.</p>
   <textarea id="p5-tbl" class="p5-in p5-tbl" rows="6" placeholder="100, 350, 62, 1:30, 3:30, 13:25&#10;99, …"></textarea>
   <div class="p5-btns"><button class="btn btn-ghost btn-sm" onclick="p5ImportTable()">Check + save table</button>${p.tables?.[key] ? `<button class="btn btn-ghost btn-sm" onclick="p5DropTable()">Remove imported table</button>` : ''}</div>
 </details>`;
@@ -723,8 +731,8 @@ window.p5SetStd = () => {
   const p = P();
   const std = document.getElementById('p5s-std')?.value, sex = document.getElementById('p5s-sex')?.value, band = document.getElementById('p5s-band')?.value;
   if (AFT.standards[std]) p.standard.std = std;
-  if (['male', 'female'].includes(sex)) p.standard.sex = sex;
-  if (AFT.ageBands.includes(band)) p.standard.band = band;
+  p.standard.sex = ['male', 'female'].includes(sex) ? sex : null;
+  p.standard.band = AFT.ageBands.includes(band) ? band : null;
   save(); rerender();
 };
 
@@ -734,7 +742,7 @@ function resultHTML(p, t, tests) {
   const prev = tests.find((x) => x !== t && x.date <= t.date && x.kind === t.kind);
   const best = E.bestResults(p);
   const base = p.baseline || {};
-  const ranked = sc.events.filter((e) => e.raw != null && !e.sub).map((e) => ({ ...e, rel: e.points != null ? e.points / 100 : E.progressTo(e.id, base[e.id], e.raw, P500.targets[e.id]) ?? 0 }))
+  const ranked = sc.events.filter((e) => e.raw != null && !e.sub).map((e) => ({ ...e, rel: e.points != null ? e.points / 100 : E.progressTo(e.id, base[e.id], e.raw, E.targetsFor(p)[e.id]) ?? 0 }))
     .sort((a, b) => b.rel - a.rel);
   return `<div class="card p5-result ${t.kind === 'aft' ? 'is-aft' : ''}">
     <div class="p5-result-head">
@@ -752,7 +760,7 @@ function resultHTML(p, t, tests) {
         <span class="mono">${fmtEvent(e.id, e.raw)}</span>
         <span class="mono">${e.points != null ? `${e.points} pts` : e.sub ? 'not scored' : '—'}</span>
         <span class="mono fs11 ${d > 0 ? 'p5-ok' : d < 0 ? 'p5-bad' : 'muted'}">${d == null ? '' : `${d > 0 ? '▲' : d < 0 ? '▼' : '='} ${e.id === 'mdl' ? formatWeight(Math.abs(d)) : e.id === 'hrp' ? Math.abs(d) : E.fmtTime(Math.abs(d))}`}</span>
-        <div class="gm-bar gm-bar-sm p5-rr-bar"><i style="width:${e.points != null ? e.points : ((E.progressTo(e.id, base[e.id], e.raw, P500.targets[e.id]) || 0) * 100).toFixed(0)}%"></i></div></div>`;
+        <div class="gm-bar gm-bar-sm p5-rr-bar"><i style="width:${e.points != null ? e.points : ((E.progressTo(e.id, base[e.id], e.raw, E.targetsFor(p)[e.id]) || 0) * 100).toFixed(0)}%"></i></div></div>`;
     }).join('')}</div>
   </div>`;
 }
@@ -763,15 +771,12 @@ function historyHTML(p, tests) {
   </tbody></table></div><div class="muted fs10">* substitute movement — recorded, not scored</div></div>`;
 }
 
+// The announcement itself comes from the Forge Rank celebration queue, which
+// diffs Project 500 progress after every save; here the result card just
+// throws sparks when an objective falls.
 function celebrateObjectives(before, p) {
-  const after = E.objectivesMet(p);
-  if (after <= before) return;
-  setTimeout(() => {
-    const host = document.querySelector('.p5-result') || document.querySelector('.p5-body');
-    if (host) fxBurst(host, { kind: 'sparks', count: 40, power: 1.1 });
-    cue('milestone');
-    toast(`🎖 Objective${after - before > 1 ? 's' : ''} secured — ${after}/20`, { type: 'green', ms: 4500 });
-  }, 350);
+  if (E.objectivesMet(p) <= before) return;
+  setTimeout(() => { const host = document.querySelector('.p5-result') || document.querySelector('.p5-body'); if (host) fxBurst(host, { kind: 'sparks', count: 40, power: 1.1 }); }, 350);
 }
 
 window.p5SaveTest = () => {
@@ -830,6 +835,7 @@ window.p5ImportTable = () => {
   }
   if (!lines) return bad('p5-tbl', 'No rows found — each line starts with a point value.');
   const { key } = activeTable(p);
+  if (!key) return bad('p5-tbl', 'Choose your category above first — tables are per age band.');
   const clean = {}, rejected = [];
   for (const c of cols) { if (!rows[c].length) continue; const v = validateRows(c, rows[c]); if (v) clean[c] = v; else rejected.push(eventDef(c).short); }
   if (rejected.length) return bad('p5-tbl', `Rejected: ${rejected.join(', ')} — values must improve as points go up, one row per point value.`);
@@ -837,7 +843,7 @@ window.p5ImportTable = () => {
   p.tables[key] = { ...(p.tables[key] || {}), ...clean };
   save(); toast(`Table saved for ${key}: ${Object.keys(clean).length} event${Object.keys(clean).length === 1 ? '' : 's'}`, { type: 'green' }); rerender();
 };
-window.p5DropTable = () => { const p = P(); const { key } = activeTable(p); if (!confirm(`Remove the imported table for ${key}?`)) return; delete p.tables[key]; save(); rerender(); };
+window.p5DropTable = () => { const p = P(); const { key } = activeTable(p); if (!key) return; if (!confirm(`Remove the imported table for ${key}?`)) return; delete p.tables[key]; save(); rerender(); };
 
 // ── COMBAT FIELD TEST (optional) ─────────────────────────────────────────────
 function cftHTML(p) {
@@ -846,7 +852,7 @@ function cftHTML(p) {
   return `${sectionHead('Combat Field Test', 'Optional stretch goal')}
 <div class="card p5-cft ${u.unlocked ? '' : 'is-locked'}">
   <div class="p5-cft-head"><span class="p5-cft-ic" aria-hidden="true">${u.unlocked ? '🎖' : '🔒'}</span>
-    <div><b>Seven events, one clock</b><div class="muted fs12">Official limit ${E.fmtTime(CFT.limitSec)} · your goal ${E.fmtTime(CFT.goalSec)}${best ? ` · best <b class="mono">${E.fmtTime(best.totalSec)}</b>` : ''}</div></div></div>
+    <div><b>Seven events, one clock</b><div class="muted fs12">Official limit ${E.fmtTime(CFT.limitSec)}${p.prefs.cftGoal ? ` · your goal ${E.fmtTime(p.prefs.cftGoal)}` : ''}${best ? ` · best <b class="mono">${E.fmtTime(best.totalSec)}</b>` : ''}</div></div></div>
   <ol class="p5-cft-list fs12">${CFT.events.map((e) => `<li>${esc(e.name)}</li>`).join('')}</ol>
   <div class="muted fs11">Sequence per the Army’s April 2026 announcement — <a href="${CFT.source.url}" target="_blank" rel="noopener noreferrer">check current guidance</a> before you train for it; event details can change.</div>
   ${u.unlocked ? `<details class="p5-form"><summary class="label">Log a practice run</summary>
@@ -854,7 +860,7 @@ function cftHTML(p) {
     ${CFT.events.map((e) => `<label>${esc(e.name.split(' — ')[0])} split<input id="p5c-${e.id}" class="p5-in" placeholder="m:ss"></label>`).join('')}
     <label class="p5-wide">Notes<input id="p5c-note" class="p5-in" maxlength="300"></label></div>
     <button class="btn btn-fire btn-sm" onclick="p5SaveCft()">Save</button></details>
-    ${(p.cft || []).length ? `<div class="p5-cft-hist">${[...p.cft].sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 6).map((c) => `<span class="mono fs12 ${c.totalSec <= CFT.goalSec ? 'p5-ok' : c.totalSec <= CFT.limitSec ? '' : 'p5-bad'}">${esc(c.date)} · ${E.fmtTime(c.totalSec)}</span>`).join('')}</div>` : ''}`
+    ${(p.cft || []).length ? `<div class="p5-cft-hist">${[...p.cft].sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 6).map((c) => `<span class="mono fs12 ${c.totalSec <= (p.prefs.cftGoal || 0) ? 'p5-ok' : c.totalSec <= CFT.limitSec ? '' : 'p5-bad'}">${esc(c.date)} · ${E.fmtTime(c.totalSec)}</span>`).join('')}</div>` : ''}`
   : `<div class="p5-note">Unlocks for demanding practice once you have: ${u.need.map(esc).join(' · ')}.</div>`}
 </div>`;
 }
@@ -867,8 +873,9 @@ window.p5SaveCft = () => {
   const splits = {};
   for (const e of CFT.events) { const v = E.parseTime(document.getElementById(`p5c-${e.id}`)?.value); if (v > 0) splits[e.id] = v; }
   p.cft.push({ id: Date.now(), date, totalSec: total, splits, note: (document.getElementById('p5c-note')?.value || '').replace(/[<>"]/g, '').slice(0, 300) });
-  save(); cue(total <= CFT.goalSec ? 'achievement' : 'setDone');
-  toast(total <= CFT.goalSec ? `Under ${E.fmtTime(CFT.goalSec)} — stretch goal met!` : total <= CFT.limitSec ? 'Inside the 30-minute limit' : 'Logged — over the 30-minute limit, keep building', { type: total <= CFT.limitSec ? 'green' : 'fire' });
+  const goal = p.prefs.cftGoal || 0;
+  save(); cue(total <= goal ? 'achievement' : 'setDone');
+  toast(total <= goal ? `Under ${E.fmtTime(goal)} — your goal is met!` : total <= CFT.limitSec ? 'Inside the 30-minute limit' : 'Logged — over the 30-minute limit, keep building', { type: total <= CFT.limitSec ? 'green' : 'fire' });
   rerender();
 };
 
@@ -899,13 +906,52 @@ ${sectionHead('Recommendations', 'From what you logged')}
 ${next ? `${sectionHead(`Week ${w + 1}`, E.isDeload(w + 1) ? 'Deload week' : '')}<div class="card p5-list">${Array.from({ length: 7 }, (_, i) => E.dayPlan(p, E.addDays(next, i))).map((pl) => pl && pl.kind === 'plan' ? `<button class="p5-row" onclick="p5Open('${pl.date}')"><span>${pl.icon}</span><span><b>${esc(pl.name)}</b><span class="muted fs11">${fmtDate(pl.date)} · ${esc(pl.dur)}</span></span></button>` : '').join('')}</div>` : ''}`;
 }
 
+window.p5TargetsFromTable = () => {
+  const { table } = activeTable(); if (!table) return;
+  const fill = (id, v, fmt) => { const el = document.getElementById(id); if (el && !el.value && v != null) el.value = fmt(v); };
+  fill('p5u-t-mdl', E.table100(table, 'mdl'), (x) => toDisplayWeight(x));
+  fill('p5u-t-hrp', E.table100(table, 'hrp'), (x) => x);
+  for (const id of ['sdc', 'plk', 'tmr']) fill(`p5u-t-${id}`, E.table100(table, id), E.fmtTime);
+  toast('Filled from the table — save to keep them', { type: 'green' });
+};
+
+// ── SERVICE RECORD (the gamified spine of Project 500) ───────────────────────
+function serviceHTML(p, R, rv) {
+  const wk = rv ? R.weeks.find((w) => w.week === rv.week) : null;
+  const need = rv ? Math.min(rv.scheduled, Math.max(4, rv.scheduled - 1)) : 0;
+  const done = rv ? rv.completed : 0;
+  const c = 2 * Math.PI * 22;
+  return `
+<div class="card p5-svc">
+  <button class="p5-svc-id" onclick="p5Tab('overview');document.getElementById('p5-ladder')?.scrollIntoView({behavior:'smooth',block:'center'})" aria-label="Service grade ${esc(R.name)}">
+    <span class="p5-svc-ins">${insigniaSVG(R, { size: 64 })}</span>
+    <span class="p5-svc-who"><span class="label">Service grade · ${R.points} pts</span><b>${esc(R.name)}</b>
+      <span class="gm-bar gm-bar-sm"><i style="width:${(R.pct * 100).toFixed(1)}%"></i></span>
+      <span class="muted fs11">${R.next ? `${R.next.min - R.points} pts to ${esc(R.next.name)}` : 'Top grade reached'}</span></span>
+  </button>
+  <div class="p5-svc-mission">
+    <span class="p5-mring"><svg viewBox="0 0 52 52" width="52" height="52" aria-hidden="true"><circle cx="26" cy="26" r="22" class="gm-ring-track" stroke-width="5"/><circle cx="26" cy="26" r="22" class="gm-ring-fill ${wk?.met ? 'is-met' : ''}" stroke-width="5" stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${(c * (1 - Math.min(1, need ? done / need : 0))).toFixed(1)}" style="--c:${c.toFixed(1)}" transform="rotate(-90 26 26)"/></svg><b class="mono">${done}/${need || '—'}</b></span>
+    <span><span class="label">Weekly mission</span><b>${wk?.met ? 'Complete ✓' : rv ? `${Math.max(0, need - done)} session${need - done === 1 ? '' : 's'} to go` : 'Starts week 1'}</b>
+      <span class="muted fs11">${R.streak > 1 ? `🔥 ${R.streak} in a row · ` : ''}+75 XP · ${R.missions} complete</span></span>
+  </div>
+  <div class="p5-svc-points muted fs11">Objective 4 · mission 2 · full AFT 3 · event check 1</div>
+</div>`;
+}
+function ladderHTML(R) {
+  return `<div class="card p5-ladder" id="p5-ladder" role="list">${E.GRADES.map((g, i) => `<div class="p5-rung ${i < R.index ? 'is-done' : i === R.index ? 'is-here' : ''}" role="listitem" aria-label="${esc(g.name)}, ${g.min} points">
+    <span class="p5-rung-ins">${insigniaSVG({ ...g, index: i }, { size: i === R.index ? 46 : 34 })}</span><span class="p5-rung-name">${esc(g.abbr)}</span><span class="mono fs10 muted">${g.min}</span></div>`).join('<span class="p5-rung-link" aria-hidden="true"></span>')}</div>`;
+}
+
 // ── SETUP / BASELINE ─────────────────────────────────────────────────────────
 function setupHTML(first) {
-  const p = P() || E.newProgram({ start: nextStart() });
+  const p = P() || E.newProgram();
   const b = p.baseline || {};
   const prof = state.profile || {};
   const lastW = (state.bodyLog || []).find((e) => Number(e.weight) > 0);
-  const band = bandForAge(prof.age) || p.standard.band;
+  const band = p.standard.band || bandForAge(prof.age);
+  const sex = p.standard.sex || (['male', 'female'].includes(prof.sex) ? prof.sex : null);
+  const tg = p.targets || {};
+  const { table } = activeTable(p);
   const eq = p.prefs.equip || {};
   const chk = (k, l) => `<label class="p5-check"><input type="checkbox" id="p5e-${k}" ${eq[k] !== false ? 'checked' : ''}> ${l}</label>`;
   const numIn = (id, v, attrs = '') => `<input id="${id}" class="p5-in" type="number" inputmode="decimal" ${attrs} value="${v ?? ''}">`;
@@ -918,14 +964,14 @@ function setupHTML(first) {
     <label>Preferred session time<input type="time" id="p5u-time" class="p5-in" value="${esc(p.prefs.time)}"></label>
     <label>Saturday default<select id="p5u-sat" class="p5-in"><option value="military" ${p.prefs.sat !== 'soccer' ? 'selected' : ''}>Military conditioning</option><option value="soccer" ${p.prefs.sat === 'soccer' ? 'selected' : ''}>Soccer</option></select></label>
     <label>Scoring standard<select id="p5u-std" class="p5-in">${Object.entries(AFT.standards).map(([k, s]) => `<option value="${k}" ${p.standard.std === k ? 'selected' : ''}>${s.label}</option>`).join('')}</select></label>
-    <label>Sex (for general tables)<select id="p5u-sex" class="p5-in"><option value="male" ${p.standard.sex !== 'female' ? 'selected' : ''}>Male</option><option value="female" ${p.standard.sex === 'female' ? 'selected' : ''}>Female</option></select></label>
-    <label>Age band<select id="p5u-band" class="p5-in">${AFT.ageBands.map((x) => `<option ${band === x ? 'selected' : ''}>${x}</option>`).join('')}</select></label>
+    <label>Sex (for general tables)<select id="p5u-sex" class="p5-in"><option value="">—</option><option value="male" ${sex === 'male' ? 'selected' : ''}>Male</option><option value="female" ${sex === 'female' ? 'selected' : ''}>Female</option></select></label>
+    <label>Age band<select id="p5u-band" class="p5-in"><option value="">—</option>${AFT.ageBands.map((x) => `<option ${band === x ? 'selected' : ''}>${x}</option>`).join('')}</select></label>
   </div>
   <div class="p5-equip"><span class="label">Equipment you can use</span>${chk('trapbar', 'Trap / hex bar')}${chk('sled', 'Sled')}${chk('pool', 'Pool')}${chk('dumbbells', 'Dumbbells')}</div>
   <h3 class="p5-h3">Body + recovery <span class="muted fs11">(optional)</span></h3>
   <div class="p5-fields">
     <label>Body weight (${weightUnitLabel()})${numIn('p5u-weight', b.weight ? toDisplayWeight(b.weight) : lastW ? toDisplayWeight(lastW.weight) : '', 'min="50" step="0.1"')}</label>
-    <label>Height (cm)${numIn('p5u-height', b.height ?? (prof.height > 0 ? Math.round(prof.height) : ''), 'min="100" max="250"')}</label>
+    <label>Height (cm)${numIn('p5u-height', b.height ?? (prof.height >= 100 && prof.height <= 250 ? Math.round(prof.height) : ''), 'min="100" max="250"')}</label>
     <label>Waist (in)${numIn('p5u-waist', b.waist, 'min="15" max="100" step="0.1"')}</label>
     <label>Resting heart rate${numIn('p5u-rhr', b.rhr, 'min="25" max="150"')}</label>
     <label>Max heart rate (if known)${numIn('p5u-mhr', b.maxHr, 'min="100" max="230"')}</label>
@@ -941,19 +987,25 @@ function setupHTML(first) {
     <label>2-mile run (m:ss)<input id="p5u-tmr" class="p5-in" placeholder="18:30" value="${b.tmr ? E.fmtTime(b.tmr) : ''}"></label>
     <label>Sprint-drag-carry (m:ss)<input id="p5u-sdc" class="p5-in" placeholder="2:20" value="${b.sdc ? E.fmtTime(b.sdc) : ''}"></label>
   </div>
+  <h3 class="p5-h3">Your targets <span class="muted fs11">(optional — the year’s finish line)</span></h3>
+  <p class="muted fs12">Set where each event should end up. Phase milestones are worked out from your own starting point: each phase closes a quarter of the gap. Leave a target blank to use the 100-point value from a loaded scoring table.</p>
+  <div class="p5-fields">
+    <label>Deadlift, 3 reps (${weightUnitLabel()})${numIn('p5u-t-mdl', tg.mdl ? toDisplayWeight(tg.mdl) : '', `min="0" step="${weightInputStep()}"`)}</label>
+    <label>Hand-release push-ups${numIn('p5u-t-hrp', tg.hrp, 'min="1" max="300" inputmode="numeric"')}</label>
+    <label>Sprint-drag-carry (m:ss)<input id="p5u-t-sdc" class="p5-in" placeholder="m:ss" value="${tg.sdc ? E.fmtTime(tg.sdc) : ''}"></label>
+    <label>Plank (m:ss)<input id="p5u-t-plk" class="p5-in" placeholder="m:ss" value="${tg.plk ? E.fmtTime(tg.plk) : ''}"></label>
+    <label>2-mile run (m:ss)<input id="p5u-t-tmr" class="p5-in" placeholder="m:ss" value="${tg.tmr ? E.fmtTime(tg.tmr) : ''}"></label>
+    <label>Combat Field Test goal (m:ss)<input id="p5u-cft" class="p5-in" placeholder="m:ss" value="${p.prefs.cftGoal ? E.fmtTime(p.prefs.cftGoal) : ''}"></label>
+  </div>
+  ${table ? `<button class="btn btn-ghost btn-sm" onclick="p5TargetsFromTable()">Fill blanks with the table’s 100-point values</button>` : ''}
   <div class="p5-btns"><button class="btn btn-fire" onclick="p5SaveSetup(${first ? 1 : 0})">${first ? 'Start Project 500' : 'Save changes'}</button>
   ${!first ? `<button class="btn btn-ghost btn-sm" onclick="p5SetDlWork()">Set deadlift working weight…</button><button class="btn btn-danger btn-sm" onclick="p5Reset()">Remove Project 500</button>` : ''}</div>
   ${!first ? '<p class="muted fs11">Removing Project 500 deletes its schedule, tests and check-ins. Workouts, runs and activities you logged stay in your history.</p>' : ''}
 </div>`;
 }
-function nextStart() {
-  const t = today();
-  if (t <= P500.defaultStart) return P500.defaultStart;
-  return E.weekdayIdx(t) === 0 ? t : E.addDays(E.mondayOf(t), 7);
-}
 
 window.p5SaveSetup = (first) => {
-  const p = state.p500 || E.newProgram({ start: nextStart() });
+  const p = state.p500 || E.newProgram();
   const v = (id) => document.getElementById(id)?.value?.trim() ?? '';
   const start = v('p5u-start');
   if (!E.isYMD(start)) return bad('p5u-start', 'Pick a start date.');
@@ -963,8 +1015,10 @@ window.p5SaveSetup = (first) => {
     weight: num('p5u-weight', 1, 2000), height: num('p5u-height', 100, 250), waist: num('p5u-waist', 15, 100), rhr: num('p5u-rhr', 25, 150),
     maxHr: num('p5u-mhr', 100, 230), dl3: num('p5u-dl3', 1, 3000), hrp: num('p5u-hrp', 0, 300),
     plk: time('p5u-plk', 1, 3600), tmr: time('p5u-tmr', 300, 7200), sdc: time('p5u-sdc', 20, 1800),
+    tmdl: num('p5u-t-mdl', 1, 3000), thrp: num('p5u-t-hrp', 1, 300), tsdc: time('p5u-t-sdc', 20, 1800), tplk: time('p5u-t-plk', 1, 3600),
+    ttmr: time('p5u-t-tmr', 300, 7200), cft: time('p5u-cft', 300, 3600),
   };
-  const ids = { weight: 'p5u-weight', height: 'p5u-height', waist: 'p5u-waist', rhr: 'p5u-rhr', maxHr: 'p5u-mhr', dl3: 'p5u-dl3', hrp: 'p5u-hrp', plk: 'p5u-plk', tmr: 'p5u-tmr', sdc: 'p5u-sdc' };
+  const ids = { tmdl: 'p5u-t-mdl', thrp: 'p5u-t-hrp', tsdc: 'p5u-t-sdc', tplk: 'p5u-t-plk', ttmr: 'p5u-t-tmr', cft: 'p5u-cft', weight: 'p5u-weight', height: 'p5u-height', waist: 'p5u-waist', rhr: 'p5u-rhr', maxHr: 'p5u-mhr', dl3: 'p5u-dl3', hrp: 'p5u-hrp', plk: 'p5u-plk', tmr: 'p5u-tmr', sdc: 'p5u-sdc' };
   for (const [k, x] of Object.entries(f)) if (Number.isNaN(x)) return bad(ids[k], 'That value is out of range — check it or leave it blank.');
   const weightLb = f.weight != null ? Math.round(toStoredWeight(f.weight) * 10) / 10 : null;
   const dl3Lb = f.dl3 != null ? Math.round(toStoredWeight(f.dl3) * 10) / 10 : null;
@@ -973,8 +1027,10 @@ window.p5SaveSetup = (first) => {
   p.prefs.sat = v('p5u-sat') === 'soccer' ? 'soccer' : 'military';
   p.prefs.equip = Object.fromEntries(['trapbar', 'sled', 'pool', 'dumbbells'].map((k) => [k, !!document.getElementById(`p5e-${k}`)?.checked]));
   if (AFT.standards[v('p5u-std')]) p.standard.std = v('p5u-std');
-  if (['male', 'female'].includes(v('p5u-sex'))) p.standard.sex = v('p5u-sex');
-  if (AFT.ageBands.includes(v('p5u-band'))) p.standard.band = v('p5u-band');
+  p.standard.sex = ['male', 'female'].includes(v('p5u-sex')) ? v('p5u-sex') : null;
+  p.standard.band = AFT.ageBands.includes(v('p5u-band')) ? v('p5u-band') : null;
+  p.targets = Object.fromEntries([['mdl', f.tmdl != null ? Math.round(toStoredWeight(f.tmdl)) : null], ['hrp', f.thrp], ['sdc', f.tsdc], ['plk', f.tplk], ['tmr', f.ttmr]].filter(([, x]) => x != null));
+  p.prefs.cftGoal = f.cft;
   const prevB = p.baseline || {};
   const b = { date: prevB.date || today() };
   if (weightLb) b.weight = weightLb;
@@ -1037,8 +1093,8 @@ export function p500DashCardHTML() {
   const wi = E.weekInfo(p, t) || {};
   const label = pl.kind === 'pre' ? `Starts ${fmtDate(p.startDate)}` : pl.kind === 'paused' ? 'Paused' : `W${pl.week} · ${pl.name}`;
   return `<button class="card p5-dash" onclick="navigate('project500')">
-    <span class="p5-dash-ic" aria-hidden="true">🎖</span>
+    <span class="p5-dash-ic" aria-hidden="true">${insigniaSVG(E.serviceRecord(p, t), { size: 34 })}</span>
     <span class="p5-dash-body"><span class="label">Project 500${wi.week ? ` · Phase ${wi.phase}` : ''}</span><b>${esc(label)}</b>
-      <span class="muted fs11">${pl.kind === 'plan' ? `${STATUS_LABEL[st.status] || ''} · ${esc(pl.dur)}` : ''} · ${E.objectivesMet(p)}/20 objectives</span></span>
+      <span class="muted fs11">${pl.kind === 'plan' ? `${STATUS_LABEL[st.status] || ''} · ${esc(pl.dur)} · ` : ''}${esc(E.serviceRecord(p, t).abbr)} · ${E.objectivesMet(p)}/20 objectives</span></span>
     <span class="p5-dash-go" aria-hidden="true">›</span></button>`;
 }

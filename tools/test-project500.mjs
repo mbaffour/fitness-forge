@@ -25,7 +25,7 @@ eq('parseTime rejects 1:75', E.parseTime('1:75'), null);
 eq('parseTime rejects junk', E.parseTime('abc'), null);
 eq('fmtTime 805', E.fmtTime(805), '13:25');
 eq('fmtTime 3730', E.fmtTime(3730), '1:02:10');
-// The brief's reference table: 2-mile time → mile pace → treadmill mph.
+// Reference table: 2-mile time → mile pace → treadmill mph.
 for (const [t, pace, speed] of [['20:00', '10:00', 6.0], ['18:00', '9:00', 6.7], ['16:00', '8:00', 7.5], ['15:00', '7:30', 8.0], ['14:00', '7:00', 8.6], ['13:25', '6:43', 8.9]]) {
   const q = E.twoMileEquivalents(E.parseTime(t));
   eq(`2-mile ${t} → pace`, E.fmtTime(q.pace), pace);
@@ -159,11 +159,58 @@ eq('empty check-in', E.readinessScore({}), null);
 eq('lower is better for runs', [E.meets('tmr', 800, 805), E.meets('tmr', 810, 805)], [true, false]);
 eq('progress half way', E.progressTo('mdl', 200, 275, 350), 0.5);
 eq('progress for time event', E.progressTo('tmr', 1200, 1000, 800), 0.5);
+// No personal defaults ship: a new program assumes nobody's category or targets.
+const fresh = E.newProgram();
+eq('no assumed sex / age band', [fresh.standard.sex, fresh.standard.band], [null, null]);
+eq('no built-in targets', fresh.targets, {});
+eq('default start is a Monday', E.weekdayIdx(fresh.startDate), 0);
+eq('nothing to score against by default', E.activeTable(fresh).table, null);
+eq('no targets → no milestones invented', E.milestonesFor(fresh).every((m) => Object.values(m).every((v) => v == null)), true);
+// Milestones come from the person's own start and target: 25 / 50 / 75 / 100 %.
 const ob = E.newProgram({ start: '2026-11-30' });
-ob.baseline = { date: '2026-11-28', hrp: 31, plk: 125 };
-ob.tests = [{ date: '2026-12-22', kind: 'check', events: { tmr: { raw: 1075 }, mdl: { raw: 230, sub: true } } }];
-eq('objectives met (substitute ignored)', E.objectivesMet(ob), 3);
+ob.targets = { mdl: 300, hrp: 60, tmr: 800, plk: 180 };
+ob.baseline = { date: '2026-11-28', mdl: 200, hrp: 20, tmr: 1200 };
+eq('deadlift milestones', E.milestonesFor(ob).map((m) => m.mdl), [225, 250, 275, 300]);
+eq('push-up milestones', E.milestonesFor(ob).map((m) => m.hrp), [30, 40, 50, 60]);
+eq('2-mile milestones (lower is better)', E.milestonesFor(ob).map((m) => m.tmr), [1100, 1000, 900, 800]);
+eq('no starting point → only the final target', E.milestonesFor(ob).map((m) => m.plk), [null, null, null, 180]);
+eq('no target → nothing', E.milestonesFor(ob).map((m) => m.sdc), [null, null, null, null]);
+ob.tests = [{ id: 1, date: '2026-12-22', kind: 'check', events: { tmr: { raw: 1095 }, hrp: { raw: 31 }, mdl: { raw: 260, sub: true } } }];
+eq('objectives met (substitute ignored)', E.objectivesMet(ob), 2);
+eq('objective dates', E.objectiveDates(ob).map((o) => `${o.phase}${o.id}@${o.date}`), ['1hrp@2026-12-22', '1tmr@2026-12-22']);
+eq('first result anchors when no baseline', (() => { const z = E.newProgram({ start: '2026-11-30' }); z.targets = { plk: 180 }; z.tests = [{ id: 1, date: '2026-12-01', kind: 'check', events: { plk: { raw: 60 } } }]; return E.milestonesFor(z).map((m) => m.plk); })(), [90, 120, 150, 180]);
+const FIX100 = { mdl: [[60, 150], [100, 340]] };
+const tb = E.newProgram({ start: '2026-11-30' });
+tb.standard = { std: 'general', sex: 'male', band: '27-31' };
+tb.tables = { 'general:male:27-31': FIX100 };
+eq('target falls back to a loaded table’s 100-point value', E.targetsFor(tb).mdl, 340);
+tb.targets = { mdl: 320 };
+eq('own target wins over the table', E.targetsFor(tb).mdl, 320);
+eq('combat category ignores sex', (() => { const c = E.newProgram(); c.standard = { std: 'combat', sex: null, band: '22-26' }; return E.activeTable(c).key; })(), 'combat:any:22-26');
 eq('CFT locked until base built', E.cftUnlocked(ob, '2026-12-28').unlocked, false);
+
+// ── Gamification ──
+const g = E.newProgram({ start: '2026-11-30' });
+const wk1 = ['2026-11-30', '2026-12-01', '2026-12-02', '2026-12-03', '2026-12-04', '2026-12-05'];
+g.log = [...wk1.slice(0, 5).flatMap((d, i) => (i === 1 || i === 4 ? [{ date: d, block: 'run' }, { date: d, block: 'lift' }] : [{ date: d, block: i === 2 ? 'activity' : 'lift' }])),
+         { date: '2026-12-07', block: 'lift' }, { date: '2026-12-08', block: 'run' }];
+const mw = E.missionWeeks(g, '2026-12-14');
+eq('mission: 5 of 6 meets it, on the 5th session', [mw[0].met, mw[0].completed, mw[0].need, mw[0].metOn], [true, 5, 5, '2026-12-04']);
+eq('mission: a thin week does not', [mw[1].met, mw[1].completed], [false, 1]);
+eq('mission streak breaks on a missed week', E.missionStreak(mw), 0);
+eq('current unmet week is not counted yet', E.missionWeeks(g, '2026-12-09').length, 1);
+const sr = E.serviceRecord(g, '2026-12-14');
+eq('service record: 1 mission → 2 points, Recruit', [sr.points, sr.abbr], [2, 'RCT']);
+const big = E.newProgram({ start: '2026-11-30' });
+big.targets = { mdl: 300, hrp: 60, tmr: 800, plk: 180, sdc: 100 };
+big.baseline = { date: '2026-11-28', mdl: 200, hrp: 20, tmr: 1200, plk: 60, sdc: 160 };
+big.tests = [{ id: 1, date: '2027-03-01', kind: 'aft', events: { mdl: { raw: 260 }, hrp: { raw: 45 }, sdc: { raw: 130 }, plk: { raw: 125 }, tmr: { raw: 990 } } }];
+const br = E.serviceRecord(big, '2027-03-02');
+eq('service record points (10 objectives + 1 AFT)', [br.obj, br.points, br.abbr], [10, 43, 'SGT']);
+eq('phase 1 cleared', br.phasesCleared, 2);
+eq('event tiers', Object.fromEntries(Object.entries(br.tiers).map(([k, v]) => [k, v.tier])), { mdl: 2, hrp: 2, sdc: 2, plk: 2, tmr: 2 });
+eq('maxed event is platinum', (() => { big.tests.push({ id: 2, date: '2027-06-01', kind: 'check', events: { tmr: { raw: 790 } } }); return E.eventTiers(big).tmr.tier; })(), 4);
+eq('grades climb', E.GRADES.every((x, i, a) => !i || x.min > a[i - 1].min), true);
 
 // ── AFT scoring logic (synthetic fixture — NOT an official table) ──
 const FIX = { mdl: [[0, 0], [60, 150], [80, 250], [100, 340]], tmr: [[0, 1800], [60, 1200], [100, 800]] };
@@ -193,6 +240,12 @@ eq('review: run miles + pace', [rv.runMiles, E.fmtTime(rv.runPace)], [3, '10:00'
 truthy('review: sleep recommendation', rv.recs.some((x) => /Sleep averaged 6\.0/.test(x.text)));
 truthy('review: soccer counted', rv.recs.some((x) => /soccer/.test(x.text)));
 truthy('review: missed session advice', rv.recs.some((x) => /Missed/.test(x.text)));
+
+// ── Sanitiser keeps the person's own settings, drops junk ──
+const sz = E.sanitizeP500({ startDate: '2026-11-30', targets: { mdl: 350, hrp: '<b>', tmr: -1 }, prefs: { cftGoal: 1490 }, standard: { std: 'general', sex: 'x', band: '99-100' } });
+eq('sanitise targets', sz.targets, { mdl: 350 });
+eq('sanitise CFT goal', sz.prefs.cftGoal, 1490);
+eq('sanitise category', [sz.standard.sex, sz.standard.band], [null, null]);
 
 // ── Calendar export ──
 const ics = E.toICS(p, '2026-11-30', { weeks: 1 });

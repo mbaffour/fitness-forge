@@ -11,23 +11,20 @@ export const P500 = {
   id: 'project500',
   name: 'Project 500',
   weeks: 52,
-  defaultStart: '2026-11-30',
   defaultTime: '06:30',
-  // The person's own final targets, per the brief (male 27–31 reference).
-  targets: { mdl: 350, hrp: 62, sdc: 90, plk: 210, tmr: 805 },
+  // No one's numbers live here. Each person sets their own final targets (or
+  // takes the 100-point values from a loaded scoring table), and the phase
+  // milestones are worked out from their own baseline: each phase closes this
+  // share of the gap between where they started and where they are going.
   phases: [
-    { n: 1, name: 'Foundation',            weeks: [1, 13],  score: 350,
-      focus: 'Lifting technique, base strength, aerobic base, mobility and consistency.',
-      milestones: { mdl: 225, hrp: 30, sdc: 130, plk: 120, tmr: 1080 } },
-    { n: 2, name: 'Strength & Endurance',  weeks: [14, 26], score: 400,
-      focus: 'Progressive resistance, more running, muscular endurance, carries and sled work.',
-      milestones: { mdl: 275, hrp: 45, sdc: 115, plk: 165, tmr: 960 } },
-    { n: 3, name: 'Performance',           weeks: [27, 39], score: 450,
-      focus: 'Running speed, explosive strength, heavier lifting, conditioning under fatigue.',
-      milestones: { mdl: 315, hrp: 55, sdc: 100, plk: 195, tmr: 870 } },
-    { n: 4, name: 'Peak',                  weeks: [40, 52], score: 500,
-      focus: 'Sharpen all five events, full practice tests, transitions, peak for test day.',
-      milestones: { mdl: 350, hrp: 62, sdc: 90, plk: 210, tmr: 805 } },
+    { n: 1, name: 'Foundation',            weeks: [1, 13],  score: 350, share: 0.25,
+      focus: 'Lifting technique, base strength, aerobic base, mobility and consistency.' },
+    { n: 2, name: 'Strength & Endurance',  weeks: [14, 26], score: 400, share: 0.5,
+      focus: 'Progressive resistance, more running, muscular endurance, carries and sled work.' },
+    { n: 3, name: 'Performance',           weeks: [27, 39], score: 450, share: 0.75,
+      focus: 'Running speed, explosive strength, heavier lifting, conditioning under fatigue.' },
+    { n: 4, name: 'Peak',                  weeks: [40, 52], score: 500, share: 1,
+      focus: 'Sharpen all five events, full practice tests, transitions, peak for test day.' },
   ],
   // Deload every 4th week; full simulated AFT at the end of each phase block
   // and on the final week. Event checks happen in the other deload weeks.
@@ -44,7 +41,7 @@ export const DAY_TEMPLATES = {
   full:     { id: 'full',     name: 'Full-body strength',             dur: '55–65 min', load: 'hard',     stress: ['hinge', 'legs'], icon: '💪' },
   aerobic:  { id: 'aerobic',  name: 'Aerobic endurance + core',       dur: '40–60 min', load: 'moderate', stress: ['run-easy'],      icon: '🏃' },
   military: { id: 'military', name: 'Military conditioning',          dur: '40–55 min', load: 'moderate', stress: ['run-mod', 'carry'], icon: '🎖' },
-  soccer:   { id: 'soccer',   name: 'Soccer / goalkeeper session',    dur: 'your session', load: 'moderate', stress: ['run-mod'],   icon: '⚽' },
+  soccer:   { id: 'soccer',   name: 'Soccer session',    dur: 'your session', load: 'moderate', stress: ['run-mod'],   icon: '⚽' },
   rest:     { id: 'rest',     name: 'Rest + weekly review',           dur: 'optional walk', load: 'rest', stress: [],                icon: '☾' },
   // Assessment days replace the normal session in their week.
   checkA:   { id: 'checkA',   name: 'Event check: push-ups + plank',  dur: '30–40 min', load: 'moderate', stress: [],                icon: '🎯', test: ['hrp', 'plk'] },
@@ -72,7 +69,6 @@ export const SUBSTITUTES = {
 export const CFT = {
   name: 'Combat Field Test',
   limitSec: 1800,
-  goalSec: 1500,
   source: { label: 'U.S. Army — new Combat Field Test (22 Apr 2026)', url: 'https://www.army.mil/article/291880' },
   events: [
     { id: 'run1',   name: '1-mile run' },

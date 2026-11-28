@@ -15,7 +15,7 @@
 // What is NOT shipped: the point tables. They live only in the official
 // "AFT Scoring Scales" PDF (effective 1 June 2025), which could not be fetched
 // from army.mil when this was built, and third-party calculators disagree with
-// one another. Rather than guess — the brief forbids estimating scores — the
+// one another. Rather than guess — scores must never be estimated — the
 // app scores an event only when a table for that standard / sex / age band is
 // present, either added to TABLES below or imported in the app.
 
